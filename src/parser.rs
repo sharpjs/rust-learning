@@ -2,26 +2,35 @@
 use token::Token;
 use token::Token::*;
 
-pub struct Parser<I> where I: Iterator<Item=u8> {
-  bytes: I,
-  byte:  u8,
+const VALUE_INIT_CAPACITY: usize = 128; // bytes
+
+pub struct Parser<I> where I: Iterator<Item=char> {
+  chars: I,
+  c:     char,
   start: usize,
-  index: usize
+  index: usize,
+  value: String
 }
 
 trait Parseable {
   fn parser(&self) -> Parser<Self>;
 }
 
-impl<'a, I> Parseable for I where I: 'a + Iterator<Item=u8> + Clone {
+impl<I> Parseable for I where I: Iterator<Item=char> + Clone {
   fn parser(&self) -> Parser<I> {
-    let mut bytes = self.clone();
-    let     byte  = bytes.next().unwrap();
-    Parser { bytes: bytes, byte: byte, start: 0, index: 0 }
+    let mut cs = self.clone();
+    let     c  = cs.next().unwrap(); // Should not use unwrap
+    Parser {
+      chars: cs,
+      c:     c,
+      start: 0,
+      index: 0,
+      value: String::with_capacity(VALUE_INIT_CAPACITY)
+    }
   }
 }
 
-impl<'a, I> Parser<I> where I: 'a + Iterator<Item=u8> {
+impl<'a, I> Parser<I> where I: 'a + Iterator<Item=char> {
 
   fn parse(&mut self) -> Token<'a> {
     self.parse_id()
@@ -33,22 +42,33 @@ impl<'a, I> Parser<I> where I: 'a + Iterator<Item=u8> {
   }
 
   fn parse_id(&mut self) -> Token<'a> {
+    self.value.clear();
     loop {
-      match self.byte {
-        b'a'...b'z' | b'A'...b'Z' | b'0'...b'9' | b'_' => self.consume(),
-        _ => return Id("hi" /*self.bytes[self.start ... self.index]*/ )
+      match self.c {
+        c@'a'...'z' | c@'A'...'Z' | c@'0'...'9' | c@'_' => {
+          self.value.push(c);
+          self.consume();
+        },
+        _ => return Id(self.text())
       }
     }
   }
 
+  fn text(&mut self) -> String {
+    self.value.clone()
+  }
+
   fn consume(&mut self) {
-    self.byte   = self.bytes.next().unwrap();
-    self.index += 1; //self.char.len_utf8();
+    self.index += self.c.len_utf8();
+    self.c      = match self.chars.next() {
+      Some(c) => c,
+      None    => '\0'
+    }
   }
 }
 
 #[test]
 fn test_1() {
-  assert_eq!("abc  ".bytes().parser().parse_id(), Id("hi"));
+  assert_eq!("abc  ".chars().parser().parse_id(), Id("abc".into()));
 }
 
