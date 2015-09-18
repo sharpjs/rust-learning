@@ -2,8 +2,9 @@
 #![allow(unused_variables)]
 
 mod char;
-mod token;
 mod parser;
+mod token;
+mod symbol;
 
 fn main() {
 }
