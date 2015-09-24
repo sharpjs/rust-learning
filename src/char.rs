@@ -35,7 +35,7 @@ static CHAR_CLASSES: [CharClass; 128] = [
 ];
 
 pub trait Classify {
-    fn classify(self) -> (CharClass, Self);
+    fn classify(self) -> (CharClass, char);
 }
 
 impl Classify for char {
@@ -50,6 +50,16 @@ impl Classify for char {
             Other
         };
         (class, self)
+    }
+}
+
+impl Classify for Option<char> {
+    #[inline]
+    fn classify(self) -> (CharClass, char) {
+        match self {
+            Some(c) => c.classify(),
+            None    => (Eof, '\0')
+        }
     }
 }
 
