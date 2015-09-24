@@ -1,8 +1,8 @@
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 pub enum CharClass {
-    Other,  // characters not in any class below
     Eof,    // end-of-file virtual character
+    Other,  // characters not in any class below
     Space,  // whitespace: general
     LF,     // whitespace: line feed
     CR,     // whitespace: carriage return
