@@ -28,6 +28,12 @@ impl Pos {
         self.column  = 1;
     }
 }
+        //self.item = match self.iter.next() {
+        //    Some(c) => c.classify(),
+        //    None    => SCANNER_EOF
+        //}
+
+const SCANNER_EOF: (CharClass, char) = (Eof, '\n');
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug )]
 pub enum Token {
@@ -72,7 +78,7 @@ where I: Iterator<Item=char>
     #[inline]
     fn lex(&mut self) {
         loop {
-            match self.input.current() {
+            match self.input.current().classify() {
                 (Eof, _) => {
                     self.start = self.end;
                     self.token = End;
@@ -88,7 +94,7 @@ where I: Iterator<Item=char>
                     self.end.fwd_line(c);
                     self.input.advance();
                     self.start = self.end;
-                    if let (LF, c) = self.input.current() {
+                    if let (LF, c) = self.input.current().classify() {
                         self.end.fwd(c);
                         self.input.advance();
                     }
@@ -112,11 +118,11 @@ where I: Iterator<Item=char>
 
         let buf = &mut self.buf;
 
-        buf.push(self.input.current().1);
+        buf.push(self.input.current().unwrap());
         self.input.advance();
 
         loop {
-            match self.input.current() {
+            match self.input.current().classify() {
                 (Alpha, c) | (Digit, c) => {
                     buf.push(c);
                     self.input.current();
@@ -130,7 +136,7 @@ where I: Iterator<Item=char>
 
     #[inline]
     fn advance(&mut self) {
-        let (_, c) = self.input.current();
+        let (_, c) = self.input.current().classify();
         self.end.fwd_col(c);
         self.input.advance();
     }
@@ -147,23 +153,23 @@ where I: Iterator<Item=char>
 }
 
 #[derive(Clone)]
-struct Scanner<I> where I: Iterator<Item=char> {
-    item: (CharClass, char),
+struct Scanner<I> where I: Iterator, I::Item: Copy {
+    item: Option<I::Item>,
     iter: I
 }
 
-impl<I> Scanner<I> where I: Iterator<Item=char> {
+impl<I> Scanner<I> where I: Iterator, I::Item: Copy {
     #[inline]
     fn new(iter: I) -> Self {
         Scanner {
-            item: SCANNER_EOF,
+            item: None,
             iter: iter
         }
     }
 }
 
-impl<I> Cursor for Scanner<I> where I: Iterator<Item=char> {
-    type Item = (CharClass, char);
+impl<I> Cursor for Scanner<I> where I: Iterator, I::Item: Copy {
+    type Item = Option<I::Item>;
 
     #[inline]
     fn current(&self) -> Self::Item {
@@ -172,12 +178,7 @@ impl<I> Cursor for Scanner<I> where I: Iterator<Item=char> {
 
     #[inline]
     fn advance(&mut self) {
-        self.item = match self.iter.next() {
-            Some(c) => c.classify(),
-            None    => SCANNER_EOF
-        }
+        self.item = self.iter.next();
     }
 }
-
-const SCANNER_EOF: (CharClass, char) = (Eof, '\n');
 
