@@ -39,6 +39,7 @@ pub trait Classify {
 }
 
 impl Classify for char {
+    #[inline]
     fn classify(self) -> (CharClass, char) {
         let index = self as usize;
         let class = if (index & 0x7F) == index {
