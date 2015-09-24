@@ -2,6 +2,7 @@
 #![allow(unused_variables)]
 
 mod char;
+mod lexer;
 mod parser;
 mod token;
 mod symbol;
