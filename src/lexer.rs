@@ -5,8 +5,8 @@ use symbol::Symbol;
 #[derive(Clone, Copy, PartialEq, Eq, Debug )]
 pub struct Pos {
     pub offset: usize,  // 0-based byte offset
-    pub line:   i32,    // 1-based line number
-    pub column: i32,    // 1-based column number
+    pub line:   u32,    // 1-based line number
+    pub column: u32,    // 1-based column number
 }
 
 impl Pos {
@@ -52,6 +52,8 @@ where I: Iterator<Item=char>
     buf:   String,      // shared string builder
     start: Pos,         // position of first char of    token
     end:   Pos,         // position of first char after token
+    // symbols \__ a compilation context?
+    // errors  /
 }
 
 impl<I> Lexer<I>
