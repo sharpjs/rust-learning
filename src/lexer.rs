@@ -115,30 +115,32 @@ where I: Iterator<Item=char>
 
     fn lex_id(&mut self) {
         // we know first char is OK already
-
-        let buf = &mut self.buf;
-
-        buf.push(self.input.current().unwrap());
-        self.input.advance();
+        let c = self.ch();
+        self.buf.push(c);
+        self.eat();
 
         loop {
-            match self.input.current().classify() {
-                (Alpha, c) | (Digit, c) => {
-                    buf.push(c);
-                    self.input.current();
-                },
-                _ => break
-            }
+            let c = self.ch();
+            if !c.is_alphanumeric() { break; }
+            self.buf.push(c);
+            if !self.eat() { break }
         }
 
+        // TODO: get symbol, return Id(symbol)
         self.token = IntLit(42);
     }
 
     #[inline]
-    fn advance(&mut self) {
+    fn ch(&self) -> char {
+        self.input.current().unwrap()
+    }
+
+    #[inline]
+    fn eat(&mut self) -> bool {
         let (_, c) = self.input.current().classify();
         self.end.fwd_col(c);
         self.input.advance();
+        true // temporary
     }
 }
 
