@@ -11,7 +11,8 @@ pub struct Pos {
 pub enum Token {
     Id      (Symbol),
     IntLit  (i32),
-    Eof
+    Eos,                // End of statement
+    Eof,                // End of file
 }
 use self::Token::*;
 
@@ -49,43 +50,50 @@ where I: Iterator<Item=char>
         }
     }
 
-    fn lex(&mut self) {
+    fn lex(&mut self) -> Token {
         loop {
-            match self.ch() {
-                None    => return self.lex_eof(),
+            let result = match self.ch() {
+                None    => self.lex_eof(),
                 Some(c) => match c {
-                    ' ' | '\t'             =>        self.lex_space(),
-                    '\r'                   => return self.lex_cr(),
-                    '\n'                   => return self.lex_lf(),
-                    _ if c.is_alphabetic() => return self.lex_id(),
-                    _                      => return // TODO: error: invalid characters
+                    ' ' | '\t'             => self.lex_space(),
+                    '\r'                   => self.lex_cr(),
+                    '\n'                   => self.lex_lf(),
+                    _ if c.is_alphabetic() => self.lex_id(),
+                    _                      => self.lex_other()
                 }
+            };
+            if let Some(token) = result {
+                self.token = token;
+                return token;
             }
         }
     }
 
-    fn lex_eof(&mut self) {
-        self.start().produce(Eof);
+    fn lex_eof(&mut self) -> Option<Token> {
+        self.start();
+        Some(Eof)
     }
 
-    fn lex_space(&mut self) {
-        // Eat whitespace
-        while let Some(c) = self.right().next_ch() {
+    fn lex_space(&mut self) -> Option<Token> {
+        while let Some(c@' ') = self.right().next_ch() {
             if c != ' ' && c != '\t' { break }
         }
+        None
     }
 
-    fn lex_cr(&mut self) {
+    fn lex_cr(&mut self) -> Option<Token> {
         if let Some(c@'\n') = self.start().down().next_ch() {
             self.next_ch();
         }
+        Some(Eos)
     }
 
-    fn lex_lf(&mut self) {
+    fn lex_lf(&mut self) -> Option<Token> {
         self.start().down().next_ch();
+        Some(Eos)
     }
 
-    fn lex_id(&mut self) {
+    fn lex_id(&mut self) -> Option<Token> {
         // we know first char is OK already
         let c = self.ch().unwrap();
         self.buf.push(c);
@@ -96,7 +104,13 @@ where I: Iterator<Item=char>
         }
 
         // TODO: get symbol, return Id(symbol)
-        self.token = IntLit(42);
+        Some(IntLit(42))
+    }
+
+    fn lex_other(&mut self) -> Option<Token> {
+        self.right().next_ch();
+        // TODO: error message
+        None
     }
 
     #[inline]
