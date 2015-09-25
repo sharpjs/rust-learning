@@ -97,7 +97,7 @@ where I: Iterator<Item=char>
 
     fn lex_id(&mut self) -> Option<Token> {
         // we know first char is OK already
-        let c = self.ch().unwrap();
+        let c = self.start().ch().unwrap();
         self.buf.push(c);
 
         while let Some(c) = self.right().next_ch() {
