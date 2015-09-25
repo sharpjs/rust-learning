@@ -105,7 +105,7 @@ where I: Iterator<Item=char>
             self.buf.push(c);
         }
 
-        let sym = self.syms.intern(self.buf.clone());
+        let sym = self.syms.intern(&self.buf);
         Some(Id(sym))
     }
 
