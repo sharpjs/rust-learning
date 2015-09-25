@@ -1,10 +1,8 @@
-use char::*;
-use char::CharClass::*;
 use symbol::Symbol;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug )]
 pub struct Pos {
-    pub offset: usize,  // 0-based byte offset
+    pub byte:   usize,  // 0-based byte offset
     pub line:   u32,    // 1-based line number
     pub column: u32,    // 1-based column number
 }
@@ -12,7 +10,7 @@ pub struct Pos {
 impl Pos {
     #[inline]
     fn fwd(&mut self, c: char) {
-        self.offset += c.len_utf8();
+        self.byte += c.len_utf8();
     }
 
     #[inline]
@@ -28,36 +26,31 @@ impl Pos {
         self.column  = 1;
     }
 }
-        //self.item = match self.iter.next() {
-        //    Some(c) => c.classify(),
-        //    None    => SCANNER_EOF
-        //}
-
-const SCANNER_EOF: (CharClass, char) = (Eof, '\n');
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug )]
 pub enum Token {
     Id      (Symbol),
     IntLit  (i32),
-    End
+    Eof
 }
 use self::Token::*;
 
-pub trait Cursor {
+pub trait Lookahead {
     type Item;
-    fn current(&self) -> Self::Item;
-    fn advance(&mut self);
+    fn current (&    self) -> Self::Item;
+    fn next    (&mut self) -> Self::Item;
 }
 
 #[derive(Clone)]
 pub struct Lexer<I>
 where I: Iterator<Item=char>
 {
-    token: Token,       // current token
-    input: Scanner<I>,  // remaining chars w/1 lookahead
-    buf:   String,      // shared string builder
-    start: Pos,         // position of first char of    token
-    end:   Pos,         // position of first char after token
+    token: Token,               // current token
+    input: IterLookahead<I>,    // remaining chars w/1 lookahead
+    buf:   String,              // shared string builder
+    start: Pos,                 // position of first char of    token
+    end:   Pos,                 // position of first char after token
+                                // ...also, position of self.ch()
     // symbols \__ a compilation context?
     // errors  /
 }
@@ -65,65 +58,61 @@ where I: Iterator<Item=char>
 impl<I> Lexer<I>
 where I: Iterator<Item=char>
 {
+    #[inline]
     fn new(iter: I) -> Self {
         Lexer {
-            token: End,
-            input: Scanner::new(iter),
+            token: Eof,
+            input: IterLookahead::new(iter),
             buf:   String::with_capacity(128),
-            start: Pos { offset: 0, line: 1, column: 1 },
-            end:   Pos { offset: 0, line: 1, column: 1 }
+            start: Pos { byte: 0, line: 1, column: 1 },
+            end:   Pos { byte: 0, line: 1, column: 1 }
         }
     }
 
-    #[inline]
     fn lex(&mut self) {
         loop {
-            match self.input.current().classify() {
-                (Eof, _) => {
-                    self.start = self.end;
-                    self.token = End;
-                    return;
-                },
-                (Space, c) => {
-                    self.end.fwd_col(c);
-                    self.input.advance();
-                    self.start = self.end;
-                    continue;
-                },
-                (CR, c) => {
-                    self.end.fwd_line(c);
-                    self.input.advance();
-                    self.start = self.end;
-                    if let (LF, c) = self.input.current().classify() {
-                        self.end.fwd(c);
-                        self.input.advance();
-                    }
-                    continue;
+            match self.ch() {
+                None    => return self.lex_eof(),
+                Some(c) => match c {
+                    ' ' | '\t'             =>        self.lex_space(),
+                    '\r'                   => return self.lex_cr(),
+                    '\n'                   => return self.lex_lf(),
+                    _ if c.is_alphabetic() => return self.lex_id(),
+                    _                      => return // TODO: error: invalid characters
                 }
-                (LF, c) => {
-                    self.end.fwd_line(c);
-                    self.input.advance();
-                    self.start = self.end;
-                },
-                (Alpha, c) => {
-                    self.lex_id();
-                }
-                _ => return
             }
         }
     }
 
+    fn lex_eof(&mut self) {
+        self.start().produce(Eof);
+    }
+
+    fn lex_space(&mut self) {
+        // Eat whitespace
+        while let Some(c) = self.right().next_ch() {
+            if c != ' ' && c != '\t' { break }
+        }
+    }
+
+    fn lex_cr(&mut self) {
+        if let Some(c@'\n') = self.start().down().next_ch() {
+            self.next_ch();
+        }
+    }
+
+    fn lex_lf(&mut self) {
+        self.start().down().next_ch();
+    }
+
     fn lex_id(&mut self) {
         // we know first char is OK already
-        let c = self.ch();
+        let c = self.ch().unwrap();
         self.buf.push(c);
-        self.eat();
 
-        loop {
-            let c = self.ch();
-            if !c.is_alphanumeric() { break; }
+        while let Some(c) = self.right().next_ch() {
+            if !c.is_alphanumeric() { break }
             self.buf.push(c);
-            if !self.eat() { break }
         }
 
         // TODO: get symbol, return Id(symbol)
@@ -131,46 +120,82 @@ where I: Iterator<Item=char>
     }
 
     #[inline]
-    fn ch(&self) -> char {
-        self.input.current().unwrap()
+    fn ch(&self) -> Option<char> {
+        self.input.current()
     }
 
     #[inline]
-    fn eat(&mut self) -> bool {
-        let (_, c) = self.input.current().classify();
-        self.end.fwd_col(c);
-        self.input.advance();
-        true // temporary
+    fn next_ch(&mut self) -> Option<char> {
+        match self.ch() {
+            Some(c) => {
+                self.end.byte += c.len_utf8();
+                self.input.next()
+            },
+            None => None
+        }
+    }
+
+    // Sets the current line/col position as the start of a token
+    #[inline]
+    fn start(&mut self) -> &mut Self {
+        self.start = self.end;
+        self
+    }
+
+    // Advances line/col position to the next column
+    #[inline]
+    fn right(&mut self) -> &mut Self {
+        self.end.column += 1;
+        self
+    }
+
+    // Advances line/col position to column 1 of the next line
+    #[inline]
+    fn down(&mut self) -> &mut Self {
+        self.end.line   += 1;
+        self.end.column  = 1;
+        self
+    }
+
+    // Sets the current token
+    #[inline]
+    fn produce(&mut self, t: Token) -> &mut Self {
+        self.token = t;
+        self
     }
 }
 
-impl<I> Cursor for Lexer<I>
+impl<I> Lookahead for Lexer<I>
 where I: Iterator<Item=char>
 {
     type Item = Token;
 
     #[inline]
-    fn current(&self) -> Token { self.token }
-    fn advance(&mut self) { self.lex(); }
+    fn current(&self) -> Token {
+        self.token
+    }
+
+    #[inline]
+    fn next(&mut self) -> Token {
+        self.lex();
+        self.token
+    }
 }
 
 #[derive(Clone)]
-struct Scanner<I> where I: Iterator, I::Item: Copy {
+struct IterLookahead<I> where I: Iterator, I::Item: Copy {
     item: Option<I::Item>,
     iter: I
 }
 
-impl<I> Scanner<I> where I: Iterator, I::Item: Copy {
+impl<I> IterLookahead<I> where I: Iterator, I::Item: Copy {
     #[inline]
     fn new(iter: I) -> Self {
-        Scanner {
-            item: None,
-            iter: iter
-        }
+        IterLookahead { item: None, iter: iter }
     }
 }
 
-impl<I> Cursor for Scanner<I> where I: Iterator, I::Item: Copy {
+impl<I> Lookahead for IterLookahead<I> where I: Iterator, I::Item: Copy {
     type Item = Option<I::Item>;
 
     #[inline]
@@ -179,8 +204,10 @@ impl<I> Cursor for Scanner<I> where I: Iterator, I::Item: Copy {
     }
 
     #[inline]
-    fn advance(&mut self) {
-        self.item = self.iter.next();
+    fn next(&mut self) -> Self::Item {
+        let item = self.iter.next();
+        self.item = item;
+        item
     }
 }
 
