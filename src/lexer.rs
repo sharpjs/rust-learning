@@ -7,26 +7,6 @@ pub struct Pos {
     pub column: u32,    // 1-based column number
 }
 
-impl Pos {
-    #[inline]
-    fn fwd(&mut self, c: char) {
-        self.byte += c.len_utf8();
-    }
-
-    #[inline]
-    fn fwd_col(&mut self, c: char) {
-        self.fwd(c);
-        self.column += 1;
-    }
-
-    #[inline]
-    fn fwd_line(&mut self, c: char) {
-        self.fwd(c);
-        self.line   += 1;
-        self.column  = 1;
-    }
-}
-
 #[derive(Clone, Copy, PartialEq, Eq, Debug )]
 pub enum Token {
     Id      (Symbol),
