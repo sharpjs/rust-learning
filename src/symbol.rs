@@ -10,20 +10,21 @@ pub struct SymbolInfo {
     // other fields here
 }
 
+#[derive(Clone)]
 pub struct SymbolTable {
     map: HashMap<String, Symbol>,
     vec: Vec<Box<SymbolInfo>>
 }
 
 impl SymbolTable {
-    fn new() -> Self {
+    pub fn new() -> Self {
         SymbolTable {
             map: HashMap::new(),
             vec: Vec    ::new()
         }
     }
 
-    fn intern<S>(&mut self, name: S) -> Symbol
+    pub fn intern<S>(&mut self, name: S) -> Symbol
         where S: Into<String>
     {
         // We own the name, thank you

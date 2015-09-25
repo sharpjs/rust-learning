@@ -1,4 +1,4 @@
-use symbol::Symbol;
+use symbol::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug )]
 pub struct Pos {
@@ -32,6 +32,7 @@ where I: Iterator<Item=char>
     start: Pos,                 // position of first char of    token
     end:   Pos,                 // position of first char after token
                                 // ...also, position of self.ch()
+    syms:  Box<SymbolTable>,
     // symbols \__ a compilation context?
     // errors  /
 }
@@ -46,7 +47,8 @@ where I: Iterator<Item=char>
             input: IterLookahead::new(iter),
             buf:   String::with_capacity(128),
             start: Pos { byte: 0, line: 1, column: 1 },
-            end:   Pos { byte: 0, line: 1, column: 1 }
+            end:   Pos { byte: 0, line: 1, column: 1 },
+            syms:  Box::new(SymbolTable::new())
         }
     }
 
@@ -103,8 +105,8 @@ where I: Iterator<Item=char>
             self.buf.push(c);
         }
 
-        // TODO: get symbol, return Id(symbol)
-        Some(IntLit(42))
+        let sym = self.syms.intern(self.buf.clone());
+        Some(Id(sym))
     }
 
     fn lex_other(&mut self) -> Option<Token> {
