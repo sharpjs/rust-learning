@@ -63,6 +63,7 @@ where I: Iterator<Item=char>
                     '\n'                   => self.lex_lf(),
                     '0'                    => self.lex_num_zero(),
                     '1'...'9'              => self.lex_num_nonzero(),
+                    '_'                    => self.lex_id(),
                     _ if c.is_alphabetic() => self.lex_id(),
                     _                      => self.lex_other()
                 }
@@ -98,17 +99,19 @@ where I: Iterator<Item=char>
         Some(Eos)
     }
 
+    // Scan identifier (at alpha or _)
+    //
     fn lex_id(&mut self) -> Option<Token> {
-        // we know first char is OK already
-        let c = self.start().ch().unwrap();
-        self.buf.push(c);
+        let input = self.start().ch();
+        self.buf.push(input.unwrap());
 
         while let Some(c) = self.advance().ch() {
-            if !c.is_alphanumeric() { break }
+            if c != '_' && !c.is_alphanumeric() { break; }
             self.buf.push(c);
         }
 
         let sym = self.syms.intern(&self.buf);
+        self.buf.clear();
         Some(Id(sym))
     }
 
@@ -275,6 +278,13 @@ mod tests {
         assert_eq!(lex(     "0b1  "), Int(         1));
         assert_eq!(lex(     "0b1;;"), Int(         1));
         assert_eq!(lex(     "0b19z"), Eof            ); // TODO: error
+    }
+
+    #[test]
+    fn id() {
+        assert_eq!(lex("a"  ), Id(0.into()));
+        assert_eq!(lex("a;" ), Id(0.into()));
+        assert_eq!(lex("_a1"), Id(0.into()));
     }
 
     fn lex(s: &str) -> Token {

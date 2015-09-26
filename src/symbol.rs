@@ -4,6 +4,14 @@ use std::collections::HashMap;
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Symbol(usize);
 
+impl From<usize> for Symbol {
+    fn from(n: usize) -> Self { Symbol(n) }
+}
+
+impl Into<usize> for Symbol {
+    fn into(self) -> usize { self.0 }
+}
+
 #[derive(Clone, Debug)]
 pub struct SymbolInfo {
     pub name: String,
