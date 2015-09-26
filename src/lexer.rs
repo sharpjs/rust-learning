@@ -33,6 +33,7 @@ where I: Iterator<Item=char>
     end:   Pos,                 // position of first char after token
                                 // ...also, position of self.ch()
     syms:  Box<SymbolTable>,
+    errs:  u32
     // symbols \__ a compilation context?
     // errors  /
 }
@@ -40,7 +41,6 @@ where I: Iterator<Item=char>
 impl<I> Lexer<I>
 where I: Iterator<Item=char>
 {
-    #[inline]
     fn new(iter: I) -> Self {
         Lexer {
             token: Eof,
@@ -48,7 +48,8 @@ where I: Iterator<Item=char>
             buf:   String::with_capacity(128),
             start: Pos { byte: 0, line: 1, column: 1 },
             end:   Pos { byte: 0, line: 1, column: 1 },
-            syms:  Box::new(SymbolTable::new())
+            syms:  Box::new(SymbolTable::new()),
+            errs:  0
         }
     }
 
@@ -60,8 +61,8 @@ where I: Iterator<Item=char>
                     ' ' | '\t'             => self.lex_space(),
                     '\r'                   => self.lex_cr(),
                     '\n'                   => self.lex_lf(),
-                    '0'                    => self.start().advance().lex_num(),
-                    '1'...'9'              => self.start().advance().lex_num_radix(10),
+                    '0'                    => self.lex_num_zero(),
+                    '1'...'9'              => self.lex_num_nonzero(),
                     _ if c.is_alphabetic() => self.lex_id(),
                     _                      => self.lex_other()
                 }
@@ -111,26 +112,36 @@ where I: Iterator<Item=char>
         Some(Id(sym))
     }
 
-    // Parse number (current char is a zero)
-    fn lex_num(&mut self) -> Option<Token> {
-        match self.start().advance().ch() {
+    // Scan number (at 0)
+    //
+    fn lex_num_zero(&mut self) -> Option<Token> {
+        let input = self.start().advance().ch();
+        match input {
             Some(c) => match c {
-                '0'...'9' => {                 self.lex_num_radix(10) },
-                'x'       => { self.advance(); self.lex_num_radix(16) },
-                'o'       => { self.advance(); self.lex_num_radix( 8) },
-                'b'       => { self.advance(); self.lex_num_radix( 2) },
-                _         => self.error("Invalid integer format")
+                '0'...'9' => { self          .lex_num_radix(10) },
+                'x'       => { self.advance().lex_num_radix(16) },
+                'o'       => { self.advance().lex_num_radix( 8) },
+                'b'       => { self.advance().lex_num_radix( 2) },
+                 _        => { self          .lex_after_num(c, 0) }
             },
-            _ => self.error("")
+            None => Some(Int(0))
         }
     }
 
-    // Parse number after a radix prefix
+    // Scan number (at 1-9)
+    //
+    #[inline]
+    fn lex_num_nonzero(&mut self) -> Option<Token> {
+        self.start().lex_num_radix(10)
+    }
+
+    // Scan number (at fist digit of known radix)
+    //
     fn lex_num_radix(&mut self, radix: u32) -> Option<Token> {
         let mut input = self.ch();
         let mut value: u32;
 
-        // Allow leading _ but require at least one digit
+        // Allow leading _, but require a digit
         loop {
             match input {
                 Some('_') => {
@@ -146,10 +157,10 @@ where I: Iterator<Item=char>
                 },
                 _ => {}
             }
-            return None; // Error: incomplete integer literal
+            return self.err_int_format();
         }
 
-        // Match trailing digits or _
+        // Match digits or _
         loop {
             match input {
                 Some('_') => {
@@ -162,10 +173,7 @@ where I: Iterator<Item=char>
                         value = value * radix + d;
                         continue;
                     }
-                    if c.is_alphabetic() || c.is_digit(10) {
-                        // eat invalid chars
-                        return None; // Error: Invalid integer literal
-                    }
+                    return self.lex_after_num(c, value);
                 },
                 _ => {}
             }
@@ -173,9 +181,27 @@ where I: Iterator<Item=char>
         }
     }
 
+    // Finish scanning number (at char after num)
+    //
+    fn lex_after_num(&mut self, c: char, val: u32) -> Option<Token> {
+        // OK if at valid char
+        if !c.is_digit(10) && !c.is_alphabetic() {
+            return Some(Int(val));
+        }
+
+        // Eat invalid chars
+        while let Some(c) = self.advance().ch() {
+            if !c.is_digit(10) && !c.is_alphabetic() {
+                break;
+            }
+        }
+
+        return self.err_int_format();
+    }
+
     fn lex_other(&mut self) -> Option<Token> {
         self.advance().ch();
-        // TODO: error message
+        self.errs += 1; // TODO: error message
         None
     }
 
@@ -218,11 +244,47 @@ where I: Iterator<Item=char>
 
     // Adds an error message
     #[inline]
-    fn error<S>(&mut self, msg: S) -> Option<Token>
-    where S: Into<String> {
+    fn error<S>(&mut self, msg: S) -> Option<Token> where S: Into<String> {
+        println!("{}", msg.into());
         None
     }
+
+    fn err_int_format(&mut self) -> Option<Token> {
+        self.error("Invalid integer literal.")
+    }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::Token::*;
+
+    #[test]
+    fn num() {
+        assert_eq!(lex( "123456789"), Int( 123456789));
+        assert_eq!(lex("0x01234567"), Int(0x01234567));
+        assert_eq!(lex("0x89ABCDEF"), Int(0x89ABCDEF));
+        assert_eq!(lex("0x89abcdef"), Int(0x89ABCDEF));
+        assert_eq!(lex("0o01234567"), Int(0o01234567));
+        assert_eq!(lex(      "0b01"), Int(      0b01));
+        assert_eq!(lex(       "012"), Int(        12));
+        assert_eq!(lex(         "0"), Int(         0));
+        assert_eq!(lex(    "1__2__"), Int(        12));
+        assert_eq!(lex("0x__1__2__"), Int(      0x12));
+        assert_eq!(lex(       "0__"), Int(         0));
+        assert_eq!(lex(     "0b1  "), Int(         1));
+        assert_eq!(lex(     "0b1;;"), Int(         1));
+        assert_eq!(lex(     "0b19z"), Eof            ); // TODO: error
+    }
+
+    fn lex(s: &str) -> Token {
+        let mut lexer = Lexer::new(s.chars());
+        let     token = lexer.lex();
+        assert_eq!(lexer.errs, 0);
+        token
+    }
+}
+
 
 impl<I> Lookahead for Lexer<I>
 where I: Iterator<Item=char>
@@ -249,8 +311,9 @@ struct IterLookahead<I> where I: Iterator, I::Item: Copy {
 
 impl<I> IterLookahead<I> where I: Iterator, I::Item: Copy {
     #[inline]
-    fn new(iter: I) -> Self {
-        IterLookahead { item: None, iter: iter }
+    fn new(mut iter: I) -> Self {
+        let item = iter.next();
+        IterLookahead { item: item, iter: iter }
     }
 }
 
