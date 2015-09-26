@@ -10,7 +10,7 @@ pub struct Pos {
 #[derive(Clone, Copy, PartialEq, Eq, Debug )]
 pub enum Token {
     Id      (Symbol),
-    IntLit  (i32),
+    Int     (u32),
     Eos,                // End of statement
     Eof,                // End of file
 }
@@ -60,6 +60,8 @@ where I: Iterator<Item=char>
                     ' ' | '\t'             => self.lex_space(),
                     '\r'                   => self.lex_cr(),
                     '\n'                   => self.lex_lf(),
+                    '0'                    => self.start().advance().lex_num(),
+                    '1'...'9'              => self.start().advance().lex_num_radix(10),
                     _ if c.is_alphabetic() => self.lex_id(),
                     _                      => self.lex_other()
                 }
@@ -77,21 +79,21 @@ where I: Iterator<Item=char>
     }
 
     fn lex_space(&mut self) -> Option<Token> {
-        while let Some(c@' ') = self.right().next_ch() {
+        while let Some(c@' ') = self.advance().ch() {
             if c != ' ' && c != '\t' { break }
         }
         None
     }
 
     fn lex_cr(&mut self) -> Option<Token> {
-        if let Some(c@'\n') = self.start().down().next_ch() {
-            self.next_ch();
+        if let Some(c@'\n') = self.start().newline().ch() {
+            self.consume();
         }
         Some(Eos)
     }
 
     fn lex_lf(&mut self) -> Option<Token> {
-        self.start().down().next_ch();
+        self.start().newline();
         Some(Eos)
     }
 
@@ -100,7 +102,7 @@ where I: Iterator<Item=char>
         let c = self.start().ch().unwrap();
         self.buf.push(c);
 
-        while let Some(c) = self.right().next_ch() {
+        while let Some(c) = self.advance().ch() {
             if !c.is_alphanumeric() { break }
             self.buf.push(c);
         }
@@ -109,8 +111,70 @@ where I: Iterator<Item=char>
         Some(Id(sym))
     }
 
+    // Parse number (current char is a zero)
+    fn lex_num(&mut self) -> Option<Token> {
+        match self.start().advance().ch() {
+            Some(c) => match c {
+                '0'...'9' => {                 self.lex_num_radix(10) },
+                'x'       => { self.advance(); self.lex_num_radix(16) },
+                'o'       => { self.advance(); self.lex_num_radix( 8) },
+                'b'       => { self.advance(); self.lex_num_radix( 2) },
+                _         => self.error("Invalid integer format")
+            },
+            _ => self.error("")
+        }
+    }
+
+    // Parse number after a radix prefix
+    fn lex_num_radix(&mut self, radix: u32) -> Option<Token> {
+        let mut input = self.ch();
+        let mut value: u32;
+
+        // Allow leading _ but require at least one digit
+        loop {
+            match input {
+                Some('_') => {
+                    input = self.advance().ch();
+                    continue;
+                },
+                Some(c) => {
+                    if let Some(d) = c.to_digit(radix) {
+                        input = self.advance().ch();
+                        value = d;
+                        break;
+                    }
+                },
+                _ => {}
+            }
+            return None; // Error: incomplete integer literal
+        }
+
+        // Match trailing digits or _
+        loop {
+            match input {
+                Some('_') => {
+                    input = self.advance().ch();
+                    continue;
+                },
+                Some(c) => {
+                    if let Some(d) = c.to_digit(radix) {
+                        input = self.advance().ch();
+                        value = value * radix + d;
+                        continue;
+                    }
+                    if c.is_alphabetic() || c.is_digit(10) {
+                        // eat invalid chars
+                        return None; // Error: Invalid integer literal
+                    }
+                },
+                _ => {}
+            }
+            return Some(Int(value));
+        }
+    }
+
     fn lex_other(&mut self) -> Option<Token> {
-        self.right().next_ch();
+        self.advance().ch();
         // TODO: error message
         None
     }
@@ -120,44 +184,43 @@ where I: Iterator<Item=char>
         self.input.current()
     }
 
+    // Consumes the current character without advancing position.
     #[inline]
-    fn next_ch(&mut self) -> Option<char> {
-        match self.ch() {
-            Some(c) => {
-                self.end.byte += c.len_utf8();
-                self.input.next()
-            },
-            None => None
-        }
+    fn consume(&mut self) -> &mut Self {
+        self.end.byte += self.ch().unwrap().len_utf8();
+        self.input.next();
+        self
     }
 
-    // Sets the current line/col position as the start of a token
+    // Consumes the current character and advances position to the next column.
+    #[inline]
+    fn advance(&mut self) -> &mut Self {
+        self.consume();
+        self.end.column += 1;
+        self
+    }
+
+    // Consumes the current character and advances position to the next line.
+    #[inline]
+    fn newline(&mut self) -> &mut Self {
+        self.consume();
+        self.end.line   += 1;
+        self.end.column  = 1;
+        self
+    }
+
+    // Sets the current position as the start of a token.
     #[inline]
     fn start(&mut self) -> &mut Self {
         self.start = self.end;
         self
     }
 
-    // Advances line/col position to the next column
+    // Adds an error message
     #[inline]
-    fn right(&mut self) -> &mut Self {
-        self.end.column += 1;
-        self
-    }
-
-    // Advances line/col position to column 1 of the next line
-    #[inline]
-    fn down(&mut self) -> &mut Self {
-        self.end.line   += 1;
-        self.end.column  = 1;
-        self
-    }
-
-    // Sets the current token
-    #[inline]
-    fn produce(&mut self, t: Token) -> &mut Self {
-        self.token = t;
-        self
+    fn error<S>(&mut self, msg: S) -> Option<Token>
+    where S: Into<String> {
+        None
     }
 }
 
