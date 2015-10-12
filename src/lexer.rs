@@ -1,13 +1,13 @@
 use symbol::*;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug )]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Pos {
     pub byte:   usize,  // 0-based byte offset
     pub line:   u32,    // 1-based line number
     pub column: u32,    // 1-based column number
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug )]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token {
     Id      (Symbol),
     Int     (u32),
