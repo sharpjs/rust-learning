@@ -30,9 +30,10 @@ pub trait Lookahead {
 enum State {
     Initial,
     AfterEos,
+    InId,
     AtEof
 }
-const STATE_COUNT: usize = 3;
+const STATE_COUNT: usize = 4;
 use self::State::*;
 
 type StateEntry = (
@@ -117,12 +118,12 @@ static STATES: [StateEntry; STATE_COUNT] = [
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, 5, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
         x, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
+        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
         /* 0: eof */ ( AtEof    , false , None               ),
@@ -130,7 +131,8 @@ static STATES: [StateEntry; STATE_COUNT] = [
         /* 2: \s  */ ( Initial  , true  , None               ),
         /* 3: \n  */ ( AfterEos , true  , Some(yield_eos_nl) ),
         /* 4:  ;  */ ( AfterEos , true  , Some(yield_eos)    ),
-        /* 5:  !  */ ( Initial  , true  , Some(yield_bang)   ),
+        /* 4: id0 */ ( InId     , true  , Some(begin_id)     ),
+//      /* n:  !  */ ( Initial  , true  , Some(yield_bang)   ),
     ]),
     // AfterEos
     ([
@@ -148,6 +150,22 @@ static STATES: [StateEntry; STATE_COUNT] = [
         /* 1: ??? */ ( Initial  , false , None             ),
         /* 2: \s  */ ( AfterEos , true  , None             ),
         /* 3: \n  */ ( AfterEos , true  , Some(newline)    ),
+    ]),
+    // InId
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // @ABCDEFG HIJKLMNO
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, 2, // PQRSTUVW XYZ[\]^_
+        x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // `abcdefg hijklmno
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next     Consume  Action
+        /* 0: eof */ ( AtEof   , false , Some(yield_id) ),
+        /* 1: ??? */ ( Initial , false , Some(yield_id) ),
+        /* 2: id  */ ( InId    , true  , Some(accum_id) ),
     ]),
     // AtEof
     ([
@@ -187,6 +205,22 @@ fn newline(l: &mut Context, c: char) -> Option<Token> {
     l.current.column = 1;
     l.current.line  += 1;
     None
+}
+
+fn begin_id(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.clear();
+    l.buffer.push(c);
+    None
+}
+
+fn accum_id(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.push(c);
+    None
+}
+
+fn yield_id(l: &mut Context, c: char) -> Option<Token> {
+    let n = l.strings.intern(&l.buffer);
+    Some(Id(n))
 }
 
 fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
