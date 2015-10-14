@@ -19,7 +19,7 @@ macro_rules! is {
 mod char;
 mod lexer;
 mod parser;
-mod symbol;
+mod interner;
 
 fn main() {
 }
