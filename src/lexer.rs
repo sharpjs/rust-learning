@@ -1,4 +1,5 @@
 use symbol::*;
+use char::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Pos {
@@ -21,6 +22,217 @@ pub trait Lookahead {
     fn current (&    self) -> Self::Item;
     fn next    (&mut self) -> Self::Item;
 }
+
+// Begin new idea 2015-10-13
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(u8)]
+enum State {
+    Initial,
+    AtEof
+}
+use self::State::*;
+
+const STATE_COUNT: usize = 2;
+
+struct TransitionTable
+{
+    entries: [Transition; CHAR_CLASS_COUNT]
+}
+
+type Transition =
+(
+    State,          // next state
+    bool,           // if input char should be consumed
+    Option<Action>  // custom action to perform
+);
+
+type Action = fn(char, &mut Context) -> Option<Token>;
+
+struct Context {
+    start:   Pos,           // position of token start
+    current: Pos,           // position of current character
+    buffer:  String,        // shared string builder
+    // symbols \__ a compilation context?
+    // errors  /
+}
+
+static TRANSITIONS: [[Transition; CHAR_CLASS_COUNT]; STATE_COUNT] = [
+    // Initial
+    [
+        /* eof */ (AtEof,   false, Some(eof)), // empty input
+        /* ??? */ (Initial, true,  None),
+        /* \s  */ (Initial, true,  None),
+        /* \n  */ (Initial, true,  Some(newline)),
+        /*  {  */ (Initial, true,  None),
+        /*  }  */ (Initial, true,  None),
+        /*  (  */ (Initial, true,  None),
+        /*  )  */ (Initial, true,  None),
+        /*  [  */ (Initial, true,  None),
+        /*  ]  */ (Initial, true,  None),
+        /*  "  */ (Initial, true,  None),
+        /*  '  */ (Initial, true,  None),
+        /*  \  */ (Initial, true,  None),
+        /*  .  */ (Initial, true,  None),
+        /*  @  */ (Initial, true,  None),
+        /*  !  */ (Initial, true,  None),
+        /*  ~  */ (Initial, true,  None),
+        /*  `  */ (Initial, true,  None),
+        /*  *  */ (Initial, true,  None),
+        /*  /  */ (Initial, true,  None),
+        /*  %  */ (Initial, true,  None),
+        /*  +  */ (Initial, true,  None),
+        /*  -  */ (Initial, true,  None),
+        /*  &  */ (Initial, true,  None),
+        /*  ^  */ (Initial, true,  None),
+        /*  |  */ (Initial, true,  None),
+        /*  <  */ (Initial, true,  None),
+        /*  >  */ (Initial, true,  None),
+        /*  =  */ (Initial, true,  None),
+        /*  $  */ (Initial, true,  None),
+        /*  ?  */ (Initial, true,  None),
+        /*  :  */ (Initial, true,  None),
+        /*  ,  */ (Initial, true,  None),
+        /*  ;  */ (Initial, true,  None),
+        /*  _  */ (Initial, true,  None),
+        /*  b  */ (Initial, true,  None),
+        /*  d  */ (Initial, true,  None),
+        /*  o  */ (Initial, true,  None),
+        /*  x  */ (Initial, true,  None),
+        /* hex */ (Initial, true,  None),
+        /* alp */ (Initial, true,  None),
+        /*  0  */ (Initial, true,  None),
+        /*  1  */ (Initial, true,  None),
+        /* oct */ (Initial, true,  None),
+        /* dec */ (Initial, true,  None),
+    ],
+    // AtEof
+    [
+        /* eof */ (AtEof, false, Some(eof)),
+        /* ??? */ (AtEof, false, Some(eof)),
+        /* \s  */ (AtEof, false, Some(eof)),
+        /* \n  */ (AtEof, false, Some(eof)),
+        /*  {  */ (AtEof, false, Some(eof)),
+        /*  }  */ (AtEof, false, Some(eof)),
+        /*  (  */ (AtEof, false, Some(eof)),
+        /*  )  */ (AtEof, false, Some(eof)),
+        /*  [  */ (AtEof, false, Some(eof)),
+        /*  ]  */ (AtEof, false, Some(eof)),
+        /*  "  */ (AtEof, false, Some(eof)),
+        /*  '  */ (AtEof, false, Some(eof)),
+        /*  \  */ (AtEof, false, Some(eof)),
+        /*  .  */ (AtEof, false, Some(eof)),
+        /*  @  */ (AtEof, false, Some(eof)),
+        /*  !  */ (AtEof, false, Some(eof)),
+        /*  ~  */ (AtEof, false, Some(eof)),
+        /*  `  */ (AtEof, false, Some(eof)),
+        /*  *  */ (AtEof, false, Some(eof)),
+        /*  /  */ (AtEof, false, Some(eof)),
+        /*  %  */ (AtEof, false, Some(eof)),
+        /*  +  */ (AtEof, false, Some(eof)),
+        /*  -  */ (AtEof, false, Some(eof)),
+        /*  &  */ (AtEof, false, Some(eof)),
+        /*  ^  */ (AtEof, false, Some(eof)),
+        /*  |  */ (AtEof, false, Some(eof)),
+        /*  <  */ (AtEof, false, Some(eof)),
+        /*  >  */ (AtEof, false, Some(eof)),
+        /*  =  */ (AtEof, false, Some(eof)),
+        /*  $  */ (AtEof, false, Some(eof)),
+        /*  ?  */ (AtEof, false, Some(eof)),
+        /*  :  */ (AtEof, false, Some(eof)),
+        /*  ,  */ (AtEof, false, Some(eof)),
+        /*  ;  */ (AtEof, false, Some(eof)),
+        /*  _  */ (AtEof, false, Some(eof)),
+        /*  b  */ (AtEof, false, Some(eof)),
+        /*  d  */ (AtEof, false, Some(eof)),
+        /*  o  */ (AtEof, false, Some(eof)),
+        /*  x  */ (AtEof, false, Some(eof)),
+        /* hex */ (AtEof, false, Some(eof)),
+        /* alp */ (AtEof, false, Some(eof)),
+        /*  0  */ (AtEof, false, Some(eof)),
+        /*  1  */ (AtEof, false, Some(eof)),
+        /* oct */ (AtEof, false, Some(eof)),
+        /* dec */ (AtEof, false, Some(eof)),
+    ]
+];
+
+pub struct Lexer2<I>
+where I: Iterator<Item=char>
+{
+    iter:   I,                  // remaining chars
+    ch:     char,               // char  after previous token
+    class:  CharClass,          // class after previous token
+    state:  State,              // state after previous token
+    ctx:    Context             // context object give to actions
+}
+
+impl<I> Lexer2<I>
+where I: Iterator<Item=char>
+{
+    fn new(mut iter: I) -> Self {
+        let (class, ch) = iter.next().classify();
+        let state       = match class { CharClass::Eof => AtEof, _ => Initial };
+        let context     = Context {
+            start:   Pos { byte: 0, line: 1, column: 1 },
+            current: Pos { byte: 0, line: 1, column: 1 },
+            buffer:  String::with_capacity(128),
+        };
+        Lexer2 { iter: iter, ch: ch, class: class, state: state, ctx: context }
+    }
+
+    fn lex(&mut self) -> Token {
+        let     iter  = &mut self.iter;
+        let mut ch    =      self.ch;
+        let mut class =      self.class;
+        let mut state =      self.state;
+
+        loop {
+            // Look up what to do
+            let (_state, consume, action)
+                = TRANSITIONS[state as usize][class as usize];
+
+            // Advance to next state
+            state = _state;
+
+            // Consume the current char, if specified
+            if consume {
+                // Advance position past old char
+                self.ctx.current.byte   += ch.len_utf8();
+                self.ctx.current.column += 1;
+
+                // Read new char
+                let (_class, _ch) = iter.next().classify();
+                class = _class;
+                ch    = _ch;
+            }
+
+            // Invoke the action, if any
+            if let Some(func) = action {
+                if let Some(token) = func(ch, &mut self.ctx) {
+                    // Remember state for next call
+                    self.ch    = ch;
+                    self.class = class;
+                    self.state = state;
+
+                    // Yield
+                    return token;
+                }
+            }
+        }
+    }
+}
+
+fn eof(c: char, x: &mut Context) -> Option<Token> {
+    Some(Eof)
+}
+
+fn newline(c: char, x: &mut Context) -> Option<Token> {
+    x.current.column = 1;
+    x.current.line  += 1;
+    None
+}
+
+// End new idea 2015-10-13
 
 #[derive(Clone)]
 pub struct Lexer<I>
