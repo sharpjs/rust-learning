@@ -39,30 +39,21 @@ pub enum CharClass {
     Semi  , // [33] punctuation: ;
 
     Under , // [34] letter: _
-    C     , // [35] letter: c
-    E     , // [36] letter: e
-    F     , // [37] letter: f
-    H     , // [38] letter: h
-    I     , // [39] letter: i
-    J     , // [40] letter: j
-    L     , // [41] letter: l
-    M     , // [42] letter: m
-    N     , // [43] letter: n
-    O     , // [44] letter: o
-    P     , // [45] letter: p
-    R     , // [46] letter: r
-    S     , // [47] letter: s
-    T     , // [48] letter: t
-    U     , // [49] letter: u
-    W     , // [50] letter: w
-    Y     , // [51] letter: y
-    Alpha , // [52] letter: other (abdgkqvxz or uppercase)
+    LoB   , // [35] letter: b
+    LoD   , // [36] letter: d
+    LoO   , // [37] letter: o
+    LoX   , // [38] letter: x
+    Hex   , // [39] letter: a_cdef ABCDEF
+    Alpha , // [40] letter: other
 
-    Zero  , // [53] digit: 0
-    One   , // [54] digit: 1
-    Digit , // [55] digit: other (23456789)
+    Zero  , // [41] digit: 0
+    One   , // [42] digit:  1
+    Oct   , // [43] digit:   234567
+    Dec   , // [44] digit:         89
 }
 use self::CharClass::*;
+
+pub const CHAR_CLASS_COUNT: usize = 45;
 
 // Character classes for 7-bit ASCII
 //
@@ -73,13 +64,13 @@ static CHAR_CLASSES: [CharClass; 128] = [
     Other, Other, Other, Other, Other, Other, Other, Other, // ........
     Space, Bang , DQuot, Other, Dollr, Pct  , Amper, SQuot, //  !"#$%&'
     LPar , RPar , Star , Plus , Comma, Minus, Dot  , Slash, // ()*+,-./
-    Zero , One  , Digit, Digit, Digit, Digit, Digit, Digit, // 01234567
-    Digit, Digit, Semi , Colon, LT   , Equal, GT   , Quest, // 89:;<=>?
-    At   , Alpha, Alpha, C    , Alpha, E    , F    , Alpha, // @ABCDEFG
-    H    , I    , J    , Alpha, L    , M    , N    , O    , // HIJKLMNO
-    P    , Alpha, R    , S    , T    , U    , Alpha, W    , // PQRSTUVW
-    Alpha, Y    , Alpha, LBrak, BkSla, RBrak, Caret, Under, // XYZ[\]^_
-    BkTik, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, // `abcdefg
+    Zero , One  , Oct  , Oct  , Oct  , Oct  , Oct  , Oct  , // 01234567
+    Dec  , Dec  , Semi , Colon, LT   , Equal, GT   , Quest, // 89:;<=>?
+    At   , Hex  , LoB  , Hex  , LoD  , Hex  , Hex  , Alpha, // @ABCDEFG
+    Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, LoO  , // HIJKLMNO
+    Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, // PQRSTUVW
+    LoX  , Alpha, Alpha, LBrak, BkSla, RBrak, Caret, Under, // XYZ[\]^_
+    BkTik, Hex  , Hex  , Hex  , Hex  , Hex  , Hex  , Alpha, // `abcdefg
     Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, // hijklmno
     Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, Alpha, // pqrstuvw
     Alpha, Alpha, Alpha, LCurl, Pipe , RCurl, Tilde, Other, // xyz{|}~. <- DEL
@@ -136,7 +127,7 @@ mod tests {
 
     #[test]
     fn classify_digit() {
-        assert_eq!('9'.classify(), (Digit, '9'));
+        assert_eq!('9'.classify(), (Dec, '9'));
     }
 
     #[test]
