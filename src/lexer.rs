@@ -29,9 +29,10 @@ pub trait Lookahead {
 #[repr(u8)]
 enum State {
     Initial,
+    AfterEos,
     AtEof
 }
-const STATE_COUNT: usize = 2;
+const STATE_COUNT: usize = 3;
 use self::State::*;
 
 type StateEntry = (
@@ -44,39 +45,6 @@ type StateEntry = (
 );
 
 type Action = Option< fn(&mut Context, char) -> Option<Token> >;
-
-static STATES: [StateEntry; STATE_COUNT] = [
-    // Initial
-    ([
-        1, 1, 1, 1, 1, 1, 1, 1,  1, 2, 3, 1, 1, 2, 1, 1, // ........ .tn..r..
-        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // ........ ........
-        2, 4, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, //  !"#$%&' ()*+,-./
-        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // 01234567 89:;<=>?
-        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // @ABCDEFG HIJKLMNO
-        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // PQRSTUVW XYZ[\]^_
-        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // `abcdefg hijklmno
-        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        /* 0: eof */ ( AtEof   , false , Some(eof)        ),
-        /* 1: ??? */ ( AtEof   , true  , Some(lex_error)  ),
-        /* 2: \s  */ ( Initial , true  , None             ),
-        /* 3: \n  */ ( Initial , true  , Some(newline)    ),
-        /* 4:  !  */ ( Initial , true  , Some(yield_bang) ),
-    ]),
-    // AtEof
-    ([
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ ........
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, //  !"#$%&' ()*+,-./
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // 01234567 89:;<=>?
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // @ABCDEFG HIJKLMNO
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVW XYZ[\]^_
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
-        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        /* 0: eof */ ( AtEof , false , Some(eof) ),
-    ]),
-];
 
 pub struct Lexer2<I>
 where I: Iterator<Item=char>
@@ -94,22 +62,6 @@ struct Context {
     // interner
     // errors
 }
-
-fn lex_error(x: &mut Context, c: char) -> Option<Token> {
-    None
-}
-
-fn eof(x: &mut Context, c: char) -> Option<Token> {
-    Some(Eof)
-}
-
-fn newline(x: &mut Context, c: char) -> Option<Token> {
-    x.current.column = 1;
-    x.current.line  += 1;
-    None
-}
-
-fn yield_bang(x: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
 impl<I> Lexer2<I>
 where I: Iterator<Item=char>
@@ -155,6 +107,89 @@ where I: Iterator<Item=char>
         }
     }
 }
+
+// Alias for 'other'; for readability of tables only.
+#[allow(non_upper_case_globals)]
+const x: u8 = 1;
+
+static STATES: [StateEntry; STATE_COUNT] = [
+    // Initial
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, 5, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next      Consume  Action
+        /* 0: eof */ ( AtEof    , false , None               ),
+        /* 1: ??? */ ( AtEof    , false , Some(lex_error)    ),
+        /* 2: \s  */ ( Initial  , true  , None               ),
+        /* 3: \n  */ ( AfterEos , true  , Some(yield_eos_nl) ),
+        /* 4:  ;  */ ( AfterEos , true  , Some(yield_eos)    ),
+        /* 5:  !  */ ( Initial  , true  , Some(yield_bang)   ),
+    ]),
+    // AfterEos
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next      Consume  Action
+        /* 0: eof */ ( AtEof    , false , None             ),
+        /* 1: ??? */ ( Initial  , false , None             ),
+        /* 2: \s  */ ( AfterEos , true  , None             ),
+        /* 3: \n  */ ( AfterEos , true  , Some(newline)    ),
+    ]),
+    // AtEof
+    ([
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ ........
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, //  !"#$%&' ()*+,-./
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // 01234567 89:;<=>?
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // @ABCDEFG HIJKLMNO
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVW XYZ[\]^_
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next   Consume  Action
+        /* 0: eof */ ( AtEof , false , Some(yield_eof) ),
+    ]),
+];
+
+fn lex_error(l: &mut Context, c: char) -> Option<Token> {
+    None
+}
+
+fn yield_eof(l: &mut Context, c: char) -> Option<Token> {
+    Some(Eof)
+}
+
+fn yield_eos(l: &mut Context, c: char) -> Option<Token> {
+    Some(Eos)
+}
+
+fn yield_eos_nl(l: &mut Context, c: char) -> Option<Token> {
+    l.current.column = 1;
+    l.current.line  += 1;
+    Some(Eos)
+}
+
+fn newline(l: &mut Context, c: char) -> Option<Token> {
+    l.current.column = 1;
+    l.current.line  += 1;
+    None
+}
+
+fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
 #[inline]
 fn lookup(entry: &StateEntry, ch: Option<char>) -> (char, (State, bool, Action))
