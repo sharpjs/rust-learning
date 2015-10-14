@@ -1,5 +1,4 @@
 use symbol::*;
-use char::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Pos {
@@ -12,6 +11,7 @@ pub struct Pos {
 pub enum Token {
     Id      (Symbol),
     Int     (u32),
+    Bang,               // !
     Eos,                // End of statement
     Eof,                // End of file
 }
@@ -31,190 +31,124 @@ enum State {
     Initial,
     AtEof
 }
+const STATE_COUNT: usize = 2;
 use self::State::*;
 
-const STATE_COUNT: usize = 2;
-
-struct TransitionTable
-{
-    entries: [Transition; CHAR_CLASS_COUNT]
-}
-
-type Transition =
-(
-    State,          // next state
-    bool,           // if input char should be consumed
-    Option<Action>  // custom action to perform
+type StateEntry = (
+    [u8; 128],      // Map from 7-bit char to transition index
+    &'static [(     // Transitions
+        State,      // - next state
+        bool,       // - true => consume this char
+        Action      // - custom action
+    )]
 );
 
-type Action = fn(char, &mut Context) -> Option<Token>;
+type Action = Option< fn(&mut Context, char) -> Option<Token> >;
 
-struct Context {
-    start:   Pos,           // position of token start
-    current: Pos,           // position of current character
-    buffer:  String,        // shared string builder
-    // symbols \__ a compilation context?
-    // errors  /
-}
-
-static TRANSITIONS: [[Transition; CHAR_CLASS_COUNT]; STATE_COUNT] = [
+static STATES: [StateEntry; STATE_COUNT] = [
     // Initial
-    [
-        /* eof */ (AtEof,   false, Some(eof)), // empty input
-        /* ??? */ (Initial, true,  None),
-        /* \s  */ (Initial, true,  None),
-        /* \n  */ (Initial, true,  Some(newline)),
-        /*  {  */ (Initial, true,  None),
-        /*  }  */ (Initial, true,  None),
-        /*  (  */ (Initial, true,  None),
-        /*  )  */ (Initial, true,  None),
-        /*  [  */ (Initial, true,  None),
-        /*  ]  */ (Initial, true,  None),
-        /*  "  */ (Initial, true,  None),
-        /*  '  */ (Initial, true,  None),
-        /*  \  */ (Initial, true,  None),
-        /*  .  */ (Initial, true,  None),
-        /*  @  */ (Initial, true,  None),
-        /*  !  */ (Initial, true,  None),
-        /*  ~  */ (Initial, true,  None),
-        /*  `  */ (Initial, true,  None),
-        /*  *  */ (Initial, true,  None),
-        /*  /  */ (Initial, true,  None),
-        /*  %  */ (Initial, true,  None),
-        /*  +  */ (Initial, true,  None),
-        /*  -  */ (Initial, true,  None),
-        /*  &  */ (Initial, true,  None),
-        /*  ^  */ (Initial, true,  None),
-        /*  |  */ (Initial, true,  None),
-        /*  <  */ (Initial, true,  None),
-        /*  >  */ (Initial, true,  None),
-        /*  =  */ (Initial, true,  None),
-        /*  $  */ (Initial, true,  None),
-        /*  ?  */ (Initial, true,  None),
-        /*  :  */ (Initial, true,  None),
-        /*  ,  */ (Initial, true,  None),
-        /*  ;  */ (Initial, true,  None),
-        /*  _  */ (Initial, true,  None),
-        /*  b  */ (Initial, true,  None),
-        /*  d  */ (Initial, true,  None),
-        /*  o  */ (Initial, true,  None),
-        /*  x  */ (Initial, true,  None),
-        /* hex */ (Initial, true,  None),
-        /* alp */ (Initial, true,  None),
-        /*  0  */ (Initial, true,  None),
-        /*  1  */ (Initial, true,  None),
-        /* oct */ (Initial, true,  None),
-        /* dec */ (Initial, true,  None),
-    ],
+    ([
+        1, 1, 1, 1, 1, 1, 1, 1,  1, 2, 3, 1, 1, 2, 1, 1, // ........ .tn..r..
+        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // ........ ........
+        2, 4, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, //  !"#$%&' ()*+,-./
+        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // 01234567 89:;<=>?
+        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // @ABCDEFG HIJKLMNO
+        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // PQRSTUVW XYZ[\]^_
+        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // `abcdefg hijklmno
+        1, 1, 1, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        /* 0: eof */ ( AtEof   , false , Some(eof)        ),
+        /* 1: ??? */ ( AtEof   , true  , Some(lex_error)  ),
+        /* 2: \s  */ ( Initial , true  , None             ),
+        /* 3: \n  */ ( Initial , true  , Some(newline)    ),
+        /* 4:  !  */ ( Initial , true  , Some(yield_bang) ),
+    ]),
     // AtEof
-    [
-        /* eof */ (AtEof, false, Some(eof)),
-        /* ??? */ (AtEof, false, Some(eof)),
-        /* \s  */ (AtEof, false, Some(eof)),
-        /* \n  */ (AtEof, false, Some(eof)),
-        /*  {  */ (AtEof, false, Some(eof)),
-        /*  }  */ (AtEof, false, Some(eof)),
-        /*  (  */ (AtEof, false, Some(eof)),
-        /*  )  */ (AtEof, false, Some(eof)),
-        /*  [  */ (AtEof, false, Some(eof)),
-        /*  ]  */ (AtEof, false, Some(eof)),
-        /*  "  */ (AtEof, false, Some(eof)),
-        /*  '  */ (AtEof, false, Some(eof)),
-        /*  \  */ (AtEof, false, Some(eof)),
-        /*  .  */ (AtEof, false, Some(eof)),
-        /*  @  */ (AtEof, false, Some(eof)),
-        /*  !  */ (AtEof, false, Some(eof)),
-        /*  ~  */ (AtEof, false, Some(eof)),
-        /*  `  */ (AtEof, false, Some(eof)),
-        /*  *  */ (AtEof, false, Some(eof)),
-        /*  /  */ (AtEof, false, Some(eof)),
-        /*  %  */ (AtEof, false, Some(eof)),
-        /*  +  */ (AtEof, false, Some(eof)),
-        /*  -  */ (AtEof, false, Some(eof)),
-        /*  &  */ (AtEof, false, Some(eof)),
-        /*  ^  */ (AtEof, false, Some(eof)),
-        /*  |  */ (AtEof, false, Some(eof)),
-        /*  <  */ (AtEof, false, Some(eof)),
-        /*  >  */ (AtEof, false, Some(eof)),
-        /*  =  */ (AtEof, false, Some(eof)),
-        /*  $  */ (AtEof, false, Some(eof)),
-        /*  ?  */ (AtEof, false, Some(eof)),
-        /*  :  */ (AtEof, false, Some(eof)),
-        /*  ,  */ (AtEof, false, Some(eof)),
-        /*  ;  */ (AtEof, false, Some(eof)),
-        /*  _  */ (AtEof, false, Some(eof)),
-        /*  b  */ (AtEof, false, Some(eof)),
-        /*  d  */ (AtEof, false, Some(eof)),
-        /*  o  */ (AtEof, false, Some(eof)),
-        /*  x  */ (AtEof, false, Some(eof)),
-        /* hex */ (AtEof, false, Some(eof)),
-        /* alp */ (AtEof, false, Some(eof)),
-        /*  0  */ (AtEof, false, Some(eof)),
-        /*  1  */ (AtEof, false, Some(eof)),
-        /* oct */ (AtEof, false, Some(eof)),
-        /* dec */ (AtEof, false, Some(eof)),
-    ]
+    ([
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ ........
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, //  !"#$%&' ()*+,-./
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // 01234567 89:;<=>?
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // @ABCDEFG HIJKLMNO
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVW XYZ[\]^_
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        /* 0: eof */ ( AtEof , false , Some(eof) ),
+    ]),
 ];
 
 pub struct Lexer2<I>
 where I: Iterator<Item=char>
 {
-    iter:   I,                  // remaining chars
-    ch:     char,               // char  after previous token
-    class:  CharClass,          // class after previous token
-    state:  State,              // state after previous token
-    ctx:    Context             // context object give to actions
+    iter:       I,             // remaining chars
+    ch:         Option<char>,  // char  after previous token
+    state:      State,         // state after previous token
+    context:    Context        // context object give to actions
 }
+
+struct Context {
+    start:      Pos,           // position of token start
+    current:    Pos,           // position of current character
+    buffer:     String,        // shared string builder
+    // interner
+    // errors
+}
+
+fn lex_error(x: &mut Context, c: char) -> Option<Token> {
+    None
+}
+
+fn eof(x: &mut Context, c: char) -> Option<Token> {
+    Some(Eof)
+}
+
+fn newline(x: &mut Context, c: char) -> Option<Token> {
+    x.current.column = 1;
+    x.current.line  += 1;
+    None
+}
+
+fn yield_bang(x: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
 impl<I> Lexer2<I>
 where I: Iterator<Item=char>
 {
     fn new(mut iter: I) -> Self {
-        let (class, ch) = iter.next().classify();
-        let state       = match class { CharClass::Eof => AtEof, _ => Initial };
-        let context     = Context {
+        let ch      = iter.next();
+        let state   = match ch { Some(_) => Initial, None => AtEof };
+        let context = Context {
             start:   Pos { byte: 0, line: 1, column: 1 },
             current: Pos { byte: 0, line: 1, column: 1 },
             buffer:  String::with_capacity(128),
+            // interner
+            // errors
         };
-        Lexer2 { iter: iter, ch: ch, class: class, state: state, ctx: context }
+        Lexer2 { iter:iter, ch:ch, state:state, context:context }
     }
 
     fn lex(&mut self) -> Token {
         let     iter  = &mut self.iter;
         let mut ch    =      self.ch;
-        let mut class =      self.class;
         let mut state =      self.state;
 
         loop {
-            // Look up what to do
-            let (_state, consume, action)
-                = TRANSITIONS[state as usize][class as usize];
+            let (c, (next_state, consume, action))
+                = lookup(&STATES[state as usize], ch);
 
-            // Advance to next state
-            state = _state;
+            state = next_state;
 
-            // Consume the current char, if specified
             if consume {
-                // Advance position past old char
-                self.ctx.current.byte   += ch.len_utf8();
-                self.ctx.current.column += 1;
-
-                // Read new char
-                let (_class, _ch) = iter.next().classify();
-                class = _class;
-                ch    = _ch;
+                self.context.current.byte   += c.len_utf8();
+                self.context.current.column += 1;
+                ch = iter.next();
             }
 
-            // Invoke the action, if any
             if let Some(func) = action {
-                if let Some(token) = func(ch, &mut self.ctx) {
+                if let Some(token) = func(&mut self.context, c) {
                     // Remember state for next call
                     self.ch    = ch;
-                    self.class = class;
                     self.state = state;
-
-                    // Yield
                     return token;
                 }
             }
@@ -222,14 +156,23 @@ where I: Iterator<Item=char>
     }
 }
 
-fn eof(c: char, x: &mut Context) -> Option<Token> {
-    Some(Eof)
-}
-
-fn newline(c: char, x: &mut Context) -> Option<Token> {
-    x.current.column = 1;
-    x.current.line  += 1;
-    None
+#[inline]
+fn lookup(entry: &StateEntry, ch: Option<char>) -> (char, (State, bool, Action))
+{
+    let (n, c) = match ch {
+        Some(c) => {
+            let n = c as usize;
+            if n & 0x7F == n {
+                // U+007F and below => table lookup
+                (entry.0[n] as usize, c)
+            } else {
+                // U+0080 and above => 'other'
+                (1, c)
+            }
+        },
+        None => (0, '\0') // EOF
+    };
+    (c, entry.1[n])
 }
 
 // End new idea 2015-10-13
@@ -245,7 +188,7 @@ where I: Iterator<Item=char>
     end:   Pos,                 // position of first char after token
                                 // ...also, position of self.ch()
     syms:  Box<SymbolTable>,
-    errs:  u32
+    errs:  u32,
     // symbols \__ a compilation context?
     // errors  /
 }
