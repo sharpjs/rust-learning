@@ -133,7 +133,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        6, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
+        6, 7, 7, 7, 7, 7, 7, 7,  7, 7, x, 4, x, x, x, x, // 01234567 89:;<=>?
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
@@ -147,7 +147,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 4:  ;  */ ( AfterEos  , true  , Some(yield_eos)    ),
         /* 5: id0 */ ( InId      , true  , Some(begin_id)     ),
         /* 6:  0  */ ( AfterZero , true  , Some(begin_num)    ),
-//      /* n:  !  */ ( Initial  , true  , Some(yield_bang)   ),
+        /* 7: 1-9 */ ( InNumDec  , true  , Some(begin_num)    ),
+//      /* n:  !  */ ( Initial   , true  , Some(yield_bang)   ),
     ]),
     // AfterEos - After end of statement
     ([
@@ -161,10 +162,10 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None             ),
-        /* 1: ??? */ ( Initial  , false , None             ),
-        /* 2: \s  */ ( AfterEos , true  , None             ),
-        /* 3: \n  */ ( AfterEos , true  , Some(newline)    ),
+        /* 0: eof */ ( AtEof    , false , None          ),
+        /* 1: ??? */ ( Initial  , false , None          ),
+        /* 2: \s  */ ( AfterEos , true  , None          ),
+        /* 3: \n  */ ( AfterEos , true  , Some(newline) ),
     ]),
     // InId - In identifier
     ([
@@ -194,8 +195,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  4, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None ),
-        /* 1: ??? */ ( Initial  , false , None ),
+        /* 0: eof */ ( AtEof    , false , Some(yield_num_zero) ),
+        /* 1: ??? */ ( Initial  , false , Some(yield_num_zero) ),
         /* 2: 0-9 */ ( InNumDec , false , None ),
         /* 3:  _  */ ( InNumDec , true  , None ),
         /* 4:  x  */ ( InNumHex , true  , None ),
@@ -214,8 +215,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None                  ),
-        /* 1: ??? */ ( Initial  , false , None                  ),
+        /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
+        /* 1: ??? */ ( Initial  , false , Some(yield_num)       ),
         /* 2: 0-9 */ ( InNumDec , true  , Some(accum_num_dec)   ),
         /* 3:  _  */ ( InNumDec , true  , None                  ),
         /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
@@ -232,8 +233,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         6, 6, 6, 6, 6, 6, 6, 6,  6, 6, 6, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None                    ),
-        /* 1: ??? */ ( Initial  , false , None                    ),
+        /* 0: eof */ ( AtEof    , false , Some(yield_num)         ),
+        /* 1: ??? */ ( Initial  , false , Some(yield_num)         ),
         /* 2: 0-9 */ ( InNumHex , true  , Some(accum_num_hex_dig) ),
         /* 3: A-F */ ( InNumHex , true  , Some(accum_num_hex_uc)  ),
         /* 4: a-f */ ( InNumHex , true  , Some(accum_num_hex_lc)  ),
@@ -252,8 +253,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None                  ),
-        /* 1: ??? */ ( Initial  , false , None                  ),
+        /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
+        /* 1: ??? */ ( Initial  , false , Some(yield_num)       ),
         /* 2: 0-7 */ ( InNumOct , true  , Some(accum_num_oct)   ),
         /* 3:  _  */ ( InNumOct , true  , None                  ),
         /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
@@ -270,8 +271,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None                  ),
-        /* 1: ??? */ ( Initial  , false , None                  ),
+        /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
+        /* 1: ??? */ ( Initial  , false , Some(yield_num)       ),
         /* 2: 0-1 */ ( InNumBin , true  , Some(accum_num_bin)   ),
         /* 3:  _  */ ( InNumBin , true  , None                  ),
         /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
@@ -329,38 +330,43 @@ fn yield_id(l: &mut Context, c: char) -> Option<Token> {
 }
 
 fn begin_num(l: &mut Context, c: char) -> Option<Token> {
-    l.number = 0;
+    // First digit is always 0 or decimal 1-9
+    l.number = c as u64 - 0x30; // c - '0'
     None
 }
 
 fn accum_num_dec(l: &mut Context, c: char) -> Option<Token> {
-    l.number = l.number * 10 + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number * 10) + (c as u64 - 0x30); // c - '0'
     None
 }
 
 fn accum_num_hex_dig(l: &mut Context, c: char) -> Option<Token> {
-    l.number = l.number << 4 + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number << 4) + (c as u64 - 0x30); // c - '0'
     None
 }
 
 fn accum_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = l.number << 4 + (c as u64 - 0x37); // 10 + c - 'A'
+    l.number = (l.number << 4) + (c as u64 - 0x37); // 10 + c - 'A'
     None
 }
 
 fn accum_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = l.number << 4 + (c as u64 - 0x57); // 10 + c - 'a'
+    l.number = (l.number << 4) + (c as u64 - 0x57); // 10 + c - 'a'
     None
 }
 
 fn accum_num_oct(l: &mut Context, c: char) -> Option<Token> {
-    l.number = l.number << 3 + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number << 3) + (c as u64 - 0x30); // c - '0'
     None
 }
 
 fn accum_num_bin(l: &mut Context, c: char) -> Option<Token> {
-    l.number = l.number << 1 + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number << 1) + (c as u64 - 0x30); // c - '0'
     None
+}
+
+fn yield_num_zero(l: &mut Context, c: char) -> Option<Token> {
+    Some(Int(0))
 }
 
 fn yield_num(l: &mut Context, c: char) -> Option<Token> {
@@ -378,77 +384,79 @@ fn err_invalid_num (l: &mut Context, c: char) -> Option<Token> {
     None
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use super::Token::*;
-//
-//    #[test]
-//    fn eof() {
-//        lex("", Eof, (1, 1), (1, 1), 0);
-//    }
-//
-//    #[test]
-//    fn space() {
-//        lex(" \t", Eof, (1, 3), (1, 3), 0);
-//    }
-//
-//    #[test]
-//    fn eos() {
-//        lex(  "\n", Eos, (1, 1), (2, 1), 0);
-//        lex("\r\n", Eos, (1, 1), (2, 1), 0);
-//        lex("\r"  , Eos, (1, 1), (2, 1), 0);
-//    }
-//
-//    #[test]
-//    fn id() {
-//        lex_id("a"  , "a",   (1, 1), (1, 2), 0);
-//        lex_id("a;" , "a",   (1, 1), (1, 2), 0);
-//        lex_id("_a1", "_a1", (1, 1), (1, 4), 0);
-//    }
-//
-//    #[test]
-//    fn num() {
-//        lex( "123456789", Int( 123456789), (1, 1), (1, 10), 0);
-//        lex("0x01234567", Int(0x01234567), (1, 1), (1, 11), 0);
-//        lex("0x89ABCDEF", Int(0x89ABCDEF), (1, 1), (1, 11), 0);
-//        lex("0x89abcdef", Int(0x89ABCDEF), (1, 1), (1, 11), 0);
-//        lex("0o01234567", Int(0o01234567), (1, 1), (1, 11), 0);
-//        lex(      "0b01", Int(      0b01), (1, 1), (1,  5), 0);
-//        lex(       "012", Int(        12), (1, 1), (1,  4), 0);
-//        lex(         "0", Int(         0), (1, 1), (1,  2), 0);
-//        lex(    "1__2__", Int(        12), (1, 1), (1,  7), 0);
-//        lex("0x__1__2__", Int(      0x12), (1, 1), (1, 11), 0);
-//        lex(       "0__", Int(         0), (1, 1), (1,  4), 0);
-//        lex(     "0b1  ", Int(         1), (1, 1), (1,  4), 0);
-//        lex(     "0b1;;", Int(         1), (1, 1), (1,  4), 0);
-//        lex(     "0b19z", Eof            , (1, 6), (1,  6), 0); // TODO: error
-//    }
-//
-//    fn lex(s: &str, t: Token, start: (u32, u32), end: (u32, u32), errs: u32)
-//    {
-//        let mut lexer = Lexer::new(s.chars());
-//        let     token = lexer.lex();
-//
-//        assert_eq!(token,       t);
-//        assert_eq!(lexer.token, t);
-//        assert_eq!((lexer.start.line, lexer.start.column), start);
-//        assert_eq!((lexer.end  .line, lexer.end  .column), end  );
-//        assert_eq!(lexer.errs, errs);
-//    }
-//
-//    fn lex_id(s: &str, name: &str, start: (u32, u32), end: (u32, u32), errs: u32)
-//    {
-//        let mut lexer = Lexer::new(s.chars());
-//
-//        match lexer.lex() {
-//            Id(sym) => assert_eq!(lexer.syms.get(sym).name, name),
-//            _       => panic!("Did not return an identifier.")
-//        }
-//
-//        assert_eq!((lexer.start.line, lexer.start.column), start);
-//        assert_eq!((lexer.end  .line, lexer.end  .column), end  );
-//        assert_eq!(lexer.errs, errs);
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::Token::*;
+
+    #[test]
+    fn eof() {
+        lex("", Eof, (1, 1), (1, 1), 0);
+    }
+
+    #[test]
+    fn space() {
+        lex(" \t", Eof, (1, 3), (1, 3), 0);
+    }
+
+    #[test]
+    fn eos() {
+        lex("\n", Eos, (1, 1), (2, 1), 0);
+        // TODO: Test after-eos skipping
+    }
+
+    #[test]
+    fn id() {
+        lex_id("a"  , "a",   (1, 1), (1, 2), 0);
+        lex_id("a;" , "a",   (1, 1), (1, 2), 0);
+        lex_id("_a1", "_a1", (1, 1), (1, 4), 0);
+    }
+
+    #[test]
+    fn num() {
+        lex( "123456789", Int( 123456789), (1, 1), (1, 10), 0);
+        lex("0x01234567", Int(0x01234567), (1, 1), (1, 11), 0);
+        lex("0x89ABCDEF", Int(0x89ABCDEF), (1, 1), (1, 11), 0);
+        lex("0x89abcdef", Int(0x89ABCDEF), (1, 1), (1, 11), 0);
+        lex("0o01234567", Int(0o01234567), (1, 1), (1, 11), 0);
+        lex(      "0b01", Int(      0b01), (1, 1), (1,  5), 0);
+        lex(       "012", Int(        12), (1, 1), (1,  4), 0);
+        lex(         "0", Int(         0), (1, 1), (1,  2), 0);
+        lex(    "1__2__", Int(        12), (1, 1), (1,  7), 0);
+        lex("0x__1__2__", Int(      0x12), (1, 1), (1, 11), 0);
+        lex(       "0__", Int(         0), (1, 1), (1,  4), 0);
+        lex(     "0b1  ", Int(         1), (1, 1), (1,  4), 0);
+        lex(     "0b1;;", Int(         1), (1, 1), (1,  4), 0);
+        lex(     "0b19z", Eof            , (1, 6), (1,  6), 0); // TODO: error
+    }
+
+    fn lex(s: &str, t: Token, start: (u32, u32), end: (u32, u32), errs: u32)
+    {
+        let mut lexer   = Lexer::new(s.chars());
+        let     token   = lexer.lex();
+        let     context = lexer.context;
+
+        assert_eq!(t, token);
+
+        //assert_eq!(context.start,  start)
+        //assert_eq!(context.end,    end)
+        //assert_eq!(context.errors, errs);
+    }
+
+    fn lex_id(s: &str, name: &str, start: (u32, u32), end: (u32, u32), errs: u32)
+    {
+        let mut lexer   = Lexer::new(s.chars());
+        let     token   = lexer.lex();
+        let     context = lexer.context;
+
+        match token {
+            Id(sym) => assert_eq!(name, context.strings.get(sym)),
+            _       => panic!("Did not return an identifier.")
+        }
+
+        //assert_eq!(context.start,  start)
+        //assert_eq!(context.end,    end)
+        //assert_eq!(context.errors, errs);
+    }
+}
 
