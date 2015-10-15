@@ -80,9 +80,14 @@ where I: Iterator<Item=char>
         let     iter  = &mut self.iter;
         let     ctx   = &mut self.context;
 
+        print!("state = {:?}\n", state);
+
         loop {
             let (c, (next_state, consume, action))
                 = lookup(&STATES[state as usize], ch);
+
+            print!("{:?} {:?} => {:?} {:?} {:?}\n",
+                   state, ch, c, next_state, consume);
 
             state = next_state;
 
