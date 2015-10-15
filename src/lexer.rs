@@ -194,19 +194,20 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
         2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
-        x, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  4, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        x, 7, 7, 7, 7, 7, 7, 7,  7, 7, 7, 7, 7, 7, 7, 7, // @ABCDEFG HIJKLMNO
+        7, 7, 7, 7, 7, 7, 7, 7,  7, 7, 7, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
+        x, 7, 6, 7, 7, 7, 7, 7,  7, 7, 7, 7, 7, 7, 7, 5, // `abcdefg hijklmno
+        7, 7, 7, 7, 7, 7, 7, 7,  4, 7, 7, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , Some(yield_num_zero) ),
-        /* 1: ??? */ ( Initial  , false , Some(yield_num_zero) ),
-        /* 2: 0-9 */ ( InNumDec , false , None ),
-        /* 3:  _  */ ( InNumDec , true  , None ),
-        /* 4:  x  */ ( InNumHex , true  , None ),
-        /* 5:  o  */ ( InNumOct , true  , None ),
-        /* 6:  b  */ ( InNumBin , true  , None ),
+        /* 0: eof */ ( AtEof    , false , Some(yield_num_zero)  ),
+        /* 1: ??? */ ( Initial  , false , Some(yield_num_zero)  ),
+        /* 2: 0-9 */ ( InNumDec , false , None                  ),
+        /* 3:  _  */ ( InNumDec , true  , None                  ),
+        /* 4:  x  */ ( InNumHex , true  , None                  ),
+        /* 5:  o  */ ( InNumOct , true  , None                  ),
+        /* 6:  b  */ ( InNumBin , true  , None                  ),
+        /* 7: inv */ ( AtEof    , false , Some(err_invalid_num) ),
     ]),
     // InNumDec - in a decimal number
     ([
