@@ -10,7 +10,7 @@ pub struct Pos {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token {
     Id      (Symbol),
-    Int     (u32),
+    Int     (u64),
     Bang,               // !
     Eos,                // End of statement
     Eof,                // End of file
@@ -28,12 +28,11 @@ pub trait Lookahead {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum State {
-    Initial,
-    AfterEos,
-    InId,
+    Initial, AfterEos, InId,
+    AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
     AtEof
 }
-const STATE_COUNT: usize = 4;
+const STATE_COUNT: usize = 9;
 use self::State::*;
 
 type StateEntry = (
@@ -59,7 +58,8 @@ where I: Iterator<Item=char>
 struct Context {
     start:      Pos,            // position of token start
     current:    Pos,            // position of current character
-    buffer:     String,         // shared string builder
+    buffer:     String,         // string builder
+    number:     u64,            // number builder
     strings:    Interner        // string table
     // errors
 }
@@ -74,6 +74,7 @@ where I: Iterator<Item=char>
             start:   Pos { byte: 0, line: 1, column: 1 },
             current: Pos { byte: 0, line: 1, column: 1 },
             buffer:  String::with_capacity(128),
+            number:  0,
             strings: Interner::new()
             // errors
         };
@@ -109,6 +110,25 @@ where I: Iterator<Item=char>
     }
 }
 
+#[inline]
+fn lookup(entry: &StateEntry, ch: Option<char>) -> (char, (State, bool, Action))
+{
+    let (n, c) = match ch {
+        Some(c) => {
+            let n = c as usize;
+            if n & 0x7F == n {
+                // U+007F and below => table lookup
+                (entry.0[n] as usize, c)
+            } else {
+                // U+0080 and above => 'other'
+                (1, c)
+            }
+        },
+        None => (0, '\0') // EOF
+    };
+    (c, entry.1[n])
+}
+
 // Alias for 'other'; for readability of tables only.
 #[allow(non_upper_case_globals)]
 const x: u8 = 1;
@@ -119,22 +139,23 @@ static STATES: [StateEntry; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
+        6, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None               ),
-        /* 1: ??? */ ( AtEof    , false , Some(lex_error)    ),
-        /* 2: \s  */ ( Initial  , true  , None               ),
-        /* 3: \n  */ ( AfterEos , true  , Some(yield_eos_nl) ),
-        /* 4:  ;  */ ( AfterEos , true  , Some(yield_eos)    ),
-        /* 4: id0 */ ( InId     , true  , Some(begin_id)     ),
+        //             Next       Consume  Action
+        /* 0: eof */ ( AtEof     , false , None               ),
+        /* 1: ??? */ ( AtEof     , false , Some(lex_error)    ),
+        /* 2: \s  */ ( Initial   , true  , None               ),
+        /* 3: \n  */ ( AfterEos  , true  , Some(yield_eos_nl) ),
+        /* 4:  ;  */ ( AfterEos  , true  , Some(yield_eos)    ),
+        /* 5: id0 */ ( InId      , true  , Some(begin_id)     ),
+        /* 6:  0  */ ( AfterZero , true  , Some(begin_num)    ),
 //      /* n:  !  */ ( Initial  , true  , Some(yield_bang)   ),
     ]),
-    // AfterEos
+    // AfterEos - After end of statement
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -151,7 +172,7 @@ static STATES: [StateEntry; STATE_COUNT] = [
         /* 2: \s  */ ( AfterEos , true  , None             ),
         /* 3: \n  */ ( AfterEos , true  , Some(newline)    ),
     ]),
-    // InId
+    // InId - In identifier
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -167,7 +188,101 @@ static STATES: [StateEntry; STATE_COUNT] = [
         /* 1: ??? */ ( Initial , false , Some(yield_id) ),
         /* 2: id  */ ( InId    , true  , Some(accum_id) ),
     ]),
-    // AtEof
+    // AfterZero - In a number literal after initial 0
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
+        x, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  4, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next      Consume  Action
+        /* 0: eof */ ( AtEof    , false , None ),
+        /* 1: ??? */ ( Initial  , false , None ),
+        /* 2: 0-9 */ ( InNumDec , false , None ),
+        /* 3:  _  */ ( InNumDec , true  , None ),
+        /* 4:  x  */ ( InNumHex , true  , None ),
+        /* 5:  o  */ ( InNumOct , true  , None ),
+        /* 6:  b  */ ( InNumBin , true  , None ),
+    ]),
+    // InNumDec - in a decimal number
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // @ABCDEFG HIJKLMNO
+        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // `abcdefg hijklmno
+        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next      Consume  Action
+        /* 0: eof */ ( AtEof    , false , None                  ),
+        /* 1: ??? */ ( Initial  , false , None                  ),
+        /* 2: 0-9 */ ( InNumDec , true  , Some(accum_num_dec)   ),
+        /* 3:  _  */ ( InNumDec , true  , None                  ),
+        /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
+    ]),
+    // InNumHex - in a hexadecimal number
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 3, 3, 3, 3, 3, 3, 6,  6, 6, 6, 6, 6, 6, 6, 6, // @ABCDEFG HIJKLMNO
+        6, 6, 6, 6, 6, 6, 6, 6,  6, 6, 6, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, 6,  6, 6, 6, 6, 6, 6, 6, 6, // `abcdefg hijklmno
+        6, 6, 6, 6, 6, 6, 6, 6,  6, 6, 6, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next      Consume  Action
+        /* 0: eof */ ( AtEof    , false , None                    ),
+        /* 1: ??? */ ( Initial  , false , None                    ),
+        /* 2: 0-9 */ ( InNumHex , true  , Some(accum_num_hex_dig) ),
+        /* 3: A-F */ ( InNumHex , true  , Some(accum_num_hex_uc)  ),
+        /* 4: a-f */ ( InNumHex , true  , Some(accum_num_hex_lc)  ),
+        /* 5:  _  */ ( InNumHex , true  , None                    ),
+        /* 6: inv */ ( AtEof    , false , Some(err_invalid_num)   ),
+    ]),
+    // InNumOct - in an octal number
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  4, 4, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // @ABCDEFG HIJKLMNO
+        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // `abcdefg hijklmno
+        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next      Consume  Action
+        /* 0: eof */ ( AtEof    , false , None                  ),
+        /* 1: ??? */ ( Initial  , false , None                  ),
+        /* 2: 0-7 */ ( InNumOct , true  , Some(accum_num_oct)   ),
+        /* 3:  _  */ ( InNumOct , true  , None                  ),
+        /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
+    ]),
+    // InNumBin - in a binary number
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 4, 4, 4, 4, 4, 4,  4, 4, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // @ABCDEFG HIJKLMNO
+        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // `abcdefg hijklmno
+        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Next      Consume  Action
+        /* 0: eof */ ( AtEof    , false , None                  ),
+        /* 1: ??? */ ( Initial  , false , None                  ),
+        /* 2: 0-1 */ ( InNumBin , true  , Some(accum_num_bin)   ),
+        /* 3:  _  */ ( InNumBin , true  , None                  ),
+        /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
+    ]),
+    // AtEof - At end of file
     ([
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ ........
@@ -182,10 +297,6 @@ static STATES: [StateEntry; STATE_COUNT] = [
         /* 0: eof */ ( AtEof , false , Some(yield_eof) ),
     ]),
 ];
-
-fn lex_error(l: &mut Context, c: char) -> Option<Token> {
-    None
-}
 
 fn yield_eof(l: &mut Context, c: char) -> Option<Token> {
     Some(Eof)
@@ -223,25 +334,54 @@ fn yield_id(l: &mut Context, c: char) -> Option<Token> {
     Some(Id(n))
 }
 
+fn begin_num(l: &mut Context, c: char) -> Option<Token> {
+    l.number = 0;
+    None
+}
+
+fn accum_num_dec(l: &mut Context, c: char) -> Option<Token> {
+    l.number = l.number * 10 + (c as u64 - 0x30); // c - '0'
+    None
+}
+
+fn accum_num_hex_dig(l: &mut Context, c: char) -> Option<Token> {
+    l.number = l.number << 4 + (c as u64 - 0x30); // c - '0'
+    None
+}
+
+fn accum_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
+    l.number = l.number << 4 + (c as u64 - 0x37); // 10 + c - 'A'
+    None
+}
+
+fn accum_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
+    l.number = l.number << 4 + (c as u64 - 0x57); // 10 + c - 'a'
+    None
+}
+
+fn accum_num_oct(l: &mut Context, c: char) -> Option<Token> {
+    l.number = l.number << 3 + (c as u64 - 0x30); // c - '0'
+    None
+}
+
+fn accum_num_bin(l: &mut Context, c: char) -> Option<Token> {
+    l.number = l.number << 1 + (c as u64 - 0x30); // c - '0'
+    None
+}
+
+fn yield_num(l: &mut Context, c: char) -> Option<Token> {
+    Some(Int(l.number))
+}
+
 fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
-#[inline]
-fn lookup(entry: &StateEntry, ch: Option<char>) -> (char, (State, bool, Action))
-{
-    let (n, c) = match ch {
-        Some(c) => {
-            let n = c as usize;
-            if n & 0x7F == n {
-                // U+007F and below => table lookup
-                (entry.0[n] as usize, c)
-            } else {
-                // U+0080 and above => 'other'
-                (1, c)
-            }
-        },
-        None => (0, '\0') // EOF
-    };
-    (c, entry.1[n])
+fn lex_error(l: &mut Context, c: char) -> Option<Token> {
+    None
+}
+
+fn err_invalid_num (l: &mut Context, c: char) -> Option<Token> {
+    // "Invalid character in numeric literal."
+    None
 }
 
 // End new idea 2015-10-13
