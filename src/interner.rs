@@ -43,6 +43,7 @@ impl Interner {
         idx.into()
     }
 
+    #[inline]
     pub fn get(&self, id: Symbol) -> &str {
         &self.vec[id.0]
     }
