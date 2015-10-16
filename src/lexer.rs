@@ -155,6 +155,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 7: 1-9 */ ( InNumDec  , true  , Some(begin_num)    ),
 //      /* n:  !  */ ( Initial   , true  , Some(yield_bang)   ),
     ]),
+
     // AfterEos - After end of statement
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
@@ -172,6 +173,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 2: \s  */ ( AfterEos , true  , None          ),
         /* 3: \n  */ ( AfterEos , true  , Some(newline) ),
     ]),
+
     // InId - In identifier
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
@@ -188,101 +190,107 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 1: ??? */ ( Initial , false , Some(yield_id) ),
         /* 2: id  */ ( InId    , true  , Some(accum_id) ),
     ]),
-    // AfterZero - In a number literal after initial 0
+
+    // AfterZero - after 0 introducing a number literal
     ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 7, 7, x, x, 7, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, 7, 7, 7, 7, 7, 7, 7,  7, 7, 7, 7, 7, 7, 7, 7, // @ABCDEFG HIJKLMNO
-        7, 7, 7, 7, 7, 7, 7, 7,  7, 7, 7, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
-        x, 7, 6, 7, 7, 7, 7, 7,  7, 7, 7, 7, 7, 7, 7, 5, // `abcdefg hijklmno
-        7, 7, 7, 7, 7, 7, 7, 7,  4, 7, 7, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        7, 7, x, 7, 7, 7, 7, x,  7, 7, 7, 7, 7, 7, 7, 7, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 7, 7, 7, 7, 7, 7, // 01234567 89:;<=>?
+        7, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, 3, // PQRSTUVW XYZ[\]^_
+        7, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  4, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
         /* 0: eof */ ( AtEof    , false , Some(yield_num_zero)  ),
-        /* 1: ??? */ ( Initial  , false , Some(yield_num_zero)  ),
+        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
         /* 2: 0-9 */ ( InNumDec , false , None                  ),
         /* 3:  _  */ ( InNumDec , true  , None                  ),
         /* 4:  x  */ ( InNumHex , true  , None                  ),
         /* 5:  o  */ ( InNumOct , true  , None                  ),
         /* 6:  b  */ ( InNumBin , true  , None                  ),
-        /* 7: inv */ ( AtEof    , false , Some(err_invalid_num) ),
+        /* 7: opr */ ( Initial  , false , Some(yield_num_zero)  ),
     ]),
+
     // InNumDec - in a decimal number
     ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 4, 4, x, x, 4, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // @ABCDEFG HIJKLMNO
-        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
-        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // `abcdefg hijklmno
-        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        4, 4, x, 4, 4, 4, 4, x,  4, 4, 4, 4, 4, 4, 4, 4, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 4, 4, 4, 4, 4, 4, // 01234567 89:;<=>?
+        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, 3, // PQRSTUVW XYZ[\]^_
+        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
         /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
-        /* 1: ??? */ ( Initial  , false , Some(yield_num)       ),
+        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
         /* 2: 0-9 */ ( InNumDec , true  , Some(accum_num_dec)   ),
         /* 3:  _  */ ( InNumDec , true  , None                  ),
-        /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
+        /* 4: opr */ ( Initial  , false , Some(yield_num)       ),
     ]),
+
     // InNumHex - in a hexadecimal number
     ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 6, 6, x, x, 6, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, 3, 3, 3, 3, 3, 3, 6,  6, 6, 6, 6, 6, 6, 6, 6, // @ABCDEFG HIJKLMNO
-        6, 6, 6, 6, 6, 6, 6, 6,  6, 6, 6, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
-        x, 4, 4, 4, 4, 4, 4, 6,  6, 6, 6, 6, 6, 6, 6, 6, // `abcdefg hijklmno
-        6, 6, 6, 6, 6, 6, 6, 6,  6, 6, 6, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        6, 6, x, 6, 6, 6, 6, x,  6, 6, 6, 6, 6, 6, 6, 6, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 6, 6, 6, 6, 6, 6, // 01234567 89:;<=>?
+        6, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 6, 6, 6, 6, 5, // PQRSTUVW XYZ[\]^_
+        6, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 6, 6, 6, 6, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
         /* 0: eof */ ( AtEof    , false , Some(yield_num)         ),
-        /* 1: ??? */ ( Initial  , false , Some(yield_num)         ),
+        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num)   ),
         /* 2: 0-9 */ ( InNumHex , true  , Some(accum_num_hex_dig) ),
         /* 3: A-F */ ( InNumHex , true  , Some(accum_num_hex_uc)  ),
         /* 4: a-f */ ( InNumHex , true  , Some(accum_num_hex_lc)  ),
         /* 5:  _  */ ( InNumHex , true  , None                    ),
-        /* 6: inv */ ( AtEof    , false , Some(err_invalid_num)   ),
+        /* 6: opr */ ( Initial  , false , Some(yield_num)         ),
     ]),
+
     // InNumOct - in an octal number
     ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 4, 4, x, x, 4, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  4, 4, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // @ABCDEFG HIJKLMNO
-        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
-        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // `abcdefg hijklmno
-        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        4, 4, x, 4, 4, 4, 4, x,  4, 4, 4, 4, 4, 4, 4, 4, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  x, x, 4, 4, 4, 4, 4, 4, // 01234567 89:;<=>?
+        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, 3, // PQRSTUVW XYZ[\]^_
+        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
         /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
-        /* 1: ??? */ ( Initial  , false , Some(yield_num)       ),
+        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
         /* 2: 0-7 */ ( InNumOct , true  , Some(accum_num_oct)   ),
         /* 3:  _  */ ( InNumOct , true  , None                  ),
-        /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
+        /* 4: opr */ ( Initial  , false , Some(yield_num)       ),
     ]),
+
     // InNumBin - in a binary number
     ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 4, 4, x, x, 4, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        2, 2, 4, 4, 4, 4, 4, 4,  4, 4, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // @ABCDEFG HIJKLMNO
-        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, 3, // PQRSTUVW XYZ[\]^_
-        x, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, 4, 4, 4, 4, 4, // `abcdefg hijklmno
-        4, 4, 4, 4, 4, 4, 4, 4,  4, 4, 4, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        4, 4, x, 4, 4, 4, 4, x,  4, 4, 4, 4, 4, 4, 4, 4, //  !"#$%&' ()*+,-./
+        2, 2, x, x, x, x, x, x,  x, x, 4, 4, 4, 4, 4, 4, // 01234567 89:;<=>?
+        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, 3, // PQRSTUVW XYZ[\]^_
+        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Next      Consume  Action
         /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
-        /* 1: ??? */ ( Initial  , false , Some(yield_num)       ),
+        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
         /* 2: 0-1 */ ( InNumBin , true  , Some(accum_num_bin)   ),
         /* 3:  _  */ ( InNumBin , true  , None                  ),
-        /* 4: inv */ ( AtEof    , false , Some(err_invalid_num) ),
+        /* 4: opr */ ( Initial  , false , Some(yield_num)       ),
     ]),
+
     // AtEof - At end of file
     ([
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
@@ -433,7 +441,7 @@ mod tests {
         lex(       "0__", Int(         0), (1, 1), (1,  4), 0);
         lex(     "0b1  ", Int(         1), (1, 1), (1,  4), 0);
         lex(     "0b1;;", Int(         1), (1, 1), (1,  4), 0);
-        lex(     "0b19z", Eof            , (1, 6), (1,  6), 0); // TODO: error
+        //lex(     "0b19z", Eof            , (1, 6), (1,  6), 0); // TODO: error
     }
 
     fn lex(s: &str, t: Token, start: (u32, u32), end: (u32, u32), errs: u32)
