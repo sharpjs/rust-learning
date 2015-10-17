@@ -765,94 +765,90 @@ fn error_esc_invalid(l: &mut Context, c: char) -> Option<Token> {
 
 #[cfg(test)]
 mod tests {
+    use std::str::Chars;
     use super::*;
     use super::Token::*;
 
     #[test]
-    fn eof() {
-        lex("", Eof, (1, 1), (1, 1), 0);
+    fn empty() {
+        lex("").yields(Eof);
     }
 
     #[test]
     fn space() {
-        lex(" \t", Eof, (1, 3), (1, 3), 0);
+        lex( " \r\t" ).yields(Eof);
+        lex( " \r\t1").yields(Int(1)).yields(Eof);
+        lex("1 \r\t" ).yields(Int(1)).yields(Eof);
+        lex("1 \r\t2").yields(Int(1)).yields(Int(2)).yields(Eof);
     }
 
     #[test]
     fn eos() {
-        lex("\n", Eos, (1, 1), (2, 1), 0);
-        // TODO: Test after-eos skipping
+        lex(";"         ).yields(Eos).yields(Eof);
+        lex("\n"        ).yields(Eos).yields(Eof);
+        lex(";1"        ).yields(Eos).yields(Int(1)).yields(Eof);
+        lex("\n1"       ).yields(Eos).yields(Int(1)).yields(Eof);
+        lex("; \r\t\n;" ).yields(Eos).yields(Eof);
+        lex("\n \r\t\n;").yields(Eos).yields(Eof);
     }
 
     #[test]
     fn id() {
-        lex_id("a"  , "a",   (1, 1), (1, 2), 0);
-        lex_id("a;" , "a",   (1, 1), (1, 2), 0);
-        lex_id("_a1", "_a1", (1, 1), (1, 4), 0);
+        lex("a" ).yields_id("a").yields(Eof);
+        lex("a ").yields_id("a").yields(Eof);
+        lex("abcdefghijklmnopqrstuvwxyz").yields_id("abcdefghijklmnopqrstuvwxyz").yields(Eof);
+        lex("ABCDEFGHIJKLMNOPQRSTUVWXYZ").yields_id("ABCDEFGHIJKLMNOPQRSTUVWXYZ").yields(Eof);
+        lex("_0123456789")               .yields_id("_0123456789")               .yields(Eof);
     }
 
     #[test]
     fn num() {
-        lex( "123456789", Int( 123456789), (1, 1), (1, 10), 0);
-        lex("0x01234567", Int(0x01234567), (1, 1), (1, 11), 0);
-        lex("0x89ABCDEF", Int(0x89ABCDEF), (1, 1), (1, 11), 0);
-        lex("0x89abcdef", Int(0x89ABCDEF), (1, 1), (1, 11), 0);
-        lex("0o01234567", Int(0o01234567), (1, 1), (1, 11), 0);
-        lex(      "0b01", Int(      0b01), (1, 1), (1,  5), 0);
-        lex(       "012", Int(        12), (1, 1), (1,  4), 0);
-        lex(         "0", Int(         0), (1, 1), (1,  2), 0);
-        lex(    "1__2__", Int(        12), (1, 1), (1,  7), 0);
-        lex("0x__1__2__", Int(      0x12), (1, 1), (1, 11), 0);
-        lex(       "0__", Int(         0), (1, 1), (1,  4), 0);
-        lex(     "0b1  ", Int(         1), (1, 1), (1,  4), 0);
-        lex(     "0b1;;", Int(         1), (1, 1), (1,  4), 0);
+        lex( "123456789").yields(Int( 123456789)).yields(Eof);
+        lex("0x01234567").yields(Int(0x01234567)).yields(Eof);
+        lex("0x89ABCDEF").yields(Int(0x89ABCDEF)).yields(Eof);
+        lex("0x89abcdef").yields(Int(0x89ABCDEF)).yields(Eof);
+        lex("0o01234567").yields(Int(0o01234567)).yields(Eof);
+        lex(      "0b01").yields(Int(      0b01)).yields(Eof);
+        lex(       "012").yields(Int(        12)).yields(Eof);
+        lex(         "0").yields(Int(         0)).yields(Eof);
+        lex(    "1__2__").yields(Int(        12)).yields(Eof);
+        lex("0x__1__2__").yields(Int(      0x12)).yields(Eof);
+        lex(       "0__").yields(Int(         0)).yields(Eof);
+        lex(     "0b1  ").yields(Int(         1)).yields(Eof);
+        lex(      "0b1;").yields(Int(         1)).yields(Eos).yields(Eof);
 
-        lex_err("0b19z", (1, 6), (1,  6));
+        lex("0b19z").yields_error();
     }
 
-    fn lex(s: &str, t: Token, start: (u32, u32), end: (u32, u32), errs: u32)
-    {
-        let mut lexer   = Lexer::new(s.chars());
-        let     token   = lexer.lex();
-        let     context = lexer.context;
+    struct LexerHarness<'a>(Lexer<Chars<'a>>);
 
-        assert_eq!(t, token);
-
-        //assert_eq!(context.start,  start)
-        //assert_eq!(context.end,    end)
-        //assert_eq!(context.errors, errs);
+    fn lex(input: &str) -> LexerHarness {
+        LexerHarness(Lexer::new(input.chars()))
     }
 
-    fn lex_err(s: &str, start: (u32, u32), end: (u32, u32))
-    {
-        let mut lexer   = Lexer::new(s.chars());
-        let     token   = lexer.lex();
-        let     context = lexer.context;
-
-        match token {
-            Error(_) => {},
-            _        => panic!("Did not return an error.")
+    impl<'a> LexerHarness<'a> {
+        fn yields(&mut self, token: Token) -> &mut Self {
+            assert_eq!(token, self.0.lex());
+            self
         }
 
-        //assert_eq!(context.start,  start)
-        //assert_eq!(context.end,    end)
-        //assert_eq!(context.errors, errs);
-    }
-
-    fn lex_id(s: &str, name: &str, start: (u32, u32), end: (u32, u32), errs: u32)
-    {
-        let mut lexer   = Lexer::new(s.chars());
-        let     token   = lexer.lex();
-        let     context = lexer.context;
-
-        match token {
-            Id(sym) => assert_eq!(name, context.strings.get(sym)),
-            _       => panic!("Did not return an identifier.")
+        fn yields_id(&mut self, name: &str) -> &mut Self {
+            let token = self.0.lex();
+            match token {
+                Id(n) => assert_eq!(name, self.0.context.strings.get(n)),
+                _     => panic!("lex() did not yield an identifier.")
+            };
+            self
         }
 
-        //assert_eq!(context.start,  start)
-        //assert_eq!(context.end,    end)
-        //assert_eq!(context.errors, errs);
+        fn yields_error(&mut self) -> &mut Self {
+            let token = self.0.lex();
+            match token {
+                Error(_) => {}, // expected
+                _        => panic!("lex() did not yield an error.")
+            };
+            self
+        }
     }
 }
 
