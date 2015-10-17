@@ -1,9 +1,12 @@
+use std::mem;
 use interner::*;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, /*Copy,*/ PartialEq, Eq, Debug)]
 pub enum Token {
     Id      (Symbol),
     Int     (u64),
+    Char    (char),
+    Str     (String),
     Bang,               // !
     Eos,                // End of statement
     Eof,                // End of file
@@ -22,11 +25,13 @@ pub struct Pos {
 enum State {
     Initial, AfterEos, InId,
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
+    InChar, AtCharEnd, InStr,
+    InEsc, AtEscHex0, AtEscHex1, //AtEscUni0, AtEscUniN
     AtEof
 }
 use self::State::*;
 
-const STATE_COUNT: usize = 9;
+const STATE_COUNT: usize = 15;
 
 type ActionTable = (
     [u8; 128],      // Map from 7-bit char to handler index
@@ -163,8 +168,10 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 3: \n  */ ( Next(AfterEos),  Some(yield_eos_nl) ),
         /* 4:  ;  */ ( Next(AfterEos),  Some(yield_eos)    ),
         /* 5: id0 */ ( Next(InId),      Some(begin_id)     ),
-        /* 6:  0  */ ( Next(AfterZero), Some(begin_num)    ),
-        /* 7: 1-9 */ ( Next(InNumDec),  Some(begin_num)    ),
+        /* 6:  0  */ ( Next(AfterZero), Some(begin_num_dig)    ),
+        /* 7: 1-9 */ ( Next(InNumDec),  Some(begin_num_dig)    ),
+        /* 8:  '  */ ( Next(InChar),    Some(begin_str)    ),
+        /* 8:  "  */ ( Next(InStr),     Some(begin_str)    ),
 //      /* n:  !  */ ( Next(Initial),   Some(yield_bang)   ),
     ]),
 
@@ -308,6 +315,157 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ),
     ]),
 
+    // InChar <( ' )> : in a character literal
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, 3,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, 2, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition      Action
+        /* 0: eof */ ( Redo(AtEof),     Some(error_char_unterm) ),
+        /* 1: ??? */ ( Next(AtCharEnd), Some(accum_str)         ),
+        /* 2:  \  */ ( Push(InEsc),     None                    ),
+        /* 3:  '  */ ( Redo(AtEof),     Some(error_char_length) ),
+    ]),
+
+    // AtCharEnd <( ' char )> : expecting the end of a character literal
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, 2,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(error_char_unterm) ),
+        /* 1: ??? */ ( Redo(AtEof),   Some(error_char_length) ),
+        /* 2:  '  */ ( Next(Initial), Some(yield_char)        ),
+    ]),
+
+    // InStr <( " )> : in a string literal
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, 3, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, 2, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(error_str_unterm) ),
+        /* 1: ??? */ ( Next(InStr),   Some(accum_str)        ),
+        /* 2:  \  */ ( Push(InEsc),   None                   ),
+        /* 3:  "  */ ( Next(Initial), Some(yield_str)        ),
+    ]),
+
+    // InEsc <( ['"] \ )> : after escape characer
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, 8, x, x, x, x, 7,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, 6, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // `abcdefg hijklmno
+        x, x, 4, x, 5,10, x, x,  9, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition        Action
+        /*  0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
+        /*  1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
+        /*  2:  0  */ ( Pop,             Some(accum_str_nul)     ),
+        /*  3:  n  */ ( Pop,             Some(accum_str_lf)      ),
+        /*  4:  r  */ ( Pop,             Some(accum_str_cr)      ),
+        /*  5:  t  */ ( Pop,             Some(accum_str_tab)     ),
+        /*  6:  \  */ ( Pop,             Some(accum_str)         ),
+        /*  7:  '  */ ( Pop,             Some(accum_str)         ),
+        /*  8:  "  */ ( Pop,             Some(accum_str)         ),
+        /*  9:  x  */ ( Next(AtEscHex0), None                    ),
+    //  /* 10:  u  */ ( Next(AtEscUni0), None                    ),
+    ]),
+
+    // AtEscHex0 <( ['"] \ x )> : at byte escape digit 0
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition       Action
+        /* 0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
+        /* 1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
+        /* 2: 0-9 */ ( Next(AtEscHex1), Some(begin_num_dig)     ),
+        /* 3: A-F */ ( Next(AtEscHex1), Some(begin_num_hex_uc)  ),
+        /* 4: a-f */ ( Next(AtEscHex1), Some(begin_num_hex_lc)  ),
+    ]),
+
+    // AtEscHex1 <( ['"] \ x hex )> : at byte escape digit 1
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition   Action
+        /* 0: eof */ ( Redo(AtEof), Some(error_esc_unterm)     ),
+        /* 1: ??? */ ( Redo(AtEof), Some(error_esc_invalid)    ),
+        /* 2: 0-9 */ ( Pop,         Some(accum_str_esc_dig)    ),
+        /* 3: A-F */ ( Pop,         Some(accum_str_esc_hex_uc) ),
+        /* 4: a-f */ ( Pop,         Some(accum_str_esc_hex_lc) ),
+    ]),
+
+//  // AtEscHex2 <( ['"] \ u )> : at a character literal byte escape, char 1
+//  ([
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+//  ],&[
+//      //             Transition      Action
+//      //             Next           Consume  Action
+//      /* 0: eof */ ( Redo(AtEof), Some(error_char_unterm)   ),
+//      /* 1: ??? */ ( Redo(AtEof), Some(error_char_overflow) ),
+//      /* 2:  '  */ ( Next(AtCharEnd), Some(makes_char_escape)   ),
+//  ]),
+
+//  // StateName <( prior chars )> : state description
+//  ([
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+//  ],&[
+        //             Transition      Action
+//      //             Next      Consume  Action
+//      /* 0: eof */ ( Redo(AtEof), None ),
+//      /* 1: ??? */ ( Redo(AtEof), None ),
+//  ]),
+
     // AtEof - At end of file
     ([
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
@@ -324,95 +482,249 @@ static STATES: [ActionTable; STATE_COUNT] = [
     ]),
 ];
 
+#[inline]
 fn yield_eof(l: &mut Context, c: char) -> Option<Token> {
     Some(Eof)
 }
 
+#[inline]
 fn yield_eos(l: &mut Context, c: char) -> Option<Token> {
     Some(Eos)
 }
 
+#[inline]
 fn yield_eos_nl(l: &mut Context, c: char) -> Option<Token> {
-    l.current.column = 1;
-    l.current.line  += 1;
+    newline(l, c);
     Some(Eos)
 }
 
+#[inline]
 fn newline(l: &mut Context, c: char) -> Option<Token> {
     l.current.column = 1;
     l.current.line  += 1;
     None
 }
 
+// Identifier Actions
+
+#[inline]
 fn begin_id(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.clear();
-    l.buffer.push(c);
+    begin_str(l, c);
+    accum_str(l, c);
     None
 }
 
+#[inline]
 fn accum_id(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.push(c);
+    accum_str(l, c);
     None
 }
 
+#[inline]
 fn yield_id(l: &mut Context, c: char) -> Option<Token> {
     let n = l.strings.intern(&l.buffer);
     Some(Id(n))
 }
 
-fn begin_num(l: &mut Context, c: char) -> Option<Token> {
-    // First digit is always 0 or decimal 1-9
-    l.number = c as u64 - 0x30; // c - '0'
+// Number actions
+
+#[inline]
+fn begin_num_dig(l: &mut Context, c: char) -> Option<Token> {
+    l.number = int_from_dig(c);
     None
 }
 
+#[inline]
+fn begin_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
+    l.number = int_from_hex_uc(c);
+    None
+}
+
+#[inline]
+fn begin_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
+    l.number = int_from_hex_lc(c);
+    None
+}
+
+#[inline]
 fn accum_num_dec(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number * 10) + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number * 10) + int_from_dig(c);
     None
 }
 
+#[inline]
 fn accum_num_hex_dig(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 4) + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number << 4) + int_from_dig(c);
     None
 }
 
+#[inline]
 fn accum_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 4) + (c as u64 - 0x37); // 10 + c - 'A'
+    l.number = (l.number << 4) + int_from_hex_uc(c);
     None
 }
 
+#[inline]
 fn accum_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 4) + (c as u64 - 0x57); // 10 + c - 'a'
+    l.number = (l.number << 4) + int_from_hex_lc(c);
     None
 }
 
+#[inline]
 fn accum_num_oct(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 3) + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number << 3) + int_from_dig(c);
     None
 }
 
+#[inline]
 fn accum_num_bin(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 1) + (c as u64 - 0x30); // c - '0'
+    l.number = (l.number << 1) + int_from_dig(c);
     None
 }
 
+#[inline]
+fn int_from_dig   (c: char) -> u64 { c as u64 - 0x30 /*      c - '0' */ }
+
+#[inline]
+fn int_from_hex_uc(c: char) -> u64 { c as u64 - 0x37 /* 10 + c - 'A' */ }
+
+#[inline]
+fn int_from_hex_lc(c: char) -> u64 { c as u64 - 0x57 /* 10 + c - 'a' */ }
+
+#[inline]
 fn yield_num_zero(l: &mut Context, c: char) -> Option<Token> {
     Some(Int(0))
 }
 
+#[inline]
 fn yield_num(l: &mut Context, c: char) -> Option<Token> {
     Some(Int(l.number))
 }
 
+// Character/String Actions
+
+#[inline]
+fn begin_str(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.clear();
+    None
+}
+
+#[inline]
+fn accum_str(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.push(c);
+    None
+}
+
+#[inline]
+fn accum_str_nul(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.push('\0');
+    None
+}
+
+#[inline]
+fn accum_str_lf(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.push('\n');
+    None
+}
+
+#[inline]
+fn accum_str_cr(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.push('\r');
+    None
+}
+
+#[inline]
+fn accum_str_tab(l: &mut Context, c: char) -> Option<Token> {
+    l.buffer.push('\t');
+    None
+}
+
+#[inline]
+fn accum_str_esc(l: &mut Context, c: char) -> Option<Token> {
+    // TODO: Ensure no overflow
+    let c = unsafe { mem::transmute(l.number as u32) };
+    l.buffer.push(c);
+    None
+}
+
+#[inline]
+fn accum_str_esc_dig(l: &mut Context, c: char) -> Option<Token> {
+    accum_num_hex_dig (l, c);
+    accum_str_esc     (l, c);
+    None
+}
+
+#[inline]
+fn accum_str_esc_hex_uc(l: &mut Context, c: char) -> Option<Token> {
+    accum_num_hex_uc (l, c);
+    accum_str_esc    (l, c);
+    None
+}
+
+#[inline]
+fn accum_str_esc_hex_lc(l: &mut Context, c: char) -> Option<Token> {
+    accum_num_hex_lc (l, c);
+    accum_str_esc    (l, c);
+    None
+}
+
+#[inline]
+fn yield_char(l: &mut Context, c: char) -> Option<Token> {
+    let c = l.buffer.chars().next().unwrap(); // TODO: better way
+    Some(Char(c))
+}
+
+#[inline]
+fn yield_str(l: &mut Context, c: char) -> Option<Token> {
+    Some(Str(l.buffer.clone()))
+}
+
+// Punctuation Actions
+
+#[inline]
 fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
+// Diagnostic Actions
+
+#[inline]
 fn error_unrec(l: &mut Context, c: char) -> Option<Token> {
     // "Unrecognized character."
     None
 }
 
-fn err_invalid_num (l: &mut Context, c: char) -> Option<Token> {
+#[inline]
+fn err_invalid_num(l: &mut Context, c: char) -> Option<Token> {
     // "Invalid character in numeric literal."
+    None
+}
+
+#[inline]
+fn error_char_unterm(l: &mut Context, c: char) -> Option<Token> {
+    // "Unterminated character literal."
+    None
+}
+
+#[inline]
+fn error_char_length(l: &mut Context, c: char) -> Option<Token> {
+    // "Invalid character literal length.  Character literals must contain exactly one character."
+    None
+}
+
+#[inline]
+fn error_str_unterm(l: &mut Context, c: char) -> Option<Token> {
+    // "Unterminated string literal."
+    None
+}
+
+#[inline]
+fn error_esc_unterm(l: &mut Context, c: char) -> Option<Token> {
+    // "Incomplete escape sequence."
+    None
+}
+
+#[inline]
+fn error_esc_invalid(l: &mut Context, c: char) -> Option<Token> {
+    // "Invalid escape sequence."
     None
 }
 
