@@ -7,9 +7,10 @@ pub enum Token {
     Int     (u64),
     Char    (char),
     Str     (String),
-    Bang,               // !
-    Eos,                // End of statement
-    Eof,                // End of file
+    Bang,                   // !
+    Eos,                    // End of statement
+    Eof,                    // End of file
+    Error   (&'static str)  // Lexical error
 }
 use self::Token::*;
 
@@ -50,7 +51,9 @@ enum Transition {
 }
 use self::Transition::*;
 
-type Action = Option< fn(&mut Context, char) -> Option<Token> >;
+type Action = Option<
+    fn(&mut Context, char) -> Option<Token>
+>;
 
 pub struct Lexer<I>
 where I: Iterator<Item=char>
@@ -67,11 +70,9 @@ struct Context {
     number:     u64,            // number builder
     buffer:     String,         // string builder
     strings:    Interner        // string interner
-    // errors
 }
 
 // TODO: Return position information.
-// TODO: Some way for an action to throw an error.
 // TODO: Check for numeric overflow.
 
 impl<I> Lexer<I>
@@ -86,7 +87,6 @@ where I: Iterator<Item=char>
             buffer:  String::with_capacity(128),
             number:  0,
             strings: Interner::new()
-            // errors
         };
         Lexer { iter:iter, ch:ch, state:state, context:context }
     }
@@ -126,6 +126,11 @@ where I: Iterator<Item=char>
                     return token;
                 }
             }
+
+            // NOTE: Returning an Error token from an action does not
+            // automatically move the lexer into the AtEof state.  This is OK,
+            // because the parser should really just stop on getting an Error
+            // token.
         }
     }
 }
@@ -692,44 +697,37 @@ fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
 #[inline]
 fn error_unrec(l: &mut Context, c: char) -> Option<Token> {
-    // "Unrecognized character."
-    None
+    Some(Error("Unrecognized character."))
 }
 
 #[inline]
 fn err_invalid_num(l: &mut Context, c: char) -> Option<Token> {
-    // "Invalid character in numeric literal."
-    None
+    Some(Error("Invalid character in numeric literal."))
 }
 
 #[inline]
 fn error_char_unterm(l: &mut Context, c: char) -> Option<Token> {
-    // "Unterminated character literal."
-    None
+    Some(Error("Unterminated character literal."))
 }
 
 #[inline]
 fn error_char_length(l: &mut Context, c: char) -> Option<Token> {
-    // "Invalid character literal length.  Character literals must contain exactly one character."
-    None
+    Some(Error("Invalid character literal length.  Character literals must contain exactly one character."))
 }
 
 #[inline]
 fn error_str_unterm(l: &mut Context, c: char) -> Option<Token> {
-    // "Unterminated string literal."
-    None
+    Some(Error("Unterminated string literal."))
 }
 
 #[inline]
 fn error_esc_unterm(l: &mut Context, c: char) -> Option<Token> {
-    // "Incomplete escape sequence."
-    None
+    Some(Error("Incomplete escape sequence."))
 }
 
 #[inline]
 fn error_esc_invalid(l: &mut Context, c: char) -> Option<Token> {
-    // "Invalid escape sequence."
-    None
+    Some(Error("Invalid escape sequence."))
 }
 
 #[cfg(test)]
@@ -775,7 +773,8 @@ mod tests {
         lex(       "0__", Int(         0), (1, 1), (1,  4), 0);
         lex(     "0b1  ", Int(         1), (1, 1), (1,  4), 0);
         lex(     "0b1;;", Int(         1), (1, 1), (1,  4), 0);
-        //lex(     "0b19z", Eof            , (1, 6), (1,  6), 0); // TODO: error
+
+        lex_err("0b19z", (1, 6), (1,  6));
     }
 
     fn lex(s: &str, t: Token, start: (u32, u32), end: (u32, u32), errs: u32)
@@ -785,6 +784,22 @@ mod tests {
         let     context = lexer.context;
 
         assert_eq!(t, token);
+
+        //assert_eq!(context.start,  start)
+        //assert_eq!(context.end,    end)
+        //assert_eq!(context.errors, errs);
+    }
+
+    fn lex_err(s: &str, start: (u32, u32), end: (u32, u32))
+    {
+        let mut lexer   = Lexer::new(s.chars());
+        let     token   = lexer.lex();
+        let     context = lexer.context;
+
+        match token {
+            Error(_) => {},
+            _        => panic!("Did not return an error.")
+        }
 
         //assert_eq!(context.start,  start)
         //assert_eq!(context.end,    end)
