@@ -29,13 +29,21 @@ use self::State::*;
 const STATE_COUNT: usize = 9;
 
 type ActionTable = (
-    [u8; 128],      // Map from 7-bit char to transition index
-    &'static [(     // Transitions
-        State,      // - next state
-        bool,       // - true => consume this char
+    [u8; 128],      // Map from 7-bit char to handler index
+    &'static [(     // Handlers array
+        Transition, // - state transition
         Action      // - custom action
     )]
 );
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Transition {
+    Redo(State),    // stay at same char, . . . . . . .  set state
+    Next(State),    // move to next char, . . . . . . .  set state
+    Push(State),    // move to next char, save    state, set state
+    Pop             // move to next char, restore state
+}
+use self::Transition::*;
 
 type Action = Option< fn(&mut Context, char) -> Option<Token> >;
 
@@ -83,13 +91,17 @@ where I: Iterator<Item=char>
         print!("state = {:?}\n", state);
 
         loop {
-            let (c, (next_state, consume, action))
+            let (c, (transition, action))
                 = lookup(&STATES[state as usize], ch);
 
-            print!("{:?} {:?} => {:?} {:?} {:?}\n",
-                   state, ch, c, next_state, consume);
+            print!("{:?} {:?} => {:?} {:?}\n", state, ch, c, transition);
 
-            state = next_state;
+            let consume = match transition {
+                Next(s) => {                     state = s; true  },
+                Redo(s) => {                     state = s; false },
+                Push(s) => { self.state = state; state = s; true  },
+                Pop     => { let s = self.state; state = s; true  }
+            };
 
             if consume {
                 ctx.current.byte   += c.len_utf8();
@@ -110,7 +122,7 @@ where I: Iterator<Item=char>
 }
 
 #[inline]
-fn lookup(entry: &ActionTable, ch: Option<char>) -> (char, (State, bool, Action))
+fn lookup(entry: &ActionTable, ch: Option<char>) -> (char, (Transition, Action))
 {
     let (n, c) = match ch {
         Some(c) => {
@@ -144,16 +156,16 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next       Consume  Action
-        /* 0: eof */ ( AtEof     , false , None               ),
-        /* 1: ??? */ ( AtEof     , false , Some(lex_error)    ),
-        /* 2: \s  */ ( Initial   , true  , None               ),
-        /* 3: \n  */ ( AfterEos  , true  , Some(yield_eos_nl) ),
-        /* 4:  ;  */ ( AfterEos  , true  , Some(yield_eos)    ),
-        /* 5: id0 */ ( InId      , true  , Some(begin_id)     ),
-        /* 6:  0  */ ( AfterZero , true  , Some(begin_num)    ),
-        /* 7: 1-9 */ ( InNumDec  , true  , Some(begin_num)    ),
-//      /* n:  !  */ ( Initial   , true  , Some(yield_bang)   ),
+        //             Transition       Action
+        /* 0: eof */ ( Redo(AtEof),     None               ),
+        /* 1: ??? */ ( Redo(AtEof),     Some(error_unrec)  ),
+        /* 2: \s  */ ( Next(Initial),   None               ),
+        /* 3: \n  */ ( Next(AfterEos),  Some(yield_eos_nl) ),
+        /* 4:  ;  */ ( Next(AfterEos),  Some(yield_eos)    ),
+        /* 5: id0 */ ( Next(InId),      Some(begin_id)     ),
+        /* 6:  0  */ ( Next(AfterZero), Some(begin_num)    ),
+        /* 7: 1-9 */ ( Next(InNumDec),  Some(begin_num)    ),
+//      /* n:  !  */ ( Next(Initial),   Some(yield_bang)   ),
     ]),
 
     // AfterEos - After end of statement
@@ -167,11 +179,11 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , None          ),
-        /* 1: ??? */ ( Initial  , false , None          ),
-        /* 2: \s  */ ( AfterEos , true  , None          ),
-        /* 3: \n  */ ( AfterEos , true  , Some(newline) ),
+        //             Transition      Action
+        /* 0: eof */ ( Redo(AtEof),    None          ),
+        /* 1: ??? */ ( Redo(Initial),  None          ),
+        /* 2: \s  */ ( Next(AfterEos), None          ),
+        /* 3: \n  */ ( Next(AfterEos), Some(newline) ),
     ]),
 
     // InId - In identifier
@@ -185,10 +197,10 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // `abcdefg hijklmno
         2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next     Consume  Action
-        /* 0: eof */ ( AtEof   , false , Some(yield_id) ),
-        /* 1: ??? */ ( Initial , false , Some(yield_id) ),
-        /* 2: id  */ ( InId    , true  , Some(accum_id) ),
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(yield_id) ),
+        /* 1: ??? */ ( Redo(Initial), Some(yield_id) ),
+        /* 2: id  */ ( Next(InId),    Some(accum_id) ),
     ]),
 
     // AfterZero - after 0 introducing a number literal
@@ -202,15 +214,15 @@ static STATES: [ActionTable; STATE_COUNT] = [
         7, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  4, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , Some(yield_num_zero)  ),
-        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
-        /* 2: 0-9 */ ( InNumDec , false , None                  ),
-        /* 3:  _  */ ( InNumDec , true  , None                  ),
-        /* 4:  x  */ ( InNumHex , true  , None                  ),
-        /* 5:  o  */ ( InNumOct , true  , None                  ),
-        /* 6:  b  */ ( InNumBin , true  , None                  ),
-        /* 7: opr */ ( Initial  , false , Some(yield_num_zero)  ),
+        //             Transition      Action
+        /* 0: eof */ ( Redo(AtEof),    Some(yield_num_zero)  ),
+        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
+        /* 2: 0-9 */ ( Redo(InNumDec), None                  ), // TODO: Use Next() here
+        /* 3:  _  */ ( Next(InNumDec), None                  ),
+        /* 4:  x  */ ( Next(InNumHex), None                  ),
+        /* 5:  o  */ ( Next(InNumOct), None                  ),
+        /* 6:  b  */ ( Next(InNumBin), None                  ),
+        /* 7: opr */ ( Redo(Initial),  Some(yield_num_zero)  ), // TODO: Add space state
     ]),
 
     // InNumDec - in a decimal number
@@ -224,12 +236,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
-        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
-        /* 2: 0-9 */ ( InNumDec , true  , Some(accum_num_dec)   ),
-        /* 3:  _  */ ( InNumDec , true  , None                  ),
-        /* 4: opr */ ( Initial  , false , Some(yield_num)       ),
+        //             Transition      Action
+        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
+        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
+        /* 2: 0-9 */ ( Next(InNumDec), Some(accum_num_dec)   ),
+        /* 3:  _  */ ( Next(InNumDec), None                  ),
+        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ), // TODO: Add space state
     ]),
 
     // InNumHex - in a hexadecimal number
@@ -243,14 +255,14 @@ static STATES: [ActionTable; STATE_COUNT] = [
         6, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 6, 6, 6, 6, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , Some(yield_num)         ),
-        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num)   ),
-        /* 2: 0-9 */ ( InNumHex , true  , Some(accum_num_hex_dig) ),
-        /* 3: A-F */ ( InNumHex , true  , Some(accum_num_hex_uc)  ),
-        /* 4: a-f */ ( InNumHex , true  , Some(accum_num_hex_lc)  ),
-        /* 5:  _  */ ( InNumHex , true  , None                    ),
-        /* 6: opr */ ( Initial  , false , Some(yield_num)         ),
+        //             Transition      Action
+        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)         ),
+        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num)   ),
+        /* 2: 0-9 */ ( Next(InNumHex), Some(accum_num_hex_dig) ),
+        /* 3: A-F */ ( Next(InNumHex), Some(accum_num_hex_uc)  ),
+        /* 4: a-f */ ( Next(InNumHex), Some(accum_num_hex_lc)  ),
+        /* 5:  _  */ ( Next(InNumHex), None                    ),
+        /* 6: opr */ ( Redo(Initial),  Some(yield_num)         ), // TODO: Add space state
     ]),
 
     // InNumOct - in an octal number
@@ -264,12 +276,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
-        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
-        /* 2: 0-7 */ ( InNumOct , true  , Some(accum_num_oct)   ),
-        /* 3:  _  */ ( InNumOct , true  , None                  ),
-        /* 4: opr */ ( Initial  , false , Some(yield_num)       ),
+        //             Transition      Action
+        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
+        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
+        /* 2: 0-7 */ ( Next(InNumOct), Some(accum_num_oct)   ),
+        /* 3:  _  */ ( Next(InNumOct), None                  ),
+        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ), // TODO: Add space state
     ]),
 
     // InNumBin - in a binary number
@@ -283,12 +295,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next      Consume  Action
-        /* 0: eof */ ( AtEof    , false , Some(yield_num)       ),
-        /* 1: ??? */ ( AtEof    , false , Some(err_invalid_num) ),
-        /* 2: 0-1 */ ( InNumBin , true  , Some(accum_num_bin)   ),
-        /* 3:  _  */ ( InNumBin , true  , None                  ),
-        /* 4: opr */ ( Initial  , false , Some(yield_num)       ),
+        //             Transition      Action
+        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
+        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
+        /* 2: 0-1 */ ( Next(InNumBin), Some(accum_num_bin)   ),
+        /* 3:  _  */ ( Next(InNumBin), None                  ),
+        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ), // TODO: Add space state
     ]),
 
     // AtEof - At end of file
@@ -302,8 +314,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Next   Consume  Action
-        /* 0: eof */ ( AtEof , false , Some(yield_eof) ),
+        //             Transition   Action
+        /* 0: eof */ ( Redo(AtEof), Some(yield_eof) ),
     ]),
 ];
 
@@ -389,7 +401,8 @@ fn yield_num(l: &mut Context, c: char) -> Option<Token> {
 
 fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
-fn lex_error(l: &mut Context, c: char) -> Option<Token> {
+fn error_unrec(l: &mut Context, c: char) -> Option<Token> {
+    // "Unrecognized character."
     None
 }
 
