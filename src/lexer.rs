@@ -70,6 +70,10 @@ struct Context {
     // errors
 }
 
+// TODO: Return position information.
+// TODO: Some way for an action to throw an error.
+// TODO: Check for numeric overflow.
+
 impl<I> Lexer<I>
 where I: Iterator<Item=char>
 {
@@ -162,17 +166,17 @@ static STATES: [ActionTable; STATE_COUNT] = [
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Transition       Action
-        /* 0: eof */ ( Redo(AtEof),     None               ),
-        /* 1: ??? */ ( Redo(AtEof),     Some(error_unrec)  ),
-        /* 2: \s  */ ( Next(Initial),   None               ),
-        /* 3: \n  */ ( Next(AfterEos),  Some(yield_eos_nl) ),
-        /* 4:  ;  */ ( Next(AfterEos),  Some(yield_eos)    ),
-        /* 5: id0 */ ( Next(InId),      Some(begin_id)     ),
-        /* 6:  0  */ ( Next(AfterZero), Some(begin_num_dig)    ),
-        /* 7: 1-9 */ ( Next(InNumDec),  Some(begin_num_dig)    ),
-        /* 8:  '  */ ( Next(InChar),    Some(begin_str)    ),
-        /* 8:  "  */ ( Next(InStr),     Some(begin_str)    ),
-//      /* n:  !  */ ( Next(Initial),   Some(yield_bang)   ),
+        /* 0: eof */ ( Redo(AtEof),     None                ),
+        /* 1: ??? */ ( Redo(AtEof),     Some(error_unrec)   ),
+        /* 2: \s  */ ( Next(Initial),   None                ),
+        /* 3: \n  */ ( Next(AfterEos),  Some(yield_eos_nl)  ),
+        /* 4:  ;  */ ( Next(AfterEos),  Some(yield_eos)     ),
+        /* 5: id0 */ ( Next(InId),      Some(begin_id)      ),
+        /* 6:  0  */ ( Next(AfterZero), Some(begin_num_dig) ),
+        /* 7: 1-9 */ ( Next(InNumDec),  Some(begin_num_dig) ),
+        /* 8:  '  */ ( Next(InChar),    Some(begin_str)     ),
+        /* 8:  "  */ ( Next(InStr),     Some(begin_str)     ),
+//      /* n:  !  */ ( Next(Initial),   Some(yield_bang)    ),
     ]),
 
     // AfterEos - After end of statement
