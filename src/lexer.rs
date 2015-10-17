@@ -205,55 +205,57 @@ static STATES: [ActionTable; STATE_COUNT] = [
 
     // AfterZero - after 0 introducing a number literal
     ([
-        x, x, x, x, x, x, x, x,  x, 7, 7, x, x, 7, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 7, 8, x, x, 7, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        7, 7, x, 7, 7, 7, 7, x,  7, 7, 7, 7, 7, 7, 7, 7, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 7, 7, 7, 7, 7, 7, // 01234567 89:;<=>?
-        7, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, 3, // PQRSTUVW XYZ[\]^_
-        7, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  4, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
+        7, 8, x, 8, 8, 8, 8, x,  8, 8, 8, 8, 8, 8, 8, 8, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 8, 8, 8, 8, 8, 8, // 01234567 89:;<=>?
+        8, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 8, 8, 8, 8, 3, // PQRSTUVW XYZ[\]^_
+        8, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  4, x, x, 8, 8, 8, 8, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Transition      Action
         /* 0: eof */ ( Redo(AtEof),    Some(yield_num_zero)  ),
         /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
-        /* 2: 0-9 */ ( Redo(InNumDec), None                  ), // TODO: Use Next() here
+        /* 2: 0-9 */ ( Next(InNumDec), Some(accum_num_dec)   ),
         /* 3:  _  */ ( Next(InNumDec), None                  ),
         /* 4:  x  */ ( Next(InNumHex), None                  ),
         /* 5:  o  */ ( Next(InNumOct), None                  ),
         /* 6:  b  */ ( Next(InNumBin), None                  ),
-        /* 7: opr */ ( Redo(Initial),  Some(yield_num_zero)  ), // TODO: Add space state
+        /* 7: \s  */ ( Next(Initial),  Some(yield_num_zero)  ),
+        /* 8: opr */ ( Redo(Initial),  Some(yield_num_zero)  ),
     ]),
 
     // InNumDec - in a decimal number
     ([
-        x, x, x, x, x, x, x, x,  x, 4, 4, x, x, 4, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        4, 4, x, 4, 4, 4, 4, x,  4, 4, 4, 4, 4, 4, 4, 4, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 4, 4, 4, 4, 4, 4, // 01234567 89:;<=>?
-        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, 3, // PQRSTUVW XYZ[\]^_
-        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
+        4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Transition      Action
         /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
         /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
         /* 2: 0-9 */ ( Next(InNumDec), Some(accum_num_dec)   ),
         /* 3:  _  */ ( Next(InNumDec), None                  ),
-        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ), // TODO: Add space state
+        /* 4: \s  */ ( Next(Initial),  Some(yield_num)       ),
+        /* 5: opr */ ( Redo(Initial),  Some(yield_num)       ),
     ]),
 
     // InNumHex - in a hexadecimal number
     ([
-        x, x, x, x, x, x, x, x,  x, 6, 6, x, x, 6, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 6, 7, x, x, 6, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        6, 6, x, 6, 6, 6, 6, x,  6, 6, 6, 6, 6, 6, 6, 6, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 6, 6, 6, 6, 6, 6, // 01234567 89:;<=>?
-        6, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, 6, 6, 6, 6, 5, // PQRSTUVW XYZ[\]^_
-        6, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, 6, 6, 6, 6, x, // pqrstuvw xyz{|}~. <- DEL
+        6, 7, x, 7, 7, 7, 7, x,  7, 7, 7, 7, 7, 7, 7, 7, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 7, 7, 7, 7, 7, 7, // 01234567 89:;<=>?
+        7, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, 5, // PQRSTUVW XYZ[\]^_
+        7, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Transition      Action
         /* 0: eof */ ( Redo(AtEof),    Some(yield_num)         ),
@@ -262,45 +264,48 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 3: A-F */ ( Next(InNumHex), Some(accum_num_hex_uc)  ),
         /* 4: a-f */ ( Next(InNumHex), Some(accum_num_hex_lc)  ),
         /* 5:  _  */ ( Next(InNumHex), None                    ),
-        /* 6: opr */ ( Redo(Initial),  Some(yield_num)         ), // TODO: Add space state
+        /* 6: \s  */ ( Next(Initial),  Some(yield_num)         ),
+        /* 7: opr */ ( Redo(Initial),  Some(yield_num)         ),
     ]),
 
     // InNumOct - in an octal number
     ([
-        x, x, x, x, x, x, x, x,  x, 4, 4, x, x, 4, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        4, 4, x, 4, 4, 4, 4, x,  4, 4, 4, 4, 4, 4, 4, 4, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  x, x, 4, 4, 4, 4, 4, 4, // 01234567 89:;<=>?
-        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, 3, // PQRSTUVW XYZ[\]^_
-        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
+        4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  x, x, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Transition      Action
         /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
         /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
         /* 2: 0-7 */ ( Next(InNumOct), Some(accum_num_oct)   ),
         /* 3:  _  */ ( Next(InNumOct), None                  ),
-        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ), // TODO: Add space state
+        /* 6: \s  */ ( Next(Initial),  Some(yield_num)       ),
+        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ),
     ]),
 
     // InNumBin - in a binary number
     ([
-        x, x, x, x, x, x, x, x,  x, 4, 4, x, x, 4, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        4, 4, x, 4, 4, 4, 4, x,  4, 4, 4, 4, 4, 4, 4, 4, //  !"#$%&' ()*+,-./
-        2, 2, x, x, x, x, x, x,  x, x, 4, 4, 4, 4, 4, 4, // 01234567 89:;<=>?
-        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, 3, // PQRSTUVW XYZ[\]^_
-        4, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, 4, 4, 4, 4, x, // pqrstuvw xyz{|}~. <- DEL
+        4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
+        2, 2, x, x, x, x, x, x,  x, x, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Transition      Action
         /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
         /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
         /* 2: 0-1 */ ( Next(InNumBin), Some(accum_num_bin)   ),
         /* 3:  _  */ ( Next(InNumBin), None                  ),
-        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ), // TODO: Add space state
+        /* 6: \s  */ ( Next(Initial),  Some(yield_num)       ),
+        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ),
     ]),
 
     // AtEof - At end of file
