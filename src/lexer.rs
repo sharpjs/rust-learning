@@ -73,7 +73,6 @@ struct Context {
 }
 
 // TODO: Return position information.
-// TODO: Check for numeric overflow.
 
 impl<I> Lexer<I>
 where I: Iterator<Item=char>
@@ -539,66 +538,84 @@ fn yield_id(l: &mut Context, c: char) -> Option<Token> {
 
 #[inline]
 fn begin_num_dig(l: &mut Context, c: char) -> Option<Token> {
-    l.number = int_from_dig(c);
+    l.number = int_from_dig(c) as u64;
     None
 }
 
 #[inline]
 fn begin_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = int_from_hex_uc(c);
+    l.number = int_from_hex_uc(c) as u64;
     None
 }
 
 #[inline]
 fn begin_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = int_from_hex_lc(c);
+    l.number = int_from_hex_lc(c) as u64;
     None
 }
 
 #[inline]
 fn accum_num_dec(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number * 10) + int_from_dig(c);
-    None
+    accum_num(l, 10, int_from_dig(c))
 }
 
 #[inline]
 fn accum_num_hex_dig(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 4) + int_from_dig(c);
-    None
+    accum_num(l, 16, int_from_dig(c))
 }
 
 #[inline]
 fn accum_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 4) + int_from_hex_uc(c);
-    None
+    accum_num(l, 16, int_from_hex_uc(c))
 }
 
 #[inline]
 fn accum_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 4) + int_from_hex_lc(c);
-    None
+    accum_num(l, 16, int_from_hex_lc(c))
 }
 
 #[inline]
 fn accum_num_oct(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 3) + int_from_dig(c);
-    None
+    accum_num(l, 8, int_from_dig(c))
 }
 
 #[inline]
 fn accum_num_bin(l: &mut Context, c: char) -> Option<Token> {
-    l.number = (l.number << 1) + int_from_dig(c);
+    accum_num(l, 2, int_from_dig(c))
+}
+
+#[inline]
+fn accum_num(l: &mut Context, base: u8, digit: u8) -> Option<Token> {
+    let mut n = l.number;
+
+    n = match n.checked_mul(base as u64) {
+        Some(n) => n,
+        None    => { return error_num_overflow(); }
+    };
+
+    n = match n.checked_add(digit as u64) {
+        Some(n) => n,
+        None    => { return error_num_overflow(); }
+    };
+
+    l.number = n;
     None
 }
 
 #[inline]
-fn int_from_dig   (c: char) -> u64 { c as u64 - 0x30 /*      c - '0' */ }
+fn int_from_dig(c: char) -> u8 {
+    c as u8 - 0x30 // c - '0'
+}
 
 #[inline]
-fn int_from_hex_uc(c: char) -> u64 { c as u64 - 0x37 /* 10 + c - 'A' */ }
+fn int_from_hex_uc(c: char) -> u8 {
+    c as u8 - 0x37 // 10 + c - 'A'
+}
 
 #[inline]
-fn int_from_hex_lc(c: char) -> u64 { c as u64 - 0x57 /* 10 + c - 'a' */ }
+fn int_from_hex_lc(c: char) -> u8 {
+    c as u8 - 0x57 // 10 + c - 'a'
+}
 
 #[inline]
 fn yield_num_zero(l: &mut Context, c: char) -> Option<Token> {
@@ -650,11 +667,14 @@ fn accum_str_tab(l: &mut Context, c: char) -> Option<Token> {
 
 #[inline]
 fn accum_str_esc(l: &mut Context, c: char) -> Option<Token> {
-    // TODO: Ensure no overflow
-    let c = unsafe { mem::transmute(l.number as u32) };
+    let n = l.number as u32;
+    if  n > UNICODE_MAX { return error_esc_overflow(); }
+    let c = unsafe { mem::transmute(n) };
     l.buffer.push(c);
     None
 }
+
+const UNICODE_MAX: u32 = 0x10FFFF;
 
 #[inline]
 fn accum_str_esc_dig(l: &mut Context, c: char) -> Option<Token> {
@@ -706,13 +726,26 @@ fn err_invalid_num(l: &mut Context, c: char) -> Option<Token> {
 }
 
 #[inline]
+fn error_num_overflow() -> Option<Token> {
+    Some(Error("Overflow in numeric literal.  \
+                Aex integers are unsigned 64-bit."))
+}
+
+#[inline]
 fn error_char_unterm(l: &mut Context, c: char) -> Option<Token> {
     Some(Error("Unterminated character literal."))
 }
 
 #[inline]
 fn error_char_length(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Invalid character literal length.  Character literals must contain exactly one character."))
+    Some(Error("Invalid character literal length.  \
+                Character literals must contain exactly one character."))
+}
+
+#[inline]
+fn error_esc_overflow() -> Option<Token> {
+    Some(Error("Overflow in Unicode escape sequence.  \
+                The maximum permitted is \\u{10FFFF}."))
 }
 
 #[inline]
