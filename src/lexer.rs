@@ -187,8 +187,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // 01234567 89:;<=>?
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
@@ -197,7 +197,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
         //             Transition      Action
         /* 0: eof */ ( Redo(AtEof),    None          ),
         /* 1: ??? */ ( Redo(Initial),  None          ),
-        /* 2: \s  */ ( Next(AfterEos), None          ),
+        /* 2: \s; */ ( Next(AfterEos), None          ),
         /* 3: \n  */ ( Next(AfterEos), Some(newline) ),
     ]),
 
