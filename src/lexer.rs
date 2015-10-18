@@ -18,29 +18,32 @@
 
 use std::collections::HashMap;
 use std::mem;
+
 use interner::*;
+use message::*;
+use message::Message::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token {
-    Id      (StrId),        // Identifier
-    Int     (u64),          // Literal: integer
-    Char    (char),         // Literal: character
-    Str     (StrId),        // Literal: string
-    KwType,                 // Keyword: type
-    KwStruct,               // Keyword: struct
-    KwUnion,                // Keyword: union
-    KwIf,                   // Keyword: if
-    KwElse,                 // Keyword: else
-    KwLoop,                 // Keyword: loop
-    KwWhile,                // Keyword: while
-    KwBreak,                // Keyword: break
-    KwContinue,             // Keyword: continue
-    KwReturn,               // Keyword: return
-    KwJump,                 // Keyword: jump
-    Bang,                   // !
-    Eos,                    // End of statement
-    Eof,                    // End of file
-    Error   (&'static str)  // Lexical error
+    Id   (StrId),   // Identifier
+    Str  (StrId),   // Literal: string
+    Char (char),    // Literal: character
+    Int  (u64),     // Literal: integer
+    KwType,         // Keyword: type
+    KwStruct,       // Keyword: struct
+    KwUnion,        // Keyword: union
+    KwIf,           // Keyword: if
+    KwElse,         // Keyword: else
+    KwLoop,         // Keyword: loop
+    KwWhile,        // Keyword: while
+    KwBreak,        // Keyword: break
+    KwContinue,     // Keyword: continue
+    KwReturn,       // Keyword: return
+    KwJump,         // Keyword: jump
+    Bang,           // !
+    Eos,            // End of statement
+    Eof,            // End of file
+    Error (Message) // Lexical error
 }
 use self::Token::*;
 
@@ -804,50 +807,47 @@ fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
 
 #[inline]
 fn error_unrec(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Unrecognized character."))
+    Some(Error(Lex_Invalid))
 }
 
 #[inline]
 fn err_invalid_num(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Invalid character in numeric literal."))
+    Some(Error(Lex_NumInvalid))
 }
 
 #[inline]
 fn error_num_overflow() -> Option<Token> {
-    Some(Error("Overflow in numeric literal.  \
-                Aex integers are unsigned 64-bit."))
+    Some(Error(Lex_NumOverflow))
 }
 
 #[inline]
 fn error_char_unterm(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Unterminated character literal."))
+    Some(Error(Lex_CharUnterminated))
 }
 
 #[inline]
 fn error_char_length(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Invalid character literal length.  \
-                Character literals must contain exactly one character."))
+    Some(Error(Lex_CharLength))
 }
 
 #[inline]
 fn error_esc_overflow() -> Option<Token> {
-    Some(Error("Overflow in Unicode escape sequence.  \
-                The maximum permitted is \\u{10FFFF}."))
+    Some(Error(Lex_EscOverflow))
 }
 
 #[inline]
 fn error_str_unterm(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Unterminated string literal."))
+    Some(Error(Lex_StrUnterminated))
 }
 
 #[inline]
 fn error_esc_unterm(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Incomplete escape sequence."))
+    Some(Error(Lex_EscUnterminated))
 }
 
 #[inline]
 fn error_esc_invalid(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error("Invalid escape sequence."))
+    Some(Error(Lex_EscInvalid))
 }
 
 #[cfg(test)]

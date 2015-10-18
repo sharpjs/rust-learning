@@ -42,17 +42,36 @@ macro_rules! count {
     (                      ) => (0);
 }
 
-static_array! { X: [i32] = 1, 2, 3 }
-
 messages! {
-    Lex_Invalid         => "",
-    Lex_NumInvalid      => "",
-    Lex_NumOverflow     => "",
-    Lex_CharUntermnated => "",
-    Lex_CharLength      => "",
-    Lex_StrUnterminated => "",
-    Lex_EscInvalid      => "",
-    Lex_EscUnterminated => "",
-    Lex_EscOverflow     => ""
+    Lex_Invalid          => "Unrecognized character.",
+    Lex_NumInvalid       => "Invalid character in numeric literal.",
+    Lex_NumOverflow      => "Overflow in numeric literal.  \
+                             Aex integers are unsigned 64-bit.",
+    Lex_CharUnterminated => "Unterminated character literal.",
+    Lex_CharLength       => "Invalid character literal length.  \
+                             Character literals must contain exactly one character.",
+    Lex_StrUnterminated  => "Overflow in Unicode escape sequence.  \
+                             The maximum permitted is \\u{10FFFF}.",
+    Lex_EscInvalid       => "Unterminated string literal.",
+    Lex_EscUnterminated  => "Incomplete escape sequence.",
+    Lex_EscOverflow      => "Invalid escape sequence."
+}
+
+impl Message {
+    #[inline]
+    fn number(self) -> u8 { self as u8 }
+
+    #[inline]
+    fn text(self) -> &'static str { MESSAGES[self as usize] }
+}
+
+impl Into<u8> for Message {
+    #[inline]
+    fn into(self) -> u8 { self.number() }
+}
+
+impl Into<&'static str> for Message {
+    #[inline]
+    fn into(self) -> &'static str { self.text() }
 }
 
