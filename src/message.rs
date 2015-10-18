@@ -1,4 +1,4 @@
-// AEx - Just a toy language for learning Rust
+// Messages
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -16,29 +16,28 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
+macro_rules! messages {
+    ( $( $id:ident => $str:expr ),* ) => (
 
-macro_rules! is {
-    { $val:expr => $( $pat:pat ),* } => {
-        match $val {
-            $( $pat => true ),* ,
-            _ => false
-        }
-    };
-    { $val:expr => $( $pat:pat if $cond:expr ),* } => {
-        match $val {
-            $( $pat if $cond => true ),* ,
-            _ => false
-        }
-    };
+        #[allow(non_camel_case_types)]
+        #[derive(Clone, Copy, PartialEq, Eq, Debug)]
+        #[repr(u8)]
+        pub enum Message { $( $id ),* }
+
+        static MESSAGES: [&'static str; 9] = [$( $str ),*];
+        // TODO: Figure out how to do a count
+    );
 }
 
-mod interner;
-mod lexer;
-mod message;
-mod parser;
-
-fn main() {
+messages! {
+    Lex_Invalid         => "",
+    Lex_NumInvalid      => "",
+    Lex_NumOverflow     => "",
+    Lex_CharUntermnated => "",
+    Lex_CharLength      => "",
+    Lex_StrUnterminated => "",
+    Lex_EscInvalid      => "",
+    Lex_EscUnterminated => "",
+    Lex_EscOverflow     => ""
 }
 
