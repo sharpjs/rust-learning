@@ -44,10 +44,10 @@ type ActionTable = (
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum Transition {
-    Redo(State),    // stay at same char, . . . . . . .  set state
-    Next(State),    // move to next char, . . . . . . .  set state
-    Push(State),    // move to next char, save    state, set state
-    Pop             // move to next char, restore state
+    Redo(State),        // stay at same char, set state
+    Next(State),        // move to next char, set state
+    Push(State, State), // move to next char, set state, save state for later restore
+    Pop                 // move to next char, restore state
 }
 use self::Transition::*;
 
@@ -105,10 +105,10 @@ where I: Iterator<Item=char>
             print!("{:?} {:?} => {:?} {:?}\n", state, ch, c, transition);
 
             let consume = match transition {
-                Next(s) => {                     state = s; true  },
-                Redo(s) => {                     state = s; false },
-                Push(s) => { self.state = state; state = s; true  },
-                Pop     => { let s = self.state; state = s; true  }
+                Next(s)    => { state = s;                 true  },
+                Redo(s)    => { state = s;                 false },
+                Push(s, p) => { state = s; self.state = p; true  },
+                Pop        => { state =    self.state;     true  }
             };
 
             if consume {
@@ -334,11 +334,11 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),     Some(error_char_unterm) ),
-        /* 1: ??? */ ( Next(AtCharEnd), Some(accum_str)         ),
-        /* 2:  \  */ ( Push(InEsc),     None                    ),
-        /* 3:  '  */ ( Redo(AtEof),     Some(error_char_length) ),
+        //             Transition              Action
+        /* 0: eof */ ( Redo(AtEof),            Some(error_char_unterm) ),
+        /* 1: ??? */ ( Next(AtCharEnd),        Some(accum_str)         ),
+        /* 2:  \  */ ( Push(InEsc, AtCharEnd), None                    ),
+        /* 3:  '  */ ( Redo(AtEof),            Some(error_char_length) ),
     ]),
 
     // AtCharEnd <( ' char )> : expecting the end of a character literal
@@ -369,11 +369,11 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(error_str_unterm) ),
-        /* 1: ??? */ ( Next(InStr),   Some(accum_str)        ),
-        /* 2:  \  */ ( Push(InEsc),   None                   ),
-        /* 3:  "  */ ( Next(Initial), Some(yield_str)        ),
+        //             Transition           Action
+        /* 0: eof */ ( Redo(AtEof),         Some(error_str_unterm) ),
+        /* 1: ??? */ ( Next(InStr),         Some(accum_str)        ),
+        /* 2:  \  */ ( Push(InEsc, InStr),  None                   ),
+        /* 3:  "  */ ( Next(Initial),       Some(yield_str)        ),
     ]),
 
     // InEsc <( ['"] \ )> : after escape characer
