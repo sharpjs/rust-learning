@@ -3,10 +3,10 @@ use interner::*;
 
 #[derive(Clone, /*Copy,*/ PartialEq, Eq, Debug)]
 pub enum Token {
-    Id      (Symbol),
-    Int     (u64),
-    Char    (char),
-    Str     (String),
+    Id      (Symbol),       // Identifier
+    Int     (u64),          // Literal integer
+    Char    (char),         // Literal character
+    Str     (String),       // Literal string
     Bang,                   // !
     Eos,                    // End of statement
     Eof,                    // End of file
@@ -96,14 +96,16 @@ where I: Iterator<Item=char>
         let     iter  = &mut self.iter;
         let     ctx   = &mut self.context;
 
-        println!("state = {:?}", state);
+        println!("\nstate = {:?}", state);
 
         loop {
+            // Lookup handler for this state and char
             let (c, (transition, action))
                 = lookup(&STATES[state as usize], ch);
 
             println!("{:?} {:?} => {:?} {:?}", state, ch, c, transition);
 
+            // Interpret transition
             let consume = match transition {
                 Next(s)    => { state = s;                 true  },
                 Redo(s)    => { state = s;                 false },
@@ -111,12 +113,14 @@ where I: Iterator<Item=char>
                 Pop        => { state =    self.state;     true  }
             };
 
+            // Consume character and get next
             if consume {
                 ctx.current.byte   += c.len_utf8();
                 ctx.current.column += 1;
                 ch = iter.next();
             }
 
+            // Invoke custom action
             if let Some(func) = action {
                 if let Some(token) = func(ctx, c) {
                     // Remember state for next call
@@ -128,8 +132,7 @@ where I: Iterator<Item=char>
 
             // NOTE: Returning an Error token from an action does not
             // automatically move the lexer into the AtEof state.  This is OK,
-            // because the parser should really just stop on getting an Error
-            // token.
+            // because the consumer should stop on receiving an Error token.
         }
     }
 }
@@ -137,19 +140,20 @@ where I: Iterator<Item=char>
 #[inline]
 fn lookup(entry: &ActionTable, ch: Option<char>) -> (char, (Transition, Action))
 {
+    // Lookup A: char -> handler number
     let (n, c) = match ch {
         Some(c) => {
             let n = c as usize;
             if n & 0x7F == n {
-                // U+007F and below => table lookup
-                (entry.0[n] as usize, c)
+                (entry.0[n] as usize, c)    // U+007F and below => table lookup
             } else {
-                // U+0080 and above => 'other'
-                (1, c)
+                (1, c)                      // U+0080 and above => 'other'
             }
         },
-        None => (0, '\0') // EOF
+        None => (0, '\0')                   // EOF
     };
+
+    // Lookup B: handler number -> handler
     (c, entry.1[n])
 }
 
