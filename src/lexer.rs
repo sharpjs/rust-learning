@@ -820,6 +820,37 @@ mod tests {
         lex("0b19z").yields_error();
     }
 
+    #[test]
+    fn char() {
+        lex("'a'") .yields(Char('a')).yields(Eof);
+        lex("'a")  .yields_error();
+        lex("''")  .yields_error();
+        lex("'aa'").yields_error();
+    }
+
+    #[test]
+    fn char_escape() {
+        lex("'\\0'" ).yields(Char('\0')).yields(Eof);
+        lex("'\\n'" ).yields(Char('\n')).yields(Eof);
+        lex("'\\r'" ).yields(Char('\r')).yields(Eof);
+        lex("'\\t'" ).yields(Char('\t')).yields(Eof);
+        lex("'\\\\'").yields(Char('\\')).yields(Eof);
+        lex("'\\\''").yields(Char('\'')).yields(Eof);
+        lex("'\\\"'").yields(Char('\"')).yields(Eof);
+        lex("'\\a'" ).yields_error();
+    }
+
+    #[test]
+    fn char_escape_hex() {
+        lex("'\\x5A'" ).yields(Char('\u{5A}')).yields(Eof);
+        lex("'\\xA5'" ).yields(Char('\u{A5}')).yields(Eof); // TODO: Is this a byte?
+        lex("'\\x"    ).yields_error();
+        lex("'\\x'"   ).yields_error();
+        lex("'\\x5"   ).yields_error();
+        lex("'\\x5'"  ).yields_error();
+        lex("'\\x5Ax'").yields_error();
+    }
+
     struct LexerHarness<'a>(Lexer<Chars<'a>>);
 
     fn lex(input: &str) -> LexerHarness {
