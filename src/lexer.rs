@@ -16,15 +16,27 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::HashMap;
 use std::mem;
 use interner::*;
 
-#[derive(Clone, /*Copy,*/ PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token {
     Id      (StrId),        // Identifier
-    Int     (u64),          // Literal integer
-    Char    (char),         // Literal character
-    Str     (String),       // Literal string
+    Int     (u64),          // Literal: integer
+    Char    (char),         // Literal: character
+    Str     (StrId),        // Literal: string
+    KwType,                 // Keyword: type
+    KwStruct,               // Keyword: struct
+    KwUnion,                // Keyword: union
+    KwIf,                   // Keyword: if
+    KwElse,                 // Keyword: else
+    KwLoop,                 // Keyword: loop
+    KwWhile,                // Keyword: while
+    KwBreak,                // Keyword: break
+    KwContinue,             // Keyword: continue
+    KwReturn,               // Keyword: return
+    KwJump,                 // Keyword: jump
     Bang,                   // !
     Eos,                    // End of statement
     Eof,                    // End of file
@@ -76,18 +88,19 @@ type Action = Option<
 pub struct Lexer<I>
 where I: Iterator<Item=char>
 {
-    iter:       I,              // remaining chars
-    ch:         Option<char>,   // char  after previous token
-    state:      State,          // state after previous token
-    context:    Context         // context object give to actions
+    iter:       I,                      // remaining chars
+    ch:         Option<char>,           // char  after previous token
+    state:      State,                  // state after previous token
+    context:    Context                 // context object give to actions
 }
 
 struct Context {
-    start:      Pos,            // position of token start
-    current:    Pos,            // position of current character
-    number:     u64,            // number builder
-    buffer:     String,         // string builder
-    strings:    Interner        // string interner
+    start:      Pos,                    // position of token start
+    current:    Pos,                    // position of current character
+    number:     u64,                    // number builder
+    buffer:     String,                 // string builder
+    strings:    Interner,               // string interner
+    keywords:   HashMap<StrId, Token>   // keyword table
 }
 
 // TODO: Return position information.
@@ -96,19 +109,25 @@ impl<I> Lexer<I>
 where I: Iterator<Item=char>
 {
     fn new(mut iter: I) -> Self {
-        let ch      = iter.next();
-        let state   = match ch { Some(_) => Initial, None => AtEof };
+        let ch    = iter.next();
+        let state = match ch { Some(_) => Initial, None => AtEof };
+
+        let mut strings  = Interner::new();
+        let     keywords = intern_keywords(&mut strings);
+
         let context = Context {
-            start:   Pos { byte: 0, line: 1, column: 1 },
-            current: Pos { byte: 0, line: 1, column: 1 },
-            buffer:  String::with_capacity(128),
-            number:  0,
-            strings: Interner::new()
+            start:    Pos { byte: 0, line: 1, column: 1 },
+            current:  Pos { byte: 0, line: 1, column: 1 },
+            buffer:   String::with_capacity(128),
+            number:   0,
+            strings:  strings,
+            keywords: keywords
         };
+
         Lexer { iter:iter, ch:ch, state:state, context:context }
     }
 
-    fn lex(&mut self) -> Token {
+    pub fn lex(&mut self) -> Token {
         let mut ch    =      self.ch;
         let mut state =      self.state;
         let     iter  = &mut self.iter;
@@ -153,6 +172,23 @@ where I: Iterator<Item=char>
             // because the consumer should stop on receiving an Error token.
         }
     }
+}
+
+#[inline]
+fn intern_keywords(i: &mut Interner) -> HashMap<StrId, Token> {
+    let mut h = HashMap::new();
+    h.insert(i.intern("type"),     KwType    );
+    h.insert(i.intern("struct"),   KwStruct  );
+    h.insert(i.intern("union"),    KwUnion   );
+    h.insert(i.intern("if"),       KwIf      );
+    h.insert(i.intern("else"),     KwElse    );
+    h.insert(i.intern("loop"),     KwLoop    );
+    h.insert(i.intern("while"),    KwWhile   );
+    h.insert(i.intern("break"),    KwBreak   );
+    h.insert(i.intern("continue"), KwContinue);
+    h.insert(i.intern("return"),   KwReturn  );
+    h.insert(i.intern("jump"),     KwJump    );
+    h
 }
 
 #[inline]
@@ -571,8 +607,12 @@ fn accum_id(l: &mut Context, c: char) -> Option<Token> {
 
 #[inline]
 fn yield_id(l: &mut Context, c: char) -> Option<Token> {
-    let n = l.strings.intern(&l.buffer);
-    Some(Id(n))
+    let id = l.strings.intern(&l.buffer);
+
+    match l.keywords.get(&id) {
+        Some(&k) => Some(k),
+        None     => Some(Id(id))
+    }
 }
 
 // Number actions
@@ -752,7 +792,7 @@ fn yield_char(l: &mut Context, c: char) -> Option<Token> {
 
 #[inline]
 fn yield_str(l: &mut Context, c: char) -> Option<Token> {
-    Some(Str(l.buffer.clone()))
+    Some(Str(l.strings.add(&l.buffer)))
 }
 
 // Punctuation Actions
@@ -907,6 +947,11 @@ mod tests {
         lex("'\\u{}'"    ).yields(Char('\u{000}')).yields(Eof);
         lex("'\\u{1Fe}'" ).yields(Char('\u{1Fe}')).yields(Eof);
         lex("'\\u{1Fe}x'").yields_error();
+    }
+
+    #[test]
+    fn keywords() {
+        lex("type").yields(KwType).yields(Eof);
     }
 
     struct LexerHarness<'a>(Lexer<Chars<'a>>);
