@@ -16,10 +16,9 @@ macro_rules! is {
     };
 }
 
-mod char;
+mod interner;
 mod lexer;
 mod parser;
-mod interner;
 
 fn main() {
 }
