@@ -162,7 +162,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, x, 9, x, x, x, x, 8,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
         6, 7, 7, 7, 7, 7, 7, 7,  7, 7, x, 4, x, x, x, x, // 01234567 89:;<=>?
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
@@ -179,7 +179,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 6:  0  */ ( Next(AfterZero), Some(begin_num_dig) ),
         /* 7: 1-9 */ ( Next(InNumDec),  Some(begin_num_dig) ),
         /* 8:  '  */ ( Next(InChar),    Some(begin_str)     ),
-        /* 8:  "  */ ( Next(InStr),     Some(begin_str)     ),
+        /* 9:  "  */ ( Next(InStr),     Some(begin_str)     ),
 //      /* n:  !  */ ( Next(Initial),   Some(yield_bang)    ),
     ]),
 
