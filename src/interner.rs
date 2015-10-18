@@ -45,8 +45,7 @@ impl Interner {
         }
     }
 
-    pub fn intern<S: AsRef<str>>(&mut self, s: S) -> StrId
-    {
+    pub fn intern<S: AsRef<str>>(&mut self, s: S) -> StrId {
         let s = s.as_ref();
 
         // If an interned copy exists, return it
