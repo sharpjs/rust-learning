@@ -16,18 +16,33 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+// Defines a messages enum and a map from enum items to strings.
 macro_rules! messages {
     ( $( $id:ident => $str:expr ),* ) => (
-
         #[allow(non_camel_case_types)]
         #[derive(Clone, Copy, PartialEq, Eq, Debug)]
         #[repr(u8)]
         pub enum Message { $( $id ),* }
 
-        static MESSAGES: [&'static str; 9] = [$( $str ),*];
-        // TODO: Figure out how to do a count
+        static_array! { MESSAGES: [&'static str] = $( $str ),* }
     );
 }
+
+// Defines a static array with automatic count.
+macro_rules! static_array {
+    [ $id:ident: [$t:ty] = $( $e:expr ),* ] => (
+        static $id: [$t; count!($( $e ),*)] = [$( $e ),*];
+    );
+}
+
+// Counts arguments.  Yields an expression like: 1 + 1 + 1
+macro_rules! count {
+    ( $e:expr, $( $x:tt )+ ) => (1 + count!($( $x )+));
+    ( $e:expr              ) => (1);
+    (                      ) => (0);
+}
+
+static_array! { X: [i32] = 1, 2, 3 }
 
 messages! {
     Lex_Invalid         => "",
