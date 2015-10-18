@@ -96,13 +96,13 @@ where I: Iterator<Item=char>
         let     iter  = &mut self.iter;
         let     ctx   = &mut self.context;
 
-        print!("state = {:?}\n", state);
+        println!("state = {:?}", state);
 
         loop {
             let (c, (transition, action))
                 = lookup(&STATES[state as usize], ch);
 
-            print!("{:?} {:?} => {:?} {:?}\n", state, ch, c, transition);
+            println!("{:?} {:?} => {:?} {:?}", state, ch, c, transition);
 
             let consume = match transition {
                 Next(s)    => { state = s;                 true  },
