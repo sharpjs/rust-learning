@@ -27,12 +27,12 @@ enum State {
     Initial, AfterEos, InId,
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
     InChar, AtCharEnd, InStr,
-    InEsc, AtEscHex0, AtEscHex1, //AtEscUni0, AtEscUniN
+    InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
     AtEof
 }
 use self::State::*;
 
-const STATE_COUNT: usize = 15;
+const STATE_COUNT: usize = 17;
 
 type ActionTable = (
     [u8; 128],      // Map from 7-bit char to handler index
@@ -398,7 +398,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /*  7:  '  */ ( Pop,             Some(accum_str)         ),
         /*  8:  "  */ ( Pop,             Some(accum_str)         ),
         /*  9:  x  */ ( Next(AtEscHex0), None                    ),
-    //  /* 10:  u  */ ( Next(AtEscUni0), None                    ),
+        /* 10:  u  */ ( Next(AtEscUni0), None                    ),
     ]),
 
     // AtEscHex0 <( ['"] \ x )> : at byte escape digit 0
@@ -439,23 +439,42 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 4: a-f */ ( Pop,         Some(accum_str_esc_hex_lc) ),
     ]),
 
-//  // AtEscHex2 <( ['"] \ u )> : at a character literal byte escape, char 1
-//  ([
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-//      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-//  ],&[
-//      //             Transition      Action
-//      //             Next           Consume  Action
-//      /* 0: eof */ ( Redo(AtEof), Some(error_char_unterm)   ),
-//      /* 1: ??? */ ( Redo(AtEof), Some(error_char_overflow) ),
-//      /* 2:  '  */ ( Next(AtCharEnd), Some(makes_char_escape)   ),
-//  ]),
+    // AtEscUni0 <( ['"] \ u )> : in unicode escape, expecting {
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, 0, x, x, x, x, 0,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition       Action
+        /* 0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
+        /* 1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
+        /* 2:  {  */ ( Next(AtEscUni1), Some(begin_num)         ),
+    ]),
+
+    // AtEscUni1 <( ['"] \ u { )> : in unicode escape, expecting hex digit
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, 0, x, x, x, x, 0,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition       Action
+        /* 0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
+        /* 1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
+        /* 2: 0-9 */ ( Next(AtEscUni1), Some(accum_num_hex_dig) ),
+        /* 3: A-F */ ( Next(AtEscUni1), Some(accum_num_hex_uc)  ),
+        /* 4: a-f */ ( Next(AtEscUni1), Some(accum_num_hex_lc)  ),
+        /* 5:  }  */ ( Pop,             Some(accum_str_esc)     ),
+    ]),
 
 //  // StateName <( prior chars )> : state description
 //  ([
@@ -535,6 +554,12 @@ fn yield_id(l: &mut Context, c: char) -> Option<Token> {
 }
 
 // Number actions
+
+#[inline]
+fn begin_num(l: &mut Context, c: char) -> Option<Token> {
+    l.number = 0;
+    None
+}
 
 #[inline]
 fn begin_num_dig(l: &mut Context, c: char) -> Option<Token> {
@@ -849,6 +874,17 @@ mod tests {
         lex("'\\x5"   ).yields_error();
         lex("'\\x5'"  ).yields_error();
         lex("'\\x5Ax'").yields_error();
+    }
+
+    #[test]
+    fn char_escape_uni() {
+        lex("'\\u"       ).yields_error();
+        lex("'\\u'"      ).yields_error();
+        lex("'\\u{"      ).yields_error();
+        lex("'\\u{'"     ).yields_error();
+        lex("'\\u{}'"    ).yields(Char('\u{000}')).yields(Eof);
+        lex("'\\u{1Fe}'" ).yields(Char('\u{1Fe}')).yields(Eof);
+        lex("'\\u{1Fe}x'").yields_error();
     }
 
     struct LexerHarness<'a>(Lexer<Chars<'a>>);
