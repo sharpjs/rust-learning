@@ -1,4 +1,4 @@
-// AEx - Just a toy language for learning Rust
+// String Interner
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -19,14 +19,14 @@
 use std::collections::HashMap;
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Symbol(usize);
+pub struct StrId(usize);
 
-impl From<usize> for Symbol {
+impl From<usize> for StrId {
     #[inline]
-    fn from(n: usize) -> Self { Symbol(n) }
+    fn from(n: usize) -> Self { StrId(n) }
 }
 
-impl Into<usize> for Symbol {
+impl Into<usize> for StrId {
     #[inline]
     fn into(self) -> usize { self.0 }
 }
@@ -45,35 +45,59 @@ impl Interner {
         }
     }
 
-    pub fn intern<S: AsRef<str>>(&mut self, name: S) -> Symbol
+    pub fn intern<S: AsRef<str>>(&mut self, s: S) -> StrId
     {
-        let key = name.as_ref();
+        let s = s.as_ref();
 
-        // If a symbol exists by that name, return it
-        if let Some(&idx) = self.map.get(key) {
-            return idx.into();
+        // If an interned copy exists, return it
+        if let Some(&id) = self.map.get(s) {
+            return id.into();
         }
 
-        // Else, build a new symbol and return it
-        let idx = self.vec.len();
-        self.vec.push   (key.into()     );
-        self.map.insert (key.into(), idx);
-        idx.into()
+        // Else, intern a copy
+        let id = self.add(s);
+        self.map.insert(s.into(), id.0);
+        id
     }
 
     #[inline]
-    pub fn get(&self, id: Symbol) -> &str {
+    pub fn add<S: AsRef<str>>(&mut self, s: S) -> StrId {
+        let id = self.vec.len();
+        self.vec.push(s.as_ref().into());
+        id.into()
+    }
+
+    #[inline]
+    pub fn get(&self, id: StrId) -> &str {
         &self.vec[id.0]
     }
 }
 
-#[test]
-fn test() {
-    let mut t = Interner::new();
+#[cfg(test)]
+mod tests {
+    use super::*;
 
-    let a = t.intern("Hello");
-    let b = t.intern(&"Hello".to_string());
+    #[test]
+    fn intern() {
+        let mut t = Interner::new();
 
-    assert_eq!(a, b);
+        let a = t.intern("Hello");
+        let b = t.intern(&"Hello".to_string());
+
+        assert!   (a == b);
+        assert_eq!("Hello", t.get(a));
+    }
+
+    #[test]
+    fn add() {
+        let mut t = Interner::new();
+
+        let a = t.add("Hello");
+        let b = t.add(&"Hello".to_string());
+
+        assert!   (a != b);
+        assert_eq!("Hello", t.get(a));
+        assert_eq!("Hello", t.get(b));
+    }
 }
 

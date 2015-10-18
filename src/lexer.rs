@@ -1,4 +1,4 @@
-// AEx - Just a toy language for learning Rust
+// Lexical Analyzer
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -21,7 +21,7 @@ use interner::*;
 
 #[derive(Clone, /*Copy,*/ PartialEq, Eq, Debug)]
 pub enum Token {
-    Id      (Symbol),       // Identifier
+    Id      (StrId),        // Identifier
     Int     (u64),          // Literal integer
     Char    (char),         // Literal character
     Str     (String),       // Literal string
