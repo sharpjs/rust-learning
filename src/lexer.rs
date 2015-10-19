@@ -40,7 +40,44 @@ pub enum Token {
     KwContinue,     // Keyword: continue
     KwReturn,       // Keyword: return
     KwJump,         // Keyword: jump
+    BraceL,         // {
+    BraceR,         // }
+    ParenL,         // (
+    ParenR,         // )
+    BracketL,       // [
+    BracketR,       // ]
+    Dot,            // .
+    At,             // @
+    PlusPlus,       // ++
+    MinusMinus,     // --
     Bang,           // !
+    Tilde,          // ~
+    Question,       // ?
+    Star,           // *
+    Slash,          // /
+    Percent,        // %
+    Plus,           // +
+    Minus,          // -
+    LessLess,       // <<
+    MoreMore,       // >>
+    Ampersand,      // &
+    Caret,          // ^
+    Pipe,           // |
+    DotTilde,       // .~
+    DotBang,        // .!
+    DotEqual,       // .=
+    DotQuestion,    // .?
+    LessMore,       // <>
+    DoubleEqual,    // ==
+    Less,           // <
+    More,           // >
+    LessEqual,      // <=
+    MoreEqual,      // >=
+    EqualArrow,     // =>
+    DashArrow,      // ->
+    Equal,          // =
+    Colon,          // :
+    Comma,          // ,
     Eos,            // End of statement
     Eof,            // End of file
     Error (Message) // Lexical error
@@ -223,25 +260,50 @@ static STATES: [ActionTable; STATE_COUNT] = [
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, 9, x, x, x, x, 8,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        6, 7, 7, 7, 7, 7, 7, 7,  7, 7, x, 4, x, x, x, x, // 01234567 89:;<=>?
-        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
-        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
-        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
-        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        2,19, 9, x, x,24,27, 8, 13,14,22,25,34,26,17,23, //  !"#$%&' ()*+,-./
+        6, 7, 7, 7, 7, 7, 7, 7,  7, 7,33, 4,30,32,31,21, // 01234567 89:;<=>?
+       18, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,15, x,16,28, 5, // PQRSTUVW XYZ[\]^_
+       10, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,11,29,12,20, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition       Action
-        /* 0: eof */ ( Redo(AtEof),     None                ),
-        /* 1: ??? */ ( Redo(AtEof),     Some(error_unrec)   ),
-        /* 2: \s  */ ( Next(Initial),   None                ),
-        /* 3: \n  */ ( Next(AfterEos),  Some(yield_eos_nl)  ),
-        /* 4:  ;  */ ( Next(AfterEos),  Some(yield_eos)     ),
-        /* 5: id0 */ ( Next(InId),      Some(begin_id)      ),
-        /* 6:  0  */ ( Next(AfterZero), Some(begin_num_dig) ),
-        /* 7: 1-9 */ ( Next(InNumDec),  Some(begin_num_dig) ),
-        /* 8:  '  */ ( Next(InChar),    Some(begin_str)     ),
-        /* 9:  "  */ ( Next(InStr),     Some(begin_str)     ),
-//      /* n:  !  */ ( Next(Initial),   Some(yield_bang)    ),
+        //              Transition       Action
+        /*  0: eof */ ( Redo(AtEof),     None                  ),
+        /*  1: ??? */ ( Redo(AtEof),     Some(error_unrec)     ),
+        /*  2: \s  */ ( Next(Initial),   None                  ),
+        /*  3: \n  */ ( Next(AfterEos),  Some(yield_eos_nl)    ),
+        /*  4:  ;  */ ( Next(AfterEos),  Some(yield_eos)       ),
+        /*  5: id0 */ ( Next(InId),      Some(begin_id)        ),
+        /*  6:  0  */ ( Next(AfterZero), Some(begin_num_dig)   ),
+        /*  7: 1-9 */ ( Next(InNumDec),  Some(begin_num_dig)   ),
+        /*  8:  '  */ ( Next(InChar),    Some(begin_str)       ),
+        /*  9:  "  */ ( Next(InStr),     Some(begin_str)       ),
+        /* 10:  `  */ ( Next(InStr),     Some(begin_str)       ), // TODO
+
+        /* 11:  {  */ ( Next(Initial),   Some(yield_brace_l)   ),
+        /* 12:  }  */ ( Next(Initial),   Some(yield_brace_r)   ),
+        /* 13:  (  */ ( Next(Initial),   Some(yield_paren_l)   ),
+        /* 14:  )  */ ( Next(Initial),   Some(yield_paren_r)   ),
+        /* 15:  [  */ ( Next(Initial),   Some(yield_bracket_l) ),
+        /* 16:  ]  */ ( Next(Initial),   Some(yield_bracket_r) ),
+        /* 17:  .  */ ( Next(Initial),   Some(yield_dot)       ),
+        /* 18:  @  */ ( Next(Initial),   Some(yield_at)        ),
+        /* 19:  !  */ ( Next(Initial),   Some(yield_bang)      ),
+        /* 20:  ~  */ ( Next(Initial),   Some(yield_tilde)     ),
+        /* 21:  ?  */ ( Next(Initial),   Some(yield_question)  ),
+        /* 22:  *  */ ( Next(Initial),   Some(yield_star)      ),
+        /* 23:  /  */ ( Next(Initial),   Some(yield_slash)     ),
+        /* 24:  %  */ ( Next(Initial),   Some(yield_percent)   ),
+        /* 25:  +  */ ( Next(Initial),   Some(yield_plus)      ),
+        /* 26:  -  */ ( Next(Initial),   Some(yield_minus)     ),
+        /* 27:  &  */ ( Next(Initial),   Some(yield_ampersand) ),
+        /* 28:  ^  */ ( Next(Initial),   Some(yield_caret)     ),
+        /* 29:  |  */ ( Next(Initial),   Some(yield_pipe)      ),
+        /* 30:  <  */ ( Next(Initial),   Some(yield_less)      ),
+        /* 31:  >  */ ( Next(Initial),   Some(yield_more)      ),
+        /* 32:  =  */ ( Next(Initial),   Some(yield_equal)     ),
+        /* 33:  :  */ ( Next(Initial),   Some(yield_colon)     ),
+        /* 34:  ,  */ ( Next(Initial),   Some(yield_comma)     ),
     ]),
 
     // AfterEos - After end of statement
@@ -710,7 +772,44 @@ const UNICODE_MAX: u32 = 0x10FFFF;
 // Punctuation Actions
 
 actions! {
+    yield_brace_l      (l, c) { Some(BraceL)      }
+    yield_brace_r      (l, c) { Some(BraceR)      }
+    yield_paren_l      (l, c) { Some(ParenL)      }
+    yield_paren_r      (l, c) { Some(ParenR)      }
+    yield_bracket_l    (l, c) { Some(BracketL)    }
+    yield_bracket_r    (l, c) { Some(BracketR)    }
+    yield_dot          (l, c) { Some(Dot)         }
+    yield_at           (l, c) { Some(At)          }
+    yield_plus_plus    (l, c) { Some(PlusPlus)    }
+    yield_minus_minus  (l, c) { Some(MinusMinus)  }
     yield_bang         (l, c) { Some(Bang)        }
+    yield_tilde        (l, c) { Some(Tilde)       }
+    yield_question     (l, c) { Some(Question)    }
+    yield_star         (l, c) { Some(Star)        }
+    yield_slash        (l, c) { Some(Slash)       }
+    yield_percent      (l, c) { Some(Percent)     }
+    yield_plus         (l, c) { Some(Plus)        }
+    yield_minus        (l, c) { Some(Minus)       }
+    yield_less_less    (l, c) { Some(LessLess)    }
+    yield_more_more    (l, c) { Some(MoreMore)    }
+    yield_ampersand    (l, c) { Some(Ampersand)   }
+    yield_caret        (l, c) { Some(Caret)       }
+    yield_pipe         (l, c) { Some(Pipe)        }
+    yield_dot_tilde    (l, c) { Some(DotTilde)    }
+    yield_dot_bang     (l, c) { Some(DotBang)     }
+    yield_dot_equal    (l, c) { Some(DotEqual)    }
+    yield_dot_question (l, c) { Some(DotQuestion) }
+    yield_less_more    (l, c) { Some(LessMore)    }
+    yield_double_equal (l, c) { Some(DoubleEqual) }
+    yield_less         (l, c) { Some(Less)        }
+    yield_more         (l, c) { Some(More)        }
+    yield_less_equal   (l, c) { Some(LessEqual)   }
+    yield_more_equal   (l, c) { Some(MoreEqual)   }
+    yield_equal_arrow  (l, c) { Some(EqualArrow)  }
+    yield_dash_arrow   (l, c) { Some(DashArrow)   }
+    yield_equal        (l, c) { Some(Equal)       }
+    yield_colon        (l, c) { Some(Colon)       }
+    yield_comma        (l, c) { Some(Comma)       }
 }
 
 // Diagnostic Actions
@@ -832,6 +931,22 @@ mod tests {
     #[test]
     fn keywords() {
         lex("type").yields(KwType).yields(Eof);
+    }
+
+    #[test]
+    fn punct_len1() {
+        lex("{ } ( ) [ ] . @ ! ~ ? * / % + - & ^ | < > = : ,")
+            .yields(BraceL)    .yields(BraceR)
+            .yields(ParenL)    .yields(ParenR)
+            .yields(BracketL)  .yields(BracketR)
+            .yields(Dot)       .yields(At)
+            .yields(Bang)      .yields(Tilde) .yields(Question)
+            .yields(Star)      .yields(Slash) .yields(Percent)
+            .yields(Plus)      .yields(Minus)
+            .yields(Ampersand) .yields(Caret) .yields(Pipe)
+            .yields(Less)      .yields(More)  .yields(Equal)
+            .yields(Colon)     .yields(Comma)
+            .yields(Eof);
     }
 
     struct LexerHarness<'a>(Lexer<Chars<'a>>);
