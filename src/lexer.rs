@@ -570,108 +570,65 @@ static STATES: [ActionTable; STATE_COUNT] = [
     ]),
 ];
 
-#[inline]
-fn yield_eof(l: &mut Context, c: char) -> Option<Token> {
-    Some(Eof)
+// -----------------------------------------------------------------------------
+// Actions
+
+macro_rules! actions {
+    { $( $f:ident ($l:ident, $c:ident) $b:block )* } => {
+        $(
+            #[inline]
+            fn $f ($l: &mut Context, $c: char) -> Option<Token> $b
+        )*
+    };
 }
 
-#[inline]
-fn yield_eos(l: &mut Context, c: char) -> Option<Token> {
-    Some(Eos)
+// Whitespace actions
+
+actions! {
+    yield_eof    (l, c) {                Some(Eof) }
+    yield_eos    (l, c) {                Some(Eos) }
+    yield_eos_nl (l, c) { newline(l, c); Some(Eos) }
+
+    newline (l, c) {
+        l.current.column = 1;
+        l.current.line  += 1;
+        None
+    }
 }
 
-#[inline]
-fn yield_eos_nl(l: &mut Context, c: char) -> Option<Token> {
-    newline(l, c);
-    Some(Eos)
-}
+// Identifier actions
 
-#[inline]
-fn newline(l: &mut Context, c: char) -> Option<Token> {
-    l.current.column = 1;
-    l.current.line  += 1;
-    None
-}
+actions! {
+    begin_id (l, c) { begin_str(l, c); accum_str(l, c); None }
+    accum_id (l, c) {                  accum_str(l, c); None }
 
-// Identifier Actions
+    yield_id (l, c) {
+        let id = l.strings.intern(&l.buffer);
 
-#[inline]
-fn begin_id(l: &mut Context, c: char) -> Option<Token> {
-    begin_str(l, c);
-    accum_str(l, c);
-    None
-}
-
-#[inline]
-fn accum_id(l: &mut Context, c: char) -> Option<Token> {
-    accum_str(l, c);
-    None
-}
-
-#[inline]
-fn yield_id(l: &mut Context, c: char) -> Option<Token> {
-    let id = l.strings.intern(&l.buffer);
-
-    match l.keywords.get(&id) {
-        Some(&k) => Some(k),
-        None     => Some(Id(id))
+        match l.keywords.get(&id) {
+            Some(&k) => Some(k),
+            None     => Some(Id(id))
+        }
     }
 }
 
 // Number actions
 
-#[inline]
-fn begin_num(l: &mut Context, c: char) -> Option<Token> {
-    l.number = 0;
-    None
-}
+actions! {
+    begin_num         (l, c) { l.number = 0;                         None }
+    begin_num_dig     (l, c) { l.number = int_from_dig   (c) as u64; None }
+    begin_num_hex_uc  (l, c) { l.number = int_from_hex_uc(c) as u64; None }
+    begin_num_hex_lc  (l, c) { l.number = int_from_hex_lc(c) as u64; None }
 
-#[inline]
-fn begin_num_dig(l: &mut Context, c: char) -> Option<Token> {
-    l.number = int_from_dig(c) as u64;
-    None
-}
+    accum_num_dec     (l, c) { accum_num(l, 10, int_from_dig   (c)) }
+    accum_num_hex_dig (l, c) { accum_num(l, 16, int_from_dig   (c)) }
+    accum_num_hex_uc  (l, c) { accum_num(l, 16, int_from_hex_uc(c)) }
+    accum_num_hex_lc  (l, c) { accum_num(l, 16, int_from_hex_lc(c)) }
+    accum_num_oct     (l, c) { accum_num(l,  8, int_from_dig   (c)) }
+    accum_num_bin     (l, c) { accum_num(l,  2, int_from_dig   (c)) }
 
-#[inline]
-fn begin_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = int_from_hex_uc(c) as u64;
-    None
-}
-
-#[inline]
-fn begin_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
-    l.number = int_from_hex_lc(c) as u64;
-    None
-}
-
-#[inline]
-fn accum_num_dec(l: &mut Context, c: char) -> Option<Token> {
-    accum_num(l, 10, int_from_dig(c))
-}
-
-#[inline]
-fn accum_num_hex_dig(l: &mut Context, c: char) -> Option<Token> {
-    accum_num(l, 16, int_from_dig(c))
-}
-
-#[inline]
-fn accum_num_hex_uc(l: &mut Context, c: char) -> Option<Token> {
-    accum_num(l, 16, int_from_hex_uc(c))
-}
-
-#[inline]
-fn accum_num_hex_lc(l: &mut Context, c: char) -> Option<Token> {
-    accum_num(l, 16, int_from_hex_lc(c))
-}
-
-#[inline]
-fn accum_num_oct(l: &mut Context, c: char) -> Option<Token> {
-    accum_num(l, 8, int_from_dig(c))
-}
-
-#[inline]
-fn accum_num_bin(l: &mut Context, c: char) -> Option<Token> {
-    accum_num(l, 2, int_from_dig(c))
+    yield_num         (l, c) { Some(Int(l.number)) }
+    yield_num_zero    (l, c) { Some(Int(0)) }
 }
 
 #[inline]
@@ -680,12 +637,12 @@ fn accum_num(l: &mut Context, base: u8, digit: u8) -> Option<Token> {
 
     n = match n.checked_mul(base as u64) {
         Some(n) => n,
-        None    => { return error_num_overflow(); }
+        None    => { return error_num_overflow(l, ' '); }
     };
 
     n = match n.checked_add(digit as u64) {
         Some(n) => n,
-        None    => { return error_num_overflow(); }
+        None    => { return error_num_overflow(l, ' '); }
     };
 
     l.number = n;
@@ -707,148 +664,71 @@ fn int_from_hex_lc(c: char) -> u8 {
     c as u8 - 0x57 // 10 + c - 'a'
 }
 
-#[inline]
-fn yield_num_zero(l: &mut Context, c: char) -> Option<Token> {
-    Some(Int(0))
-}
-
-#[inline]
-fn yield_num(l: &mut Context, c: char) -> Option<Token> {
-    Some(Int(l.number))
-}
-
 // Character/String Actions
 
-#[inline]
-fn begin_str(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.clear();
-    None
-}
+actions! {
+    begin_str     (l, c) { l.buffer.clear();    None }
+    accum_str     (l, c) { l.buffer.push(c   ); None }
+    accum_str_nul (l, c) { l.buffer.push('\0'); None }
+    accum_str_lf  (l, c) { l.buffer.push('\n'); None }
+    accum_str_cr  (l, c) { l.buffer.push('\r'); None }
+    accum_str_tab (l, c) { l.buffer.push('\t'); None }
 
-#[inline]
-fn accum_str(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.push(c);
-    None
-}
-
-#[inline]
-fn accum_str_nul(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.push('\0');
-    None
-}
-
-#[inline]
-fn accum_str_lf(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.push('\n');
-    None
-}
-
-#[inline]
-fn accum_str_cr(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.push('\r');
-    None
-}
-
-#[inline]
-fn accum_str_tab(l: &mut Context, c: char) -> Option<Token> {
-    l.buffer.push('\t');
-    None
-}
-
-#[inline]
-fn accum_str_esc(l: &mut Context, c: char) -> Option<Token> {
-    let n = l.number as u32;
-    if  n > UNICODE_MAX { return error_esc_overflow(); }
-    let c = unsafe { mem::transmute(n) };
-    l.buffer.push(c);
-    None
+    accum_str_esc (l, c) {
+        let n = l.number as u32;
+        if  n > UNICODE_MAX { return error_esc_overflow(l, c); }
+        let c = unsafe { mem::transmute(n) };
+        l.buffer.push(c);
+        None
+    }
+    accum_str_esc_dig (l, c) {
+        accum_num_hex_dig (l, c);
+        accum_str_esc     (l, c);
+        None
+    }
+    accum_str_esc_hex_uc (l, c) {
+        accum_num_hex_uc (l, c);
+        accum_str_esc    (l, c);
+        None
+    }
+    accum_str_esc_hex_lc (l, c) {
+        accum_num_hex_lc (l, c);
+        accum_str_esc    (l, c);
+        None
+    }
+    yield_char (l, c) {
+        let c = l.buffer.chars().next().unwrap(); // TODO: better way
+        Some(Char(c))
+    }
+    yield_str (l, c) {
+        Some(Str(l.strings.add(&l.buffer)))
+    }
 }
 
 const UNICODE_MAX: u32 = 0x10FFFF;
 
-#[inline]
-fn accum_str_esc_dig(l: &mut Context, c: char) -> Option<Token> {
-    accum_num_hex_dig (l, c);
-    accum_str_esc     (l, c);
-    None
-}
-
-#[inline]
-fn accum_str_esc_hex_uc(l: &mut Context, c: char) -> Option<Token> {
-    accum_num_hex_uc (l, c);
-    accum_str_esc    (l, c);
-    None
-}
-
-#[inline]
-fn accum_str_esc_hex_lc(l: &mut Context, c: char) -> Option<Token> {
-    accum_num_hex_lc (l, c);
-    accum_str_esc    (l, c);
-    None
-}
-
-#[inline]
-fn yield_char(l: &mut Context, c: char) -> Option<Token> {
-    let c = l.buffer.chars().next().unwrap(); // TODO: better way
-    Some(Char(c))
-}
-
-#[inline]
-fn yield_str(l: &mut Context, c: char) -> Option<Token> {
-    Some(Str(l.strings.add(&l.buffer)))
-}
-
 // Punctuation Actions
 
-#[inline]
-fn yield_bang(l: &mut Context, c: char) -> Option<Token> { Some(Bang) }
+actions! {
+    yield_bang         (l, c) { Some(Bang)        }
+}
 
 // Diagnostic Actions
 
-#[inline]
-fn error_unrec(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error(Lex_Invalid))
+actions! {
+    error_unrec        (l, c) { Some(Error(Lex_Invalid))          }
+    err_invalid_num    (l, c) { Some(Error(Lex_NumInvalid))       }
+    error_num_overflow (l, c) { Some(Error(Lex_NumOverflow))      }
+    error_char_unterm  (l, c) { Some(Error(Lex_CharUnterminated)) }
+    error_char_length  (l, c) { Some(Error(Lex_CharLength))       }
+    error_esc_overflow (l, c) { Some(Error(Lex_EscOverflow))      }
+    error_str_unterm   (l, c) { Some(Error(Lex_StrUnterminated))  }
+    error_esc_unterm   (l, c) { Some(Error(Lex_EscUnterminated))  }
+    error_esc_invalid  (l, c) { Some(Error(Lex_EscInvalid))       }
 }
 
-#[inline]
-fn err_invalid_num(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error(Lex_NumInvalid))
-}
-
-#[inline]
-fn error_num_overflow() -> Option<Token> {
-    Some(Error(Lex_NumOverflow))
-}
-
-#[inline]
-fn error_char_unterm(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error(Lex_CharUnterminated))
-}
-
-#[inline]
-fn error_char_length(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error(Lex_CharLength))
-}
-
-#[inline]
-fn error_esc_overflow() -> Option<Token> {
-    Some(Error(Lex_EscOverflow))
-}
-
-#[inline]
-fn error_str_unterm(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error(Lex_StrUnterminated))
-}
-
-#[inline]
-fn error_esc_unterm(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error(Lex_EscUnterminated))
-}
-
-#[inline]
-fn error_esc_invalid(l: &mut Context, c: char) -> Option<Token> {
-    Some(Error(Lex_EscInvalid))
-}
+// -----------------------------------------------------------------------------
+// Tests
 
 #[cfg(test)]
 mod tests {
