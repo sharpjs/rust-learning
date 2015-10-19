@@ -98,11 +98,12 @@ enum State {
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
     InChar, AtCharEnd, InStr,
     InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
+    AfterPlus, AfterMinus,
     AtEof
 }
 use self::State::*;
 
-const STATE_COUNT: usize = 17;
+const STATE_COUNT: usize = 19;
 
 type ActionTable = (
     [u8; 128],      // Map from 7-bit char to handler index
@@ -267,43 +268,43 @@ static STATES: [ActionTable; STATE_COUNT] = [
        10, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,11,29,12,20, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //              Transition       Action
-        /*  0: eof */ ( Redo(AtEof),     None                  ),
-        /*  1: ??? */ ( Redo(AtEof),     Some(error_unrec)     ),
-        /*  2: \s  */ ( Next(Initial),   None                  ),
-        /*  3: \n  */ ( Next(AfterEos),  Some(yield_eos_nl)    ),
-        /*  4:  ;  */ ( Next(AfterEos),  Some(yield_eos)       ),
-        /*  5: id0 */ ( Next(InId),      Some(begin_id)        ),
-        /*  6:  0  */ ( Next(AfterZero), Some(begin_num_dig)   ),
-        /*  7: 1-9 */ ( Next(InNumDec),  Some(begin_num_dig)   ),
-        /*  8:  '  */ ( Next(InChar),    Some(begin_str)       ),
-        /*  9:  "  */ ( Next(InStr),     Some(begin_str)       ),
-        /* 10:  `  */ ( Next(InStr),     Some(begin_str)       ), // TODO
+        //              Transition        Action
+        /*  0: eof */ ( Redo(AtEof),      None                  ),
+        /*  1: ??? */ ( Redo(AtEof),      Some(error_unrec)     ),
+        /*  2: \s  */ ( Next(Initial),    None                  ),
+        /*  3: \n  */ ( Next(AfterEos),   Some(yield_eos_nl)    ),
+        /*  4:  ;  */ ( Next(AfterEos),   Some(yield_eos)       ),
+        /*  5: id0 */ ( Next(InId),       Some(begin_id)        ),
+        /*  6:  0  */ ( Next(AfterZero),  Some(begin_num_dig)   ),
+        /*  7: 1-9 */ ( Next(InNumDec),   Some(begin_num_dig)   ),
+        /*  8:  '  */ ( Next(InChar),     Some(begin_str)       ),
+        /*  9:  "  */ ( Next(InStr),      Some(begin_str)       ),
+        /* 10:  `  */ ( Next(InStr),      Some(begin_str)       ), // TODO
 
-        /* 11:  {  */ ( Next(Initial),   Some(yield_brace_l)   ),
-        /* 12:  }  */ ( Next(Initial),   Some(yield_brace_r)   ),
-        /* 13:  (  */ ( Next(Initial),   Some(yield_paren_l)   ),
-        /* 14:  )  */ ( Next(Initial),   Some(yield_paren_r)   ),
-        /* 15:  [  */ ( Next(Initial),   Some(yield_bracket_l) ),
-        /* 16:  ]  */ ( Next(Initial),   Some(yield_bracket_r) ),
-        /* 17:  .  */ ( Next(Initial),   Some(yield_dot)       ),
-        /* 18:  @  */ ( Next(Initial),   Some(yield_at)        ),
-        /* 19:  !  */ ( Next(Initial),   Some(yield_bang)      ),
-        /* 20:  ~  */ ( Next(Initial),   Some(yield_tilde)     ),
-        /* 21:  ?  */ ( Next(Initial),   Some(yield_question)  ),
-        /* 22:  *  */ ( Next(Initial),   Some(yield_star)      ),
-        /* 23:  /  */ ( Next(Initial),   Some(yield_slash)     ),
-        /* 24:  %  */ ( Next(Initial),   Some(yield_percent)   ),
-        /* 25:  +  */ ( Next(Initial),   Some(yield_plus)      ),
-        /* 26:  -  */ ( Next(Initial),   Some(yield_minus)     ),
-        /* 27:  &  */ ( Next(Initial),   Some(yield_ampersand) ),
-        /* 28:  ^  */ ( Next(Initial),   Some(yield_caret)     ),
-        /* 29:  |  */ ( Next(Initial),   Some(yield_pipe)      ),
-        /* 30:  <  */ ( Next(Initial),   Some(yield_less)      ),
-        /* 31:  >  */ ( Next(Initial),   Some(yield_more)      ),
-        /* 32:  =  */ ( Next(Initial),   Some(yield_equal)     ),
-        /* 33:  :  */ ( Next(Initial),   Some(yield_colon)     ),
-        /* 34:  ,  */ ( Next(Initial),   Some(yield_comma)     ),
+        /* 11:  {  */ ( Next(Initial),    Some(yield_brace_l)   ),
+        /* 12:  }  */ ( Next(Initial),    Some(yield_brace_r)   ),
+        /* 13:  (  */ ( Next(Initial),    Some(yield_paren_l)   ),
+        /* 14:  )  */ ( Next(Initial),    Some(yield_paren_r)   ),
+        /* 15:  [  */ ( Next(Initial),    Some(yield_bracket_l) ),
+        /* 16:  ]  */ ( Next(Initial),    Some(yield_bracket_r) ),
+        /* 17:  .  */ ( Next(Initial),    Some(yield_dot)       ),
+        /* 18:  @  */ ( Next(Initial),    Some(yield_at)        ),
+        /* 19:  !  */ ( Next(Initial),    Some(yield_bang)      ),
+        /* 20:  ~  */ ( Next(Initial),    Some(yield_tilde)     ),
+        /* 21:  ?  */ ( Next(Initial),    Some(yield_question)  ),
+        /* 22:  *  */ ( Next(Initial),    Some(yield_star)      ),
+        /* 23:  /  */ ( Next(Initial),    Some(yield_slash)     ),
+        /* 24:  %  */ ( Next(Initial),    Some(yield_percent)   ),
+        /* 25:  +  */ ( Next(AfterPlus),  None                  ),
+        /* 26:  -  */ ( Next(AfterMinus), None                  ),
+        /* 27:  &  */ ( Next(Initial),    Some(yield_ampersand) ),
+        /* 28:  ^  */ ( Next(Initial),    Some(yield_caret)     ),
+        /* 29:  |  */ ( Next(Initial),    Some(yield_pipe)      ),
+        /* 30:  <  */ ( Next(Initial),    Some(yield_less)      ),
+        /* 31:  >  */ ( Next(Initial),    Some(yield_more)      ),
+        /* 32:  =  */ ( Next(Initial),    Some(yield_equal)     ),
+        /* 33:  :  */ ( Next(Initial),    Some(yield_colon)     ),
+        /* 34:  ,  */ ( Next(Initial),    Some(yield_comma)     ),
     ]),
 
     // AfterEos - After end of statement
@@ -599,6 +600,42 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 5:  }  */ ( Pop,             Some(accum_str_esc)     ),
     ]),
 
+    // AfterPlus <( + )> : after a plus sign
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, 3, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(yield_plus)      ),
+        /* 1: ??? */ ( Redo(Initial), Some(yield_plus)      ),
+        /* 2: \s  */ ( Next(Initial), Some(yield_plus)      ),
+        /* 3:  +  */ ( Next(Initial), Some(yield_plus_plus) ),
+    ]),
+
+    // AfterMinus <( + )> : after a minus sign
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, 3, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(yield_minus)       ),
+        /* 1: ??? */ ( Redo(Initial), Some(yield_minus)       ),
+        /* 2: \s  */ ( Next(Initial), Some(yield_minus)       ),
+        /* 3:  -  */ ( Next(Initial), Some(yield_minus_minus) ),
+    ]),
+
 //  // StateName <( prior chars )> : state description
 //  ([
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
@@ -610,8 +647,7 @@ static STATES: [ActionTable; STATE_COUNT] = [
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
 //  ],&[
-        //             Transition      Action
-//      //             Next      Consume  Action
+        //             Transition   Action
 //      /* 0: eof */ ( Redo(AtEof), None ),
 //      /* 1: ??? */ ( Redo(AtEof), None ),
 //  ]),
@@ -934,17 +970,18 @@ mod tests {
     }
 
     #[test]
-    fn punct_len1() {
-        lex("{ } ( ) [ ] . @ ! ~ ? * / % + - & ^ | < > = : ,")
+    fn punctuation() {
+        lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - & ^ | < > = : ,")
             .yields(BraceL)    .yields(BraceR)
             .yields(ParenL)    .yields(ParenR)
             .yields(BracketL)  .yields(BracketR)
             .yields(Dot)       .yields(At)
-            .yields(Bang)      .yields(Tilde) .yields(Question)
-            .yields(Star)      .yields(Slash) .yields(Percent)
+            .yields(PlusPlus)  .yields(MinusMinus)
+            .yields(Bang)      .yields(Tilde)      .yields(Question)
+            .yields(Star)      .yields(Slash)      .yields(Percent)
             .yields(Plus)      .yields(Minus)
-            .yields(Ampersand) .yields(Caret) .yields(Pipe)
-            .yields(Less)      .yields(More)  .yields(Equal)
+            .yields(Ampersand) .yields(Caret)      .yields(Pipe)
+            .yields(Less)      .yields(More)       .yields(Equal)
             .yields(Colon)     .yields(Comma)
             .yields(Eof);
     }
