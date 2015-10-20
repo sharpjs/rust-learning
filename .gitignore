@@ -1,3 +1,9 @@
-target/
+# Editor
 *.swp
+
+# Rust
+/target/
+
+# Generated
+/src/parser.rs
 

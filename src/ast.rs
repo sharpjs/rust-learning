@@ -1,4 +1,4 @@
-// AEx - Just a toy language for learning Rust
+// Abstract Syntax Tree
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -16,30 +16,23 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
+use interner::StrId;
 
-macro_rules! is {
-    { $val:expr => $( $pat:pat ),* } => {
-        match $val {
-            $( $pat => true ),* ,
-            _ => false
-        }
-    };
-    { $val:expr => $( $pat:pat if $cond:expr ),* } => {
-        match $val {
-            $( $pat if $cond => true ),* ,
-            _ => false
-        }
-    };
+pub enum Stmt {
+    Stub (StrId)
 }
 
-mod ast;
-mod interner;
-mod lexer;
-mod message;
-mod parser;
-
-fn main() {
-}
+// data Stmt
+//     = Block     [Stmt]
+//     | TypeDef   String Type
+//     | Label     String
+//     | Bss       String Type
+//     | Data      String Type Exp
+//     | Alias     String Type Exp
+//     | Func      String Type Stmt
+//     | Eval      Exp
+//     | Loop      Stmt
+//     | If        Test Stmt Stmt
+//     | While     Test Stmt
+//     deriving (Eq, Show)
 

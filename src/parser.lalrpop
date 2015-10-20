@@ -1,4 +1,4 @@
-// AEx - Just a toy language for learning Rust
+// LALRPOP Parser Specification
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -16,5 +16,35 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// There's nothing here yet.
+use ast::*;
+use ast::Stmt::*;
+use interner::{Interner, StrId};
+use lexer::{Pos, Token};
+use message::Message;
+
+grammar(strings: &Interner)["LALR(1)"];
+
+extern {
+    type Location = Pos;
+    type Error    = Message;
+
+    enum Token {
+        Id  => Token::Id (<StrId>),
+        Str => Token::Str(<StrId>),
+        Num => Token::Num(<u64>),
+        ";" => Token::Eos,
+    }
+}
+
+pub Stmts: Vec<Stmt> = {
+    <v:(<Stmt> ";")*> <s:Stmt?> => match s {
+        None    => v,
+        Some(s) => { let mut v = v; v.push(s); v },
+    }
+};
+
+pub Stmt: Stmt = {
+    Id  => Stub(<>),
+    Str => Stub(<>)
+};
 
