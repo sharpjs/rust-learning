@@ -68,13 +68,14 @@ pub enum Token {
     DotEqual,       // .=
     DotQuestion,    // .?
     LessMore,       // <>
-    DoubleEqual,    // ==
+    EqualEqual,     // ==
+    BangEqual,      // !=
     Less,           // <
     More,           // >
     LessEqual,      // <=
     MoreEqual,      // >=
     EqualArrow,     // =>
-    DashArrow,      // ->
+    MinusArrow,     // ->
     Equal,          // =
     Colon,          // :
     Comma,          // ,
@@ -98,12 +99,13 @@ enum State {
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
     InChar, AtCharEnd, InStr,
     InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
-    AfterPlus, AfterMinus,
+    AfterDot, AfterPlus, AfterMinus,
+    AfterLess, AfterMore,  AfterEqual, AfterBang,
     AtEof
 }
 use self::State::*;
 
-const STATE_COUNT: usize = 19;
+const STATE_COUNT: usize = 24;
 
 type ActionTable = (
     [u8; 128],      // Map from 7-bit char to handler index
@@ -287,9 +289,9 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 14:  )  */ ( Next(Initial),    Some(yield_paren_r)   ),
         /* 15:  [  */ ( Next(Initial),    Some(yield_bracket_l) ),
         /* 16:  ]  */ ( Next(Initial),    Some(yield_bracket_r) ),
-        /* 17:  .  */ ( Next(Initial),    Some(yield_dot)       ),
+        /* 17:  .  */ ( Next(AfterDot),   None                  ),
         /* 18:  @  */ ( Next(Initial),    Some(yield_at)        ),
-        /* 19:  !  */ ( Next(Initial),    Some(yield_bang)      ),
+        /* 19:  !  */ ( Next(AfterBang),  None                  ),
         /* 20:  ~  */ ( Next(Initial),    Some(yield_tilde)     ),
         /* 21:  ?  */ ( Next(Initial),    Some(yield_question)  ),
         /* 22:  *  */ ( Next(Initial),    Some(yield_star)      ),
@@ -300,9 +302,9 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 27:  &  */ ( Next(Initial),    Some(yield_ampersand) ),
         /* 28:  ^  */ ( Next(Initial),    Some(yield_caret)     ),
         /* 29:  |  */ ( Next(Initial),    Some(yield_pipe)      ),
-        /* 30:  <  */ ( Next(Initial),    Some(yield_less)      ),
-        /* 31:  >  */ ( Next(Initial),    Some(yield_more)      ),
-        /* 32:  =  */ ( Next(Initial),    Some(yield_equal)     ),
+        /* 30:  <  */ ( Next(AfterLess),  None                  ),
+        /* 31:  >  */ ( Next(AfterMore),  None                  ),
+        /* 32:  =  */ ( Next(AfterEqual), None                  ),
         /* 33:  :  */ ( Next(Initial),    Some(yield_colon)     ),
         /* 34:  ,  */ ( Next(Initial),    Some(yield_comma)     ),
     ]),
@@ -600,6 +602,27 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 5:  }  */ ( Pop,             Some(accum_str_esc)     ),
     ]),
 
+    // AfterDot <( . )> : after a dot
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, 6, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(yield_dot)          ),
+        /* 1: ??? */ ( Redo(Initial), Some(yield_dot)          ),
+        /* 2: \s  */ ( Next(Initial), Some(yield_dot)          ),
+        /* 3:  ~  */ ( Next(Initial), Some(yield_dot_tilde)    ),
+        /* 4:  !  */ ( Next(Initial), Some(yield_dot_bang)     ),
+        /* 5:  =  */ ( Next(Initial), Some(yield_dot_equal)    ),
+        /* 6:  ?  */ ( Next(Initial), Some(yield_dot_question) ),
+    ]),
+
     // AfterPlus <( + )> : after a plus sign
     ([
         x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
@@ -618,12 +641,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 3:  +  */ ( Next(Initial), Some(yield_plus_plus) ),
     ]),
 
-    // AfterMinus <( + )> : after a minus sign
+    // AfterMinus <( - )> : after a minus sign
     ([
         x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         2, x, x, x, x, x, x, x,  x, x, x, x, x, 3, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 4, x, // 01234567 89:;<=>?
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
@@ -634,9 +657,88 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /* 1: ??? */ ( Redo(Initial), Some(yield_minus)       ),
         /* 2: \s  */ ( Next(Initial), Some(yield_minus)       ),
         /* 3:  -  */ ( Next(Initial), Some(yield_minus_minus) ),
+        /* 4:  >  */ ( Next(Initial), Some(yield_minus_arrow) ),
     ]),
 
-//  // StateName <( prior chars )> : state description
+    // AfterLess <( < )> : after a less-than sign
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, 3, 5, 4, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(yield_less)       ),
+        /* 1: ??? */ ( Redo(Initial), Some(yield_less)       ),
+        /* 2: \s  */ ( Next(Initial), Some(yield_less)       ),
+        /* 3:  <  */ ( Next(Initial), Some(yield_less_less)  ),
+        /* 4:  >  */ ( Next(Initial), Some(yield_less_more)  ),
+        /* 5:  =  */ ( Next(Initial), Some(yield_less_equal) ),
+    ]),
+
+    // AfterMore <( > )> : after a greater-than sign
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, 3, 5, 4, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(yield_more)       ),
+        /* 1: ??? */ ( Redo(Initial), Some(yield_more)       ),
+        /* 2: \s  */ ( Next(Initial), Some(yield_more)       ),
+        /* 3:  <  */ ( Next(Initial), Some(yield_more_more)  ), // TODO?
+        /* 4:  >  */ ( Next(Initial), Some(yield_more_more)  ),
+        /* 5:  =  */ ( Next(Initial), Some(yield_more_equal) ),
+    ]),
+
+    // AfterEqual <( = )> : after an equal sign
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, 4, 3, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition     Action
+        /* 0: eof */ ( Redo(AtEof),   Some(yield_equal)       ),
+        /* 1: ??? */ ( Redo(Initial), Some(yield_equal)       ),
+        /* 2: \s  */ ( Next(Initial), Some(yield_equal)       ),
+        /* 3:  >  */ ( Next(Initial), Some(yield_equal_arrow) ),
+        /* 4:  =  */ ( Next(Initial), Some(yield_equal_equal) ),
+    ]),
+
+    // AfterBang <( ! )> : after a bang mark
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, 3, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             Transition       Action
+        /* 0: eof */ ( Redo(AtEof),     Some(yield_bang)       ),
+        /* 1: ??? */ ( Redo(Initial),   Some(yield_bang)       ),
+        /* 2: \s  */ ( Next(Initial),   Some(yield_bang)       ),
+        /* 3:  =  */ ( Next(Initial),   Some(yield_bang_equal) ),
+        /* 4:  !  */ ( Redo(AfterBang), Some(yield_bang)       ),
+    ]),
+
+//  // State <( prior chars )> : state description
 //  ([
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -836,13 +938,14 @@ actions! {
     yield_dot_equal    (l, c) { Some(DotEqual)    }
     yield_dot_question (l, c) { Some(DotQuestion) }
     yield_less_more    (l, c) { Some(LessMore)    }
-    yield_double_equal (l, c) { Some(DoubleEqual) }
+    yield_equal_equal  (l, c) { Some(EqualEqual)  }
+    yield_bang_equal   (l, c) { Some(BangEqual)   }
     yield_less         (l, c) { Some(Less)        }
     yield_more         (l, c) { Some(More)        }
     yield_less_equal   (l, c) { Some(LessEqual)   }
     yield_more_equal   (l, c) { Some(MoreEqual)   }
     yield_equal_arrow  (l, c) { Some(EqualArrow)  }
-    yield_dash_arrow   (l, c) { Some(DashArrow)   }
+    yield_minus_arrow  (l, c) { Some(MinusArrow)  }
     yield_equal        (l, c) { Some(Equal)       }
     yield_colon        (l, c) { Some(Colon)       }
     yield_comma        (l, c) { Some(Comma)       }
@@ -971,18 +1074,21 @@ mod tests {
 
     #[test]
     fn punctuation() {
-        lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - & ^ | < > = : ,")
-            .yields(BraceL)    .yields(BraceR)
-            .yields(ParenL)    .yields(ParenR)
-            .yields(BracketL)  .yields(BracketR)
-            .yields(Dot)       .yields(At)
-            .yields(PlusPlus)  .yields(MinusMinus)
-            .yields(Bang)      .yields(Tilde)      .yields(Question)
-            .yields(Star)      .yields(Slash)      .yields(Percent)
-            .yields(Plus)      .yields(Minus)
-            .yields(Ampersand) .yields(Caret)      .yields(Pipe)
-            .yields(Less)      .yields(More)       .yields(Equal)
-            .yields(Colon)     .yields(Comma)
+        lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - << >> & ^ | .~ .! .= .? \
+             <> == != < > <= >= => -> = : ,")
+            .yields(BraceL)     .yields(BraceR)     .yields(ParenL)    .yields(ParenR)
+            .yields(BracketL)   .yields(BracketR)   .yields(Dot)       .yields(At)
+            .yields(PlusPlus)   .yields(MinusMinus)
+            .yields(Bang)       .yields(Tilde)      .yields(Question)
+            .yields(Star)       .yields(Slash)      .yields(Percent)
+            .yields(Plus)       .yields(Minus)
+            .yields(LessLess)   .yields(MoreMore)
+            .yields(Ampersand)  .yields(Caret)      .yields(Pipe)
+            .yields(DotTilde)   .yields(DotBang)    .yields(DotEqual)  .yields(DotQuestion)
+            .yields(LessMore)   .yields(EqualEqual) .yields(BangEqual)
+            .yields(Less)       .yields(More)       .yields(LessEqual) .yields(MoreEqual)
+            .yields(EqualArrow) .yields(MinusArrow) .yields(Equal)
+            .yields(Colon)      .yields(Comma)
             .yields(Eof);
     }
 
