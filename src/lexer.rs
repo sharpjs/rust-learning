@@ -274,8 +274,8 @@ static STATES: [ActionTable; STATE_COUNT] = [
         /*  0: eof */ ( Redo(AtEof),      None                  ),
         /*  1: ??? */ ( Redo(AtEof),      Some(error_unrec)     ),
         /*  2: \s  */ ( Next(Initial),    None                  ),
-        /*  3: \n  */ ( Next(AfterEos),   Some(yield_eos_nl)    ),
-        /*  4:  ;  */ ( Next(AfterEos),   Some(yield_eos)       ),
+        /*  3: \n  */ ( Next(AfterEos),   Some(newline)         ),
+        /*  4:  ;  */ ( Next(AfterEos),   None                  ),
         /*  5: id0 */ ( Next(InId),       Some(begin_id)        ),
         /*  6:  0  */ ( Next(AfterZero),  Some(begin_num_dig)   ),
         /*  7: 1-9 */ ( Next(InNumDec),   Some(begin_num_dig)   ),
@@ -321,10 +321,10 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),    None          ),
-        /* 1: ??? */ ( Redo(Initial),  None          ),
-        /* 2: \s; */ ( Next(AfterEos), None          ),
-        /* 3: \n  */ ( Next(AfterEos), Some(newline) ),
+        /* 0: eof */ ( Redo(AtEof),    Some(yield_eos) ),
+        /* 1: ??? */ ( Redo(Initial),  Some(yield_eos) ),
+        /* 2: \s; */ ( Next(AfterEos), None            ),
+        /* 3: \n  */ ( Next(AfterEos), Some(newline)   ),
     ]),
 
     // InId - In identifier
@@ -785,9 +785,8 @@ macro_rules! actions {
 // Whitespace actions
 
 actions! {
-    yield_eof    (l, c) {                Some(Eof) }
-    yield_eos    (l, c) {                Some(Eos) }
-    yield_eos_nl (l, c) { newline(l, c); Some(Eos) }
+    yield_eof (l, c) { Some(Eof) }
+    yield_eos (l, c) { Some(Eos) }
 
     newline (l, c) {
         l.current.column = 1;
