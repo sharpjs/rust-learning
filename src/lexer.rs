@@ -107,26 +107,101 @@ use self::State::*;
 
 const STATE_COUNT: usize = 24;
 
-type ActionTable = (
-    [u8; 128],      // Map from 7-bit char to handler index
-    &'static [(     // Handlers array
-        Transition, // - state transition
-        Action      // - custom action
+type TransitionSet = (
+    [u8; 128],      // Map from 7-bit char to transition index
+    &'static [(     // Transition array
+        State,      // - next state
+        bool,       // - true => consume char
+        Action      // - action code
     )]
 );
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Transition {
-    Redo(State),        // stay at same char, set state
-    Next(State),        // move to next char, set state
-    Push(State, State), // move to next char, set state, save state for later restore
-    Pop                 // move to next char, restore state
-}
-use self::Transition::*;
+#[repr(u8)]
+enum Action {
+    Skip                ,
+    Space               ,
+    Newline             ,
+    YieldEos            ,
+    YieldEof            ,
 
-type Action = Option<
-    fn(&mut Context, char) -> Option<Token>
->;
+    AccumNumDec         ,
+    AccumNumHexDig      ,
+    AccumNumHexUc       ,
+    AccumNumHexLc       ,
+    AccumNumOct         ,
+    AccumNumBin         ,
+    YieldNum            ,
+
+    StartEsc            ,
+    AccumStr            ,
+    AccumStrEscNul      ,
+    AccumStrEscLf       ,
+    AccumStrEscCr       ,
+    AccumStrEscTab      ,
+    AccumStrEscChar     ,
+    AccumStrEscNum      ,
+    AccumStrEscHexDig   ,
+    AccumStrEscHexUc    ,
+    AccumStrEscHexLc    ,
+    YieldChar           ,
+    YieldStr            ,
+    YieldId             ,
+
+    YieldBraceL         ,
+    YieldBraceR         ,
+    YieldParenL         ,
+    YieldParenR         ,
+    YieldBracketL       ,
+    YieldBracketR       ,
+    YieldDot            ,
+    YieldAt             ,
+    YieldPlusPlus       ,
+    YieldMinusMinus     ,
+    YieldBang           ,
+    YieldTilde          ,
+    YieldQuestion       ,
+    YieldStar           ,
+    YieldSlash          ,
+    YieldPercent        ,
+    YieldPlus           ,
+    YieldMinus          ,
+    YieldLessLess       ,
+    YieldMoreMore       ,
+    YieldAmpersand      ,
+    YieldCaret          ,
+    YieldPipe           ,
+    YieldDotTilde       ,
+    YieldDotBang        ,
+    YieldDotEqual       ,
+    YieldDotQuestion    ,
+    YieldLessMore       ,
+    YieldEqualEqual     ,
+    YieldBangEqual      ,
+    YieldLess           ,
+    YieldMore           ,
+    YieldLessEqual      ,
+    YieldMoreEqual      ,
+    YieldEqualArrow     ,
+    YieldMinusArrow     ,
+    YieldEqual          ,
+    YieldColon          ,
+    YieldComma          ,
+
+    ErrorInvalid        ,
+    ErrorNumInvalid     ,
+    ErrorNumOverflow    ,
+    ErrorCharUnterm     ,
+    ErrorCharLength     ,
+    ErrorEscOverflow    ,
+    ErrorStrUnterm      ,
+    ErrorEscUnterm      ,
+    ErrorEscInvalid     ,
+}
+use self::Action::*;
+
+macro_rules! um  { ($e:expr) => { if let   Some(e) = $e { return e } }; }
+macro_rules! umm { ($e:expr) => { if let e@Some(_) = $e { return e } }; }
 
 pub struct Lexer<I>
 where I: Iterator<Item=char>
@@ -135,15 +210,6 @@ where I: Iterator<Item=char>
     ch:         Option<char>,           // char  after previous token
     state:      State,                  // state after previous token
     context:    Context                 // context object give to actions
-}
-
-struct Context {
-    start:      Pos,                    // position of token start
-    current:    Pos,                    // position of current character
-    number:     u64,                    // number builder
-    buffer:     String,                 // string builder
-    strings:    Interner,               // string interner
-    keywords:   HashMap<StrId, Token>   // keyword table
 }
 
 // TODO: Return position information.
@@ -174,45 +240,122 @@ where I: Iterator<Item=char>
         let mut ch    =      self.ch;
         let mut state =      self.state;
         let     iter  = &mut self.iter;
-        let     ctx   = &mut self.context;
+        let     l     = &mut self.context;
 
         println!("\nstate = {:?}", state);
 
         loop {
             // Lookup handler for this state and char
-            let (c, (transition, action))
+            let (c, (next_state, consume, action))
                 = lookup(&STATES[state as usize], ch);
 
-            println!("{:?} {:?} => {:?} {:?}", state, ch, c, transition);
+            println!("{:?} {:?} => {:?} {:?} {:?}", state, ch, c, next_state, consume);
 
-            // Interpret transition
-            let consume = match transition {
-                Next(s)    => { state = s;                 true  },
-                Redo(s)    => { state = s;                 false },
-                Push(s, p) => { state = s; self.state = p; true  },
-                Pop        => { state =    self.state;     true  }
-            };
+            // Advance state machine
+            state = next_state;
 
             // Consume character and get next
             if consume {
-                ctx.current.byte   += c.len_utf8();
-                ctx.current.column += 1;
-                ch = iter.next();
+                l.current.byte   += c.len_utf8();
+                l.current.column += 1;
+                ch                  = iter.next();
             }
 
-            // Invoke custom action
-            if let Some(func) = action {
-                if let Some(token) = func(ctx, c) {
-                    // Remember state for next call
-                    self.ch    = ch;
-                    self.state = state;
-                    return token;
-                }
-            }
+            macro_rules! push { ($s:expr) => { self.state = state; state = $s;  }; }
+            macro_rules! pop  { ()        => { state = self.state;              }; }
 
-            // NOTE: Returning an Error token from an action does not
-            // automatically move the lexer into the AtEof state.  This is OK,
-            // because the consumer should stop on receiving an Error token.
+            // Invoke action code
+            let token = match action {
+                Skip                => {                         continue },
+                Space               => {              l.start(); continue },
+                Newline             => { l.newline(); l.start(); continue },
+                YieldEos            => Eos,
+                YieldEof            => Eof,
+
+                // Numbers
+                AccumNumDec         => { um!(l.num_add_dec     (c)); continue },
+                AccumNumHexDig      => { um!(l.num_add_hex_dig (c)); continue },
+                AccumNumHexUc       => { um!(l.num_add_hex_uc  (c)); continue },
+                AccumNumHexLc       => { um!(l.num_add_hex_lc  (c)); continue },
+                AccumNumOct         => { um!(l.num_add_oct     (c)); continue },
+                AccumNumBin         => { um!(l.num_add_bin     (c)); continue },
+                YieldNum            => { l.num_get() },
+
+                // Strings & Chars
+                StartEsc            => { push!(InEsc); continue }
+                AccumStr            => { l.str_add(c);                           continue },
+                AccumStrEscNul      => { l.str_add('\0');                pop!(); continue },
+                AccumStrEscLf       => { l.str_add('\n');                pop!(); continue },
+                AccumStrEscCr       => { l.str_add('\r');                pop!(); continue },
+                AccumStrEscTab      => { l.str_add('\t');                pop!(); continue },
+                AccumStrEscChar     => { l.str_add(c);                   pop!(); continue },
+                AccumStrEscNum      => { um!(l.str_add_esc        ( )); pop!(); continue },
+                AccumStrEscHexDig   => { um!(l.str_add_esc_hex_dig(c)); pop!(); continue },
+                AccumStrEscHexUc    => { um!(l.str_add_esc_hex_uc (c)); pop!(); continue },
+                AccumStrEscHexLc    => { um!(l.str_add_esc_hex_lc (c)); pop!(); continue },
+                YieldChar           => { l.str_get_char()          },
+                YieldStr            => { l.str_get()               },
+                YieldId             => { l.str_get_id_or_keyword() },
+
+                // Simple Tokens
+                YieldBraceL         => BraceL,
+                YieldBraceR         => BraceR,
+                YieldParenL         => ParenL,
+                YieldParenR         => ParenR,
+                YieldBracketL       => BracketL,
+                YieldBracketR       => BracketR,
+                YieldDot            => Dot,
+                YieldAt             => At,
+                YieldPlusPlus       => PlusPlus,
+                YieldMinusMinus     => MinusMinus,
+                YieldBang           => Bang,
+                YieldTilde          => Tilde,
+                YieldQuestion       => Question,
+                YieldStar           => Star,
+                YieldSlash          => Slash,
+                YieldPercent        => Percent,
+                YieldPlus           => Plus,
+                YieldMinus          => Minus,
+                YieldLessLess       => LessLess,
+                YieldMoreMore       => MoreMore,
+                YieldAmpersand      => Ampersand,
+                YieldCaret          => Caret,
+                YieldPipe           => Pipe,
+                YieldDotTilde       => DotTilde,
+                YieldDotBang        => DotBang,
+                YieldDotEqual       => DotEqual,
+                YieldDotQuestion    => DotQuestion,
+                YieldLessMore       => LessMore,
+                YieldEqualEqual     => EqualEqual,
+                YieldBangEqual      => BangEqual,
+                YieldLess           => Less,
+                YieldMore           => More,
+                YieldLessEqual      => LessEqual,
+                YieldMoreEqual      => MoreEqual,
+                YieldEqualArrow     => EqualArrow,
+                YieldMinusArrow     => MinusArrow,
+                YieldEqual          => Equal,
+                YieldColon          => Colon,
+                YieldComma          => Comma,
+
+                // Errors
+                ErrorInvalid        => Error(Lex_Invalid),
+                ErrorNumInvalid     => Error(Lex_NumInvalid),
+                ErrorNumOverflow    => Error(Lex_NumOverflow),
+                ErrorCharUnterm     => Error(Lex_CharUnterminated),
+                ErrorCharLength     => Error(Lex_CharLength),
+                ErrorEscOverflow    => Error(Lex_EscOverflow),
+                ErrorStrUnterm      => Error(Lex_StrUnterminated),
+                ErrorEscUnterm      => Error(Lex_EscUnterminated),
+                ErrorEscInvalid     => Error(Lex_EscInvalid),
+            };
+
+            // Remember state for next invocation
+            self.ch    = ch;
+            self.state = state;
+
+            // Yield
+            return token;
         }
     }
 }
@@ -235,7 +378,7 @@ fn intern_keywords(i: &mut Interner) -> HashMap<StrId, Token> {
 }
 
 #[inline]
-fn lookup(entry: &ActionTable, ch: Option<char>) -> (char, (Transition, Action))
+fn lookup(entry: &TransitionSet, ch: Option<char>) -> (char, (State, bool, Action))
 {
     // Lookup A: char -> handler number
     let (n, c) = match ch {
@@ -258,7 +401,7 @@ fn lookup(entry: &ActionTable, ch: Option<char>) -> (char, (Transition, Action))
 #[allow(non_upper_case_globals)]
 const x: u8 = 1;
 
-static STATES: [ActionTable; STATE_COUNT] = [
+static STATES: [TransitionSet; STATE_COUNT] = [
     // Initial
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
@@ -270,43 +413,42 @@ static STATES: [ActionTable; STATE_COUNT] = [
        10, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,11,29,12,20, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //              Transition        Action
-        /*  0: eof */ ( Redo(AtEof),      None                  ),
-        /*  1: ??? */ ( Redo(AtEof),      Some(error_unrec)     ),
-        /*  2: \s  */ ( Next(Initial),    None                  ),
-        /*  3: \n  */ ( Next(AfterEos),   Some(newline)         ),
-        /*  4:  ;  */ ( Next(AfterEos),   None                  ),
-        /*  5: id0 */ ( Next(InId),       Some(begin_id)        ),
-        /*  6:  0  */ ( Next(AfterZero),  Some(begin_num_dig)   ),
-        /*  7: 1-9 */ ( Next(InNumDec),   Some(begin_num_dig)   ),
-        /*  8:  '  */ ( Next(InChar),     Some(begin_str)       ),
-        /*  9:  "  */ ( Next(InStr),      Some(begin_str)       ),
-        /* 10:  `  */ ( Next(InStr),      Some(begin_str)       ), // TODO
-
-        /* 11:  {  */ ( Next(Initial),    Some(yield_brace_l)   ),
-        /* 12:  }  */ ( Next(Initial),    Some(yield_brace_r)   ),
-        /* 13:  (  */ ( Next(Initial),    Some(yield_paren_l)   ),
-        /* 14:  )  */ ( Next(Initial),    Some(yield_paren_r)   ),
-        /* 15:  [  */ ( Next(Initial),    Some(yield_bracket_l) ),
-        /* 16:  ]  */ ( Next(Initial),    Some(yield_bracket_r) ),
-        /* 17:  .  */ ( Next(AfterDot),   None                  ),
-        /* 18:  @  */ ( Next(Initial),    Some(yield_at)        ),
-        /* 19:  !  */ ( Next(AfterBang),  None                  ),
-        /* 20:  ~  */ ( Next(Initial),    Some(yield_tilde)     ),
-        /* 21:  ?  */ ( Next(Initial),    Some(yield_question)  ),
-        /* 22:  *  */ ( Next(Initial),    Some(yield_star)      ),
-        /* 23:  /  */ ( Next(Initial),    Some(yield_slash)     ),
-        /* 24:  %  */ ( Next(Initial),    Some(yield_percent)   ),
-        /* 25:  +  */ ( Next(AfterPlus),  None                  ),
-        /* 26:  -  */ ( Next(AfterMinus), None                  ),
-        /* 27:  &  */ ( Next(Initial),    Some(yield_ampersand) ),
-        /* 28:  ^  */ ( Next(Initial),    Some(yield_caret)     ),
-        /* 29:  |  */ ( Next(Initial),    Some(yield_pipe)      ),
-        /* 30:  <  */ ( Next(AfterLess),  None                  ),
-        /* 31:  >  */ ( Next(AfterMore),  None                  ),
-        /* 32:  =  */ ( Next(AfterEqual), None                  ),
-        /* 33:  :  */ ( Next(Initial),    Some(yield_colon)     ),
-        /* 34:  ,  */ ( Next(Initial),    Some(yield_comma)     ),
+        //              State       Next?  Action
+        /*  0: eof */ ( AtEof,      false, YieldEof       ),
+        /*  1: ??? */ ( AtEof,      false, ErrorInvalid   ),
+        /*  2: \s  */ ( Initial,    true,  Space          ),
+        /*  3: \n  */ ( AfterEos,   true,  Newline        ),
+        /*  4:  ;  */ ( AfterEos,   true,  Skip           ),
+        /*  5: id0 */ ( InId,       true,  AccumStr       ),
+        /*  6:  0  */ ( AfterZero,  true,  Skip           ),
+        /*  7: 1-9 */ ( InNumDec,   true,  AccumNumDec    ),
+        /*  8:  '  */ ( InChar,     true,  Skip           ),
+        /*  9:  "  */ ( InStr,      true,  Skip           ),
+        /* 10:  `  */ ( InStr,      true,  Skip           ), // TODO InTildeStr
+        /* 11:  {  */ ( Initial,    true,  YieldBraceL    ),
+        /* 12:  }  */ ( Initial,    true,  YieldBraceR    ),
+        /* 13:  (  */ ( Initial,    true,  YieldParenL    ),
+        /* 14:  )  */ ( Initial,    true,  YieldParenR    ),
+        /* 15:  [  */ ( Initial,    true,  YieldBracketL  ),
+        /* 16:  ]  */ ( Initial,    true,  YieldBracketR  ),
+        /* 17:  .  */ ( AfterDot,   true,  Skip           ),
+        /* 18:  @  */ ( Initial,    true,  YieldAt        ),
+        /* 19:  !  */ ( AfterBang,  true,  Skip           ),
+        /* 20:  ~  */ ( Initial,    true,  YieldTilde     ),
+        /* 21:  ?  */ ( Initial,    true,  YieldQuestion  ),
+        /* 22:  *  */ ( Initial,    true,  YieldStar      ),
+        /* 23:  /  */ ( Initial,    true,  YieldSlash     ),
+        /* 24:  %  */ ( Initial,    true,  YieldPercent   ),
+        /* 25:  +  */ ( AfterPlus,  true,  Skip           ),
+        /* 26:  -  */ ( AfterMinus, true,  Skip           ),
+        /* 27:  &  */ ( Initial,    true,  YieldAmpersand ),
+        /* 28:  ^  */ ( Initial,    true,  YieldCaret     ),
+        /* 29:  |  */ ( Initial,    true,  YieldPipe      ),
+        /* 30:  <  */ ( AfterLess,  true,  Skip           ),
+        /* 31:  >  */ ( AfterMore,  true,  Skip           ),
+        /* 32:  =  */ ( AfterEqual, true,  Skip           ),
+        /* 33:  :  */ ( Initial,    true,  YieldColon     ),
+        /* 34:  ,  */ ( Initial,    true,  YieldComma     ),
     ]),
 
     // AfterEos - After end of statement
@@ -320,11 +462,11 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),    Some(yield_eos) ),
-        /* 1: ??? */ ( Redo(Initial),  Some(yield_eos) ),
-        /* 2: \s; */ ( Next(AfterEos), None            ),
-        /* 3: \n  */ ( Next(AfterEos), Some(newline)   ),
+        //             State     Next?  Action
+        /* 0: eof */ ( AtEof,    false, YieldEos ),
+        /* 1: ??? */ ( Initial,  false, YieldEos ),
+        /* 2: \s; */ ( AfterEos, true,  Space    ),
+        /* 3: \n  */ ( AfterEos, true,  Newline  ),
     ]),
 
     // InId - In identifier
@@ -338,10 +480,10 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // `abcdefg hijklmno
         2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(yield_id) ),
-        /* 1: ??? */ ( Redo(Initial), Some(yield_id) ),
-        /* 2: id  */ ( Next(InId),    Some(accum_id) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, YieldId  ),
+        /* 1: ??? */ ( Initial, false, YieldId  ),
+        /* 2: id  */ ( InId,    true,  AccumStr ),
     ]),
 
     // AfterZero - after 0 introducing a number literal
@@ -355,16 +497,16 @@ static STATES: [ActionTable; STATE_COUNT] = [
         8, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  4, x, x, 8, 8, 8, 8, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),    Some(yield_num_zero)  ),
-        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
-        /* 2: 0-9 */ ( Next(InNumDec), Some(accum_num_dec)   ),
-        /* 3:  _  */ ( Next(InNumDec), None                  ),
-        /* 4:  x  */ ( Next(InNumHex), None                  ),
-        /* 5:  o  */ ( Next(InNumOct), None                  ),
-        /* 6:  b  */ ( Next(InNumBin), None                  ),
-        /* 7: \s  */ ( Next(Initial),  Some(yield_num_zero)  ),
-        /* 8: opr */ ( Redo(Initial),  Some(yield_num_zero)  ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
+        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec   ),
+        /* 3:  _  */ ( InNumDec, true,  Skip          ),
+        /* 4:  x  */ ( InNumHex, true,  Skip          ),
+        /* 5:  o  */ ( InNumOct, true,  Skip          ),
+        /* 6:  b  */ ( InNumBin, true,  Skip          ),
+        /* 7: \s  */ ( Initial,  true,  YieldNum      ),
+        /* 8: opr */ ( Initial,  false, YieldNum      ),
     ]),
 
     // InNumDec - in a decimal number
@@ -378,13 +520,13 @@ static STATES: [ActionTable; STATE_COUNT] = [
         5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
-        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
-        /* 2: 0-9 */ ( Next(InNumDec), Some(accum_num_dec)   ),
-        /* 3:  _  */ ( Next(InNumDec), None                  ),
-        /* 4: \s  */ ( Next(Initial),  Some(yield_num)       ),
-        /* 5: opr */ ( Redo(Initial),  Some(yield_num)       ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
+        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec   ),
+        /* 3:  _  */ ( InNumDec, true,  Skip          ),
+        /* 4: \s  */ ( Initial,  true,  YieldNum      ),
+        /* 5: opr */ ( Initial,  false, YieldNum      ),
     ]),
 
     // InNumHex - in a hexadecimal number
@@ -398,15 +540,15 @@ static STATES: [ActionTable; STATE_COUNT] = [
         7, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)         ),
-        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num)   ),
-        /* 2: 0-9 */ ( Next(InNumHex), Some(accum_num_hex_dig) ),
-        /* 3: A-F */ ( Next(InNumHex), Some(accum_num_hex_uc)  ),
-        /* 4: a-f */ ( Next(InNumHex), Some(accum_num_hex_lc)  ),
-        /* 5:  _  */ ( Next(InNumHex), None                    ),
-        /* 6: \s  */ ( Next(Initial),  Some(yield_num)         ),
-        /* 7: opr */ ( Redo(Initial),  Some(yield_num)         ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,    false, YieldNum       ),
+        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid  ),
+        /* 2: 0-9 */ ( InNumHex, true,  AccumNumHexDig ),
+        /* 3: A-F */ ( InNumHex, true,  AccumNumHexUc  ),
+        /* 4: a-f */ ( InNumHex, true,  AccumNumHexLc  ),
+        /* 5:  _  */ ( InNumHex, true,  Skip           ),
+        /* 6: \s  */ ( Initial,  true,  YieldNum       ),
+        /* 7: opr */ ( Initial,  false, YieldNum       ),
     ]),
 
     // InNumOct - in an octal number
@@ -420,13 +562,13 @@ static STATES: [ActionTable; STATE_COUNT] = [
         5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
-        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
-        /* 2: 0-7 */ ( Next(InNumOct), Some(accum_num_oct)   ),
-        /* 3:  _  */ ( Next(InNumOct), None                  ),
-        /* 6: \s  */ ( Next(Initial),  Some(yield_num)       ),
-        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
+        /* 2: 0-7 */ ( InNumOct, true,  AccumNumOct   ),
+        /* 3:  _  */ ( InNumOct, true,  Skip          ),
+        /* 6: \s  */ ( Initial,  true,  YieldNum      ),
+        /* 4: opr */ ( Initial,  false, YieldNum      ),
     ]),
 
     // InNumBin - in a binary number
@@ -440,13 +582,13 @@ static STATES: [ActionTable; STATE_COUNT] = [
         5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition      Action
-        /* 0: eof */ ( Redo(AtEof),    Some(yield_num)       ),
-        /* 1: ??? */ ( Redo(AtEof),    Some(err_invalid_num) ),
-        /* 2: 0-1 */ ( Next(InNumBin), Some(accum_num_bin)   ),
-        /* 3:  _  */ ( Next(InNumBin), None                  ),
-        /* 6: \s  */ ( Next(Initial),  Some(yield_num)       ),
-        /* 4: opr */ ( Redo(Initial),  Some(yield_num)       ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
+        /* 2: 0-1 */ ( InNumBin, true,  AccumNumBin   ),
+        /* 3:  _  */ ( InNumBin, true,  Skip          ),
+        /* 6: \s  */ ( Initial,  true,  YieldNum      ),
+        /* 4: opr */ ( Initial,  false, YieldNum      ),
     ]),
 
     // InChar <( ' )> : in a character literal
@@ -460,11 +602,11 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition              Action
-        /* 0: eof */ ( Redo(AtEof),            Some(error_char_unterm) ),
-        /* 1: ??? */ ( Next(AtCharEnd),        Some(accum_str)         ),
-        /* 2:  \  */ ( Push(InEsc, AtCharEnd), None                    ),
-        /* 3:  '  */ ( Redo(AtEof),            Some(error_char_length) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,     false, ErrorCharUnterm ),
+        /* 1: ??? */ ( AtCharEnd, true,  AccumStr        ),
+        /* 2:  \  */ ( AtCharEnd, true,  StartEsc        ),
+        /* 3:  '  */ ( AtEof,     false, ErrorCharLength ),
     ]),
 
     // AtCharEnd <( ' char )> : expecting the end of a character literal
@@ -478,10 +620,10 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(error_char_unterm) ),
-        /* 1: ??? */ ( Redo(AtEof),   Some(error_char_length) ),
-        /* 2:  '  */ ( Next(Initial), Some(yield_char)        ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, ErrorCharUnterm ),
+        /* 1: ??? */ ( AtEof,   false, ErrorCharLength ),
+        /* 2:  '  */ ( Initial, true,  YieldChar       ),
     ]),
 
     // InStr <( " )> : in a string literal
@@ -495,11 +637,11 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition           Action
-        /* 0: eof */ ( Redo(AtEof),         Some(error_str_unterm) ),
-        /* 1: ??? */ ( Next(InStr),         Some(accum_str)        ),
-        /* 2:  \  */ ( Push(InEsc, InStr),  None                   ),
-        /* 3:  "  */ ( Next(Initial),       Some(yield_str)        ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, ErrorStrUnterm ),
+        /* 1: ??? */ ( InStr,   true,  AccumStr       ),
+        /* 2:  \  */ ( InStr,   true,  StartEsc       ),
+        /* 3:  "  */ ( Initial, true,  YieldStr       ),
     ]),
 
     // InEsc <( ['"] \ )> : after escape characer
@@ -513,18 +655,18 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // `abcdefg hijklmno
         x, x, 4, x, 5,10, x, x,  9, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition        Action
-        /*  0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
-        /*  1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
-        /*  2:  0  */ ( Pop,             Some(accum_str_nul)     ),
-        /*  3:  n  */ ( Pop,             Some(accum_str_lf)      ),
-        /*  4:  r  */ ( Pop,             Some(accum_str_cr)      ),
-        /*  5:  t  */ ( Pop,             Some(accum_str_tab)     ),
-        /*  6:  \  */ ( Pop,             Some(accum_str)         ),
-        /*  7:  '  */ ( Pop,             Some(accum_str)         ),
-        /*  8:  "  */ ( Pop,             Some(accum_str)         ),
-        /*  9:  x  */ ( Next(AtEscHex0), None                    ),
-        /* 10:  u  */ ( Next(AtEscUni0), None                    ),
+        //             State       Next?  Action
+        /*  0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
+        /*  1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
+        /*  2:  0  */ ( InStr,     true,  AccumStrEscNul  ), // pops state
+        /*  3:  n  */ ( InStr,     true,  AccumStrEscLf   ), // pops state
+        /*  4:  r  */ ( InStr,     true,  AccumStrEscCr   ), // pops state
+        /*  5:  t  */ ( InStr,     true,  AccumStrEscTab  ), // pops state
+        /*  6:  \  */ ( InStr,     true,  AccumStrEscChar ), // pops state
+        /*  7:  '  */ ( InStr,     true,  AccumStrEscChar ), // pops state
+        /*  8:  "  */ ( InStr,     true,  AccumStrEscChar ), // pops state
+        /*  9:  x  */ ( AtEscHex0, true,  Skip            ),
+        /* 10:  u  */ ( AtEscUni0, true,  Skip            ),
     ]),
 
     // AtEscHex0 <( ['"] \ x )> : at byte escape digit 0
@@ -538,12 +680,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition       Action
-        /* 0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
-        /* 1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
-        /* 2: 0-9 */ ( Next(AtEscHex1), Some(begin_num_dig)     ),
-        /* 3: A-F */ ( Next(AtEscHex1), Some(begin_num_hex_uc)  ),
-        /* 4: a-f */ ( Next(AtEscHex1), Some(begin_num_hex_lc)  ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
+        /* 1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
+        /* 2: 0-9 */ ( AtEscHex1, true,  AccumNumHexDig  ),
+        /* 3: A-F */ ( AtEscHex1, true,  AccumNumHexUc   ),
+        /* 4: a-f */ ( AtEscHex1, true,  AccumNumHexLc   ),
     ]),
 
     // AtEscHex1 <( ['"] \ x hex )> : at byte escape digit 1
@@ -557,12 +699,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition   Action
-        /* 0: eof */ ( Redo(AtEof), Some(error_esc_unterm)     ),
-        /* 1: ??? */ ( Redo(AtEof), Some(error_esc_invalid)    ),
-        /* 2: 0-9 */ ( Pop,         Some(accum_str_esc_dig)    ),
-        /* 3: A-F */ ( Pop,         Some(accum_str_esc_hex_uc) ),
-        /* 4: a-f */ ( Pop,         Some(accum_str_esc_hex_lc) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof, false, ErrorEscUnterm    ),
+        /* 1: ??? */ ( AtEof, false, ErrorEscInvalid   ),
+        /* 2: 0-9 */ ( InStr, true,  AccumStrEscHexDig ), // pops state
+        /* 3: A-F */ ( InStr, true,  AccumStrEscHexUc  ), // pops state
+        /* 4: a-f */ ( InStr, true,  AccumStrEscHexLc  ), // pops state
     ]),
 
     // AtEscUni0 <( ['"] \ u )> : in unicode escape, expecting {
@@ -576,10 +718,10 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition       Action
-        /* 0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
-        /* 1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
-        /* 2:  {  */ ( Next(AtEscUni1), Some(begin_num)         ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
+        /* 1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
+        /* 2:  {  */ ( AtEscUni1, true,  Skip            ),
     ]),
 
     // AtEscUni1 <( ['"] \ u { )> : in unicode escape, expecting hex digit
@@ -593,13 +735,13 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition       Action
-        /* 0: eof */ ( Redo(AtEof),     Some(error_esc_unterm)  ),
-        /* 1: ??? */ ( Redo(AtEof),     Some(error_esc_invalid) ),
-        /* 2: 0-9 */ ( Next(AtEscUni1), Some(accum_num_hex_dig) ),
-        /* 3: A-F */ ( Next(AtEscUni1), Some(accum_num_hex_uc)  ),
-        /* 4: a-f */ ( Next(AtEscUni1), Some(accum_num_hex_lc)  ),
-        /* 5:  }  */ ( Pop,             Some(accum_str_esc)     ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
+        /* 1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
+        /* 2: 0-9 */ ( AtEscUni1, true,  AccumNumHexDig  ),
+        /* 3: A-F */ ( AtEscUni1, true,  AccumNumHexUc   ),
+        /* 4: a-f */ ( AtEscUni1, true,  AccumNumHexLc   ),
+        /* 5:  }  */ ( InStr,     true,  AccumStrEscNum  ), // pops state
     ]),
 
     // AfterDot <( . )> : after a dot
@@ -613,14 +755,14 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(yield_dot)          ),
-        /* 1: ??? */ ( Redo(Initial), Some(yield_dot)          ),
-        /* 2: \s  */ ( Next(Initial), Some(yield_dot)          ),
-        /* 3:  ~  */ ( Next(Initial), Some(yield_dot_tilde)    ),
-        /* 4:  !  */ ( Next(Initial), Some(yield_dot_bang)     ),
-        /* 5:  =  */ ( Next(Initial), Some(yield_dot_equal)    ),
-        /* 6:  ?  */ ( Next(Initial), Some(yield_dot_question) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, YieldDot         ),
+        /* 1: ??? */ ( Initial, false, YieldDot         ),
+        /* 2: \s  */ ( Initial, true,  YieldDot         ),
+        /* 3:  ~  */ ( Initial, true,  YieldDotTilde    ),
+        /* 4:  !  */ ( Initial, true,  YieldDotBang     ),
+        /* 5:  =  */ ( Initial, true,  YieldDotEqual    ),
+        /* 6:  ?  */ ( Initial, true,  YieldDotQuestion ),
     ]),
 
     // AfterPlus <( + )> : after a plus sign
@@ -634,11 +776,11 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(yield_plus)      ),
-        /* 1: ??? */ ( Redo(Initial), Some(yield_plus)      ),
-        /* 2: \s  */ ( Next(Initial), Some(yield_plus)      ),
-        /* 3:  +  */ ( Next(Initial), Some(yield_plus_plus) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, YieldPlus     ),
+        /* 1: ??? */ ( Initial, false, YieldPlus     ),
+        /* 2: \s  */ ( Initial, true,  YieldPlus     ),
+        /* 3:  +  */ ( Initial, true,  YieldPlusPlus ),
     ]),
 
     // AfterMinus <( - )> : after a minus sign
@@ -652,12 +794,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(yield_minus)       ),
-        /* 1: ??? */ ( Redo(Initial), Some(yield_minus)       ),
-        /* 2: \s  */ ( Next(Initial), Some(yield_minus)       ),
-        /* 3:  -  */ ( Next(Initial), Some(yield_minus_minus) ),
-        /* 4:  >  */ ( Next(Initial), Some(yield_minus_arrow) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, YieldMinus      ),
+        /* 1: ??? */ ( Initial, false, YieldMinus      ),
+        /* 2: \s  */ ( Initial, true,  YieldMinus      ),
+        /* 3:  -  */ ( Initial, true,  YieldMinusMinus ),
+        /* 4:  >  */ ( Initial, true,  YieldMinusArrow ),
     ]),
 
     // AfterLess <( < )> : after a less-than sign
@@ -671,13 +813,13 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(yield_less)       ),
-        /* 1: ??? */ ( Redo(Initial), Some(yield_less)       ),
-        /* 2: \s  */ ( Next(Initial), Some(yield_less)       ),
-        /* 3:  <  */ ( Next(Initial), Some(yield_less_less)  ),
-        /* 4:  >  */ ( Next(Initial), Some(yield_less_more)  ),
-        /* 5:  =  */ ( Next(Initial), Some(yield_less_equal) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, YieldLess      ),
+        /* 1: ??? */ ( Initial, false, YieldLess      ),
+        /* 2: \s  */ ( Initial, true,  YieldLess      ),
+        /* 3:  <  */ ( Initial, true,  YieldLessLess  ),
+        /* 4:  >  */ ( Initial, true,  YieldLessMore  ),
+        /* 5:  =  */ ( Initial, true,  YieldLessEqual ),
     ]),
 
     // AfterMore <( > )> : after a greater-than sign
@@ -691,13 +833,13 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(yield_more)       ),
-        /* 1: ??? */ ( Redo(Initial), Some(yield_more)       ),
-        /* 2: \s  */ ( Next(Initial), Some(yield_more)       ),
-        /* 3:  <  */ ( Next(Initial), Some(yield_more_more)  ), // TODO?
-        /* 4:  >  */ ( Next(Initial), Some(yield_more_more)  ),
-        /* 5:  =  */ ( Next(Initial), Some(yield_more_equal) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, YieldMore      ),
+        /* 1: ??? */ ( Initial, false, YieldMore      ),
+        /* 2: \s  */ ( Initial, true,  YieldMore      ),
+        /* 3:  <  */ ( Initial, true,  YieldMoreMore  ), // TODO: Swap operator?
+        /* 4:  >  */ ( Initial, true,  YieldMoreMore  ),
+        /* 5:  =  */ ( Initial, true,  YieldMoreEqual ),
     ]),
 
     // AfterEqual <( = )> : after an equal sign
@@ -711,12 +853,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition     Action
-        /* 0: eof */ ( Redo(AtEof),   Some(yield_equal)       ),
-        /* 1: ??? */ ( Redo(Initial), Some(yield_equal)       ),
-        /* 2: \s  */ ( Next(Initial), Some(yield_equal)       ),
-        /* 3:  >  */ ( Next(Initial), Some(yield_equal_arrow) ),
-        /* 4:  =  */ ( Next(Initial), Some(yield_equal_equal) ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, YieldEqual      ),
+        /* 1: ??? */ ( Initial, false, YieldEqual      ),
+        /* 2: \s  */ ( Initial, true,  YieldEqual      ),
+        /* 3:  >  */ ( Initial, true,  YieldEqualArrow ),
+        /* 4:  =  */ ( Initial, true,  YieldEqualEqual ),
     ]),
 
     // AfterBang <( ! )> : after a bang mark
@@ -730,12 +872,12 @@ static STATES: [ActionTable; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition       Action
-        /* 0: eof */ ( Redo(AtEof),     Some(yield_bang)       ),
-        /* 1: ??? */ ( Redo(Initial),   Some(yield_bang)       ),
-        /* 2: \s  */ ( Next(Initial),   Some(yield_bang)       ),
-        /* 3:  =  */ ( Next(Initial),   Some(yield_bang_equal) ),
-        /* 4:  !  */ ( Redo(AfterBang), Some(yield_bang)       ),
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,     false, YieldBang      ),
+        /* 1: ??? */ ( Initial,   false, YieldBang      ),
+        /* 2: \s  */ ( Initial,   true,  YieldBang      ),
+        /* 3:  =  */ ( Initial,   true,  YieldBangEqual ),
+        /* 4:  !  */ ( AfterBang, false, YieldBang      ),
     ]),
 
 //  // State <( prior chars )> : state description
@@ -749,9 +891,9 @@ static STATES: [ActionTable; STATE_COUNT] = [
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
 //  ],&[
-        //             Transition   Action
-//      /* 0: eof */ ( Redo(AtEof), None ),
-//      /* 1: ??? */ ( Redo(AtEof), None ),
+        //             State  Next?  Action
+//      /* 0: eof */ ( AtEof, false, Skip ),
+//      /* 1: ??? */ ( AtEof, false, Skip ),
 //  ]),
 
     // AtEof - At end of file
@@ -765,88 +907,155 @@ static STATES: [ActionTable; STATE_COUNT] = [
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             Transition   Action
-        /* 0: eof */ ( Redo(AtEof), Some(yield_eof) ),
+        //             State  Next?  Action
+        /* 0: eof */ ( AtEof, false, YieldEof ),
     ]),
 ];
 
 // -----------------------------------------------------------------------------
-// Actions
+// Context
 
-macro_rules! actions {
-    { $( $f:ident ($l:ident, $c:ident) $b:block )* } => {
-        $(
-            #[inline]
-            fn $f ($l: &mut Context, $c: char) -> Option<Token> $b
-        )*
-    };
+struct Context {
+    start:      Pos,                    // position of token start
+    current:    Pos,                    // position of current character
+    number:     u64,                    // number builder
+    buffer:     String,                 // string builder
+    strings:    Interner,               // string interner
+    keywords:   HashMap<StrId, Token>   // keyword table
 }
 
-// Whitespace actions
+impl Context {
+    #[inline]
+    fn start(&mut self) {
+        self.start = self.current;
+    }
 
-actions! {
-    yield_eof (l, c) { Some(Eof) }
-    yield_eos (l, c) { Some(Eos) }
+    #[inline]
+    fn newline(&mut self) {
+        self.current.column = 1;
+        self.current.line  += 1;
+    }
 
-    newline (l, c) {
-        l.current.column = 1;
-        l.current.line  += 1;
+    // Number actions
+
+    #[inline]
+    fn num_add_dec(&mut self, c: char) -> Option<Token> {
+        self.num_add(10, int_from_dig(c))
+    }
+
+    #[inline]
+    fn num_add_hex_dig(&mut self, c: char) -> Option<Token> {
+        self.num_add(16, int_from_dig(c))
+    }
+
+    #[inline]
+    fn num_add_hex_uc(&mut self, c: char) -> Option<Token> {
+        self.num_add(16, int_from_hex_uc(c))
+    }
+
+    #[inline]
+    fn num_add_hex_lc(&mut self, c: char) -> Option<Token> {
+        self.num_add(16, int_from_hex_lc(c))
+    }
+
+    #[inline]
+    fn num_add_oct(&mut self, c: char) -> Option<Token> {
+        self.num_add(8, int_from_dig(c))
+    }
+
+    #[inline]
+    fn num_add_bin(&mut self, c: char) -> Option<Token> {
+        self.num_add(2, int_from_dig(c))
+    }
+
+    #[inline]
+    fn num_add(&mut self, base: u8, digit: u8) -> Option<Token> {
+        let mut n = self.number;
+
+        n = match n.checked_mul(base as u64) {
+            Some(n) => n,
+            None    => return Some(Error(Lex_NumOverflow))
+        };
+
+        n = match n.checked_add(digit as u64) {
+            Some(n) => n,
+            None    => return Some(Error(Lex_NumOverflow))
+        };
+
+        self.number = n;
         None
     }
-}
 
-// Identifier actions
+    #[inline]
+    fn num_get(&mut self) -> Token {
+        let n = self.number;
+        self.number = 0;
+        Int(n)
+    }
 
-actions! {
-    begin_id (l, c) { begin_str(l, c); accum_str(l, c); None }
-    accum_id (l, c) {                  accum_str(l, c); None }
+    // Character/String Actions
 
-    yield_id (l, c) {
-        let id = l.strings.intern(&l.buffer);
+    #[inline]
+    fn str_add(&mut self, c: char) {
+        self.buffer.push(c);
+    }
 
-        match l.keywords.get(&id) {
-            Some(&k) => Some(k),
-            None     => Some(Id(id))
+    #[inline]
+    fn str_add_esc(&mut self) -> Option<Token> {
+        let n = self.number as u32;
+        if  n > UNICODE_MAX { return Some(Error(Lex_EscOverflow)) }
+        let c = unsafe { mem::transmute(n) };
+        self.buffer.push(c);
+        None
+    }
+
+    #[inline]
+    fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token> {
+        umm!(self.num_add_hex_dig(c));
+        self.str_add_esc();
+        None
+    }
+
+    #[inline]
+    fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token> {
+        umm!(self.num_add_hex_uc(c));
+        self.str_add_esc();
+        None
+    }
+
+    #[inline]
+    fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token> {
+        umm!(self.num_add_hex_lc(c));
+        self.str_add_esc();
+        None
+    }
+
+    #[inline]
+    fn str_get(&mut self) -> Token {
+        let s = self.strings.add(&self.buffer);
+        self.buffer.clear();
+        Str(s)
+    }
+
+    #[inline]
+    fn str_get_char(&mut self) -> Token {
+        let c = self.buffer.chars().next().unwrap(); // TODO: better way
+        self.buffer.clear();
+        Char(c)
+    }
+
+    #[inline]
+    fn str_get_id_or_keyword(&mut self) -> Token {
+        let id = self.strings.intern(&self.buffer);
+
+        match self.keywords.get(&id) {
+            Some(&k) => k,
+            None     => Id(id)
         }
     }
 }
 
-// Number actions
-
-actions! {
-    begin_num         (l, c) { l.number = 0;                         None }
-    begin_num_dig     (l, c) { l.number = int_from_dig   (c) as u64; None }
-    begin_num_hex_uc  (l, c) { l.number = int_from_hex_uc(c) as u64; None }
-    begin_num_hex_lc  (l, c) { l.number = int_from_hex_lc(c) as u64; None }
-
-    accum_num_dec     (l, c) { accum_num(l, 10, int_from_dig   (c)) }
-    accum_num_hex_dig (l, c) { accum_num(l, 16, int_from_dig   (c)) }
-    accum_num_hex_uc  (l, c) { accum_num(l, 16, int_from_hex_uc(c)) }
-    accum_num_hex_lc  (l, c) { accum_num(l, 16, int_from_hex_lc(c)) }
-    accum_num_oct     (l, c) { accum_num(l,  8, int_from_dig   (c)) }
-    accum_num_bin     (l, c) { accum_num(l,  2, int_from_dig   (c)) }
-
-    yield_num         (l, c) { Some(Int(l.number)) }
-    yield_num_zero    (l, c) { Some(Int(0)) }
-}
-
-#[inline]
-fn accum_num(l: &mut Context, base: u8, digit: u8) -> Option<Token> {
-    let mut n = l.number;
-
-    n = match n.checked_mul(base as u64) {
-        Some(n) => n,
-        None    => { return error_num_overflow(l, ' '); }
-    };
-
-    n = match n.checked_add(digit as u64) {
-        Some(n) => n,
-        None    => { return error_num_overflow(l, ' '); }
-    };
-
-    l.number = n;
-    None
-}
+const UNICODE_MAX: u32 = 0x10FFFF;
 
 #[inline]
 fn int_from_dig(c: char) -> u8 {
@@ -861,107 +1070,6 @@ fn int_from_hex_uc(c: char) -> u8 {
 #[inline]
 fn int_from_hex_lc(c: char) -> u8 {
     c as u8 - 0x57 // 10 + c - 'a'
-}
-
-// Character/String Actions
-
-actions! {
-    begin_str     (l, c) { l.buffer.clear();    None }
-    accum_str     (l, c) { l.buffer.push(c   ); None }
-    accum_str_nul (l, c) { l.buffer.push('\0'); None }
-    accum_str_lf  (l, c) { l.buffer.push('\n'); None }
-    accum_str_cr  (l, c) { l.buffer.push('\r'); None }
-    accum_str_tab (l, c) { l.buffer.push('\t'); None }
-
-    accum_str_esc (l, c) {
-        let n = l.number as u32;
-        if  n > UNICODE_MAX { return error_esc_overflow(l, c); }
-        let c = unsafe { mem::transmute(n) };
-        l.buffer.push(c);
-        None
-    }
-    accum_str_esc_dig (l, c) {
-        accum_num_hex_dig (l, c);
-        accum_str_esc     (l, c);
-        None
-    }
-    accum_str_esc_hex_uc (l, c) {
-        accum_num_hex_uc (l, c);
-        accum_str_esc    (l, c);
-        None
-    }
-    accum_str_esc_hex_lc (l, c) {
-        accum_num_hex_lc (l, c);
-        accum_str_esc    (l, c);
-        None
-    }
-    yield_char (l, c) {
-        let c = l.buffer.chars().next().unwrap(); // TODO: better way
-        Some(Char(c))
-    }
-    yield_str (l, c) {
-        Some(Str(l.strings.add(&l.buffer)))
-    }
-}
-
-const UNICODE_MAX: u32 = 0x10FFFF;
-
-// Punctuation Actions
-
-actions! {
-    yield_brace_l      (l, c) { Some(BraceL)      }
-    yield_brace_r      (l, c) { Some(BraceR)      }
-    yield_paren_l      (l, c) { Some(ParenL)      }
-    yield_paren_r      (l, c) { Some(ParenR)      }
-    yield_bracket_l    (l, c) { Some(BracketL)    }
-    yield_bracket_r    (l, c) { Some(BracketR)    }
-    yield_dot          (l, c) { Some(Dot)         }
-    yield_at           (l, c) { Some(At)          }
-    yield_plus_plus    (l, c) { Some(PlusPlus)    }
-    yield_minus_minus  (l, c) { Some(MinusMinus)  }
-    yield_bang         (l, c) { Some(Bang)        }
-    yield_tilde        (l, c) { Some(Tilde)       }
-    yield_question     (l, c) { Some(Question)    }
-    yield_star         (l, c) { Some(Star)        }
-    yield_slash        (l, c) { Some(Slash)       }
-    yield_percent      (l, c) { Some(Percent)     }
-    yield_plus         (l, c) { Some(Plus)        }
-    yield_minus        (l, c) { Some(Minus)       }
-    yield_less_less    (l, c) { Some(LessLess)    }
-    yield_more_more    (l, c) { Some(MoreMore)    }
-    yield_ampersand    (l, c) { Some(Ampersand)   }
-    yield_caret        (l, c) { Some(Caret)       }
-    yield_pipe         (l, c) { Some(Pipe)        }
-    yield_dot_tilde    (l, c) { Some(DotTilde)    }
-    yield_dot_bang     (l, c) { Some(DotBang)     }
-    yield_dot_equal    (l, c) { Some(DotEqual)    }
-    yield_dot_question (l, c) { Some(DotQuestion) }
-    yield_less_more    (l, c) { Some(LessMore)    }
-    yield_equal_equal  (l, c) { Some(EqualEqual)  }
-    yield_bang_equal   (l, c) { Some(BangEqual)   }
-    yield_less         (l, c) { Some(Less)        }
-    yield_more         (l, c) { Some(More)        }
-    yield_less_equal   (l, c) { Some(LessEqual)   }
-    yield_more_equal   (l, c) { Some(MoreEqual)   }
-    yield_equal_arrow  (l, c) { Some(EqualArrow)  }
-    yield_minus_arrow  (l, c) { Some(MinusArrow)  }
-    yield_equal        (l, c) { Some(Equal)       }
-    yield_colon        (l, c) { Some(Colon)       }
-    yield_comma        (l, c) { Some(Comma)       }
-}
-
-// Diagnostic Actions
-
-actions! {
-    error_unrec        (l, c) { Some(Error(Lex_Invalid))          }
-    err_invalid_num    (l, c) { Some(Error(Lex_NumInvalid))       }
-    error_num_overflow (l, c) { Some(Error(Lex_NumOverflow))      }
-    error_char_unterm  (l, c) { Some(Error(Lex_CharUnterminated)) }
-    error_char_length  (l, c) { Some(Error(Lex_CharLength))       }
-    error_esc_overflow (l, c) { Some(Error(Lex_EscOverflow))      }
-    error_str_unterm   (l, c) { Some(Error(Lex_StrUnterminated))  }
-    error_esc_unterm   (l, c) { Some(Error(Lex_EscUnterminated))  }
-    error_esc_invalid  (l, c) { Some(Error(Lex_EscInvalid))       }
 }
 
 // -----------------------------------------------------------------------------
