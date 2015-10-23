@@ -251,43 +251,54 @@ where I: Iterator<Item=char>
             }
 
             // Action code helpers
-            macro_rules! push { ($s:expr) => { self.state = state; state = $s;  }; }
-            macro_rules! pop  { ()        => { state = self.state;              }; }
-            macro_rules! ok   { ($e:expr) => { if let Some(e) = $e { return e } }; }
+            macro_rules! push {
+                ( $s:expr ) => {{ self.state = state; state = $s }};
+            }
+            macro_rules! pop {
+                () => {{ state = self.state }};
+            }
+            macro_rules! skip {
+                ( $($e:expr);* ) => {{ $($e;)* continue }};
+            }
+            macro_rules! maybe {
+                ( $($e:expr);+ ) => {
+                    match { $($e);+ } { Some(e) => e, _ => continue }
+                };
+            }
 
             // Invoke action code
             let token = match action {
                 // Space
-                Skip                => {                         continue },
-                Space               => {              l.start(); continue },
-                Newline             => { l.newline(); l.start(); continue },
+                Skip                => skip! {                        },
+                Space               => skip! {              l.start() },
+                Newline             => skip! { l.newline(); l.start() },
                 YieldEos            => Eos,
                 YieldEof            => Eof,
 
                 // Numbers
-                AccumNumDec         => { ok!(l.num_add_dec     (c)); continue },
-                AccumNumHexDig      => { ok!(l.num_add_hex_dig (c)); continue },
-                AccumNumHexUc       => { ok!(l.num_add_hex_uc  (c)); continue },
-                AccumNumHexLc       => { ok!(l.num_add_hex_lc  (c)); continue },
-                AccumNumOct         => { ok!(l.num_add_oct     (c)); continue },
-                AccumNumBin         => { ok!(l.num_add_bin     (c)); continue },
-                YieldNum            => { l.num_get() },
+                AccumNumDec         => maybe! { l.num_add_dec     (c) },
+                AccumNumHexDig      => maybe! { l.num_add_hex_dig (c) },
+                AccumNumHexUc       => maybe! { l.num_add_hex_uc  (c) },
+                AccumNumHexLc       => maybe! { l.num_add_hex_lc  (c) },
+                AccumNumOct         => maybe! { l.num_add_oct     (c) },
+                AccumNumBin         => maybe! { l.num_add_bin     (c) },
+                YieldNum            => l.num_get(),
 
                 // Strings & Chars
-                StartEsc            => { push!(InEsc);                          continue }
-                AccumStr            => { l.str_add(c);                          continue },
-                AccumStrEscNul      => { l.str_add('\0');               pop!(); continue },
-                AccumStrEscLf       => { l.str_add('\n');               pop!(); continue },
-                AccumStrEscCr       => { l.str_add('\r');               pop!(); continue },
-                AccumStrEscTab      => { l.str_add('\t');               pop!(); continue },
-                AccumStrEscChar     => { l.str_add(c);                  pop!(); continue },
-                AccumStrEscNum      => { ok!(l.str_add_esc        ( )); pop!(); continue },
-                AccumStrEscHexDig   => { ok!(l.str_add_esc_hex_dig(c)); pop!(); continue },
-                AccumStrEscHexUc    => { ok!(l.str_add_esc_hex_uc (c)); pop!(); continue },
-                AccumStrEscHexLc    => { ok!(l.str_add_esc_hex_lc (c)); pop!(); continue },
-                YieldStr            => { l.str_get()               },
-                YieldChar           => { l.str_get_char()          },
-                YieldId             => { l.str_get_id_or_keyword() },
+                AccumStr            => skip!  {         l.str_add             (  c ) },
+                AccumStrEscNul      => skip!  { pop!(); l.str_add             ('\0') },
+                AccumStrEscLf       => skip!  { pop!(); l.str_add             ('\n') },
+                AccumStrEscCr       => skip!  { pop!(); l.str_add             ('\r') },
+                AccumStrEscTab      => skip!  { pop!(); l.str_add             ('\t') },
+                AccumStrEscChar     => skip!  { pop!(); l.str_add             (  c ) },
+                AccumStrEscNum      => maybe! { pop!(); l.str_add_esc         (    ) },
+                AccumStrEscHexDig   => maybe! { pop!(); l.str_add_esc_hex_dig (  c ) },
+                AccumStrEscHexUc    => maybe! { pop!(); l.str_add_esc_hex_uc  (  c ) },
+                AccumStrEscHexLc    => maybe! { pop!(); l.str_add_esc_hex_lc  (  c ) },
+                StartEsc            => skip!  { push!(InEsc) },
+                YieldStr            => l.str_get(),
+                YieldChar           => l.str_get_char(),
+                YieldId             => l.str_get_id_or_keyword(),
 
                 // Simple Tokens
                 YieldBraceL         => BraceL,
@@ -812,7 +823,7 @@ static STATES: [TransitionSet; STATE_COUNT] = [
         /* 0: eof */ ( AtEof,   false, YieldMore      ),
         /* 1: ??? */ ( Initial, false, YieldMore      ),
         /* 2: \s  */ ( Initial, true,  YieldMore      ),
-        /* 3:  <  */ ( Initial, true,  YieldMoreMore  ), // TODO: Swap operator?
+        /* 3:  <  */ ( Initial, true,  YieldMoreMore  ), // TODO: exchange
         /* 4:  >  */ ( Initial, true,  YieldMoreMore  ),
         /* 5:  =  */ ( Initial, true,  YieldMoreEqual ),
     ]),
@@ -929,8 +940,6 @@ struct Context {
     keywords:   KeywordMap      // keyword table
 }
 
-macro_rules! ok { ($e:expr) => { if let e@Some(_) = $e { return e } }; }
-
 impl Context {
     fn new() -> Self {
         let mut strings  = Interner   ::new();
@@ -1032,23 +1041,20 @@ impl Context {
 
     #[inline]
     fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token> {
-        ok!(self.num_add_hex_dig(c));
-        self.str_add_esc();
-        None
+        self.num_add_hex_dig(c)
+            .or_else(|| self.str_add_esc())
     }
 
     #[inline]
     fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token> {
-        ok!(self.num_add_hex_uc(c));
-        self.str_add_esc();
-        None
+        self.num_add_hex_uc(c)
+            .or_else(|| self.str_add_esc())
     }
 
     #[inline]
     fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token> {
-        ok!(self.num_add_hex_lc(c));
-        self.str_add_esc();
-        None
+        self.num_add_hex_lc(c)
+            .or_else(|| self.str_add_esc())
     }
 
     #[inline]
@@ -1060,7 +1066,7 @@ impl Context {
 
     #[inline]
     fn str_get_char(&mut self) -> Token {
-        let c = self.buffer.chars().next().unwrap(); // TODO: better way
+        let c = self.buffer.chars().next().unwrap();
         self.buffer.clear();
         Char(c)
     }
