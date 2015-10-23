@@ -119,89 +119,86 @@ type TransitionSet = (
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum Action {
-    Skip                ,
-    Space               ,
-    Newline             ,
-    YieldEos            ,
-    YieldEof            ,
+    Skip,
+    Space,
+    Newline,
+    YieldEos,
+    YieldEof,
 
-    AccumNumDec         ,
-    AccumNumHexDig      ,
-    AccumNumHexUc       ,
-    AccumNumHexLc       ,
-    AccumNumOct         ,
-    AccumNumBin         ,
-    YieldNum            ,
+    AccumNumDec,
+    AccumNumHexDig,
+    AccumNumHexUc,
+    AccumNumHexLc,
+    AccumNumOct,
+    AccumNumBin,
+    YieldNum,
 
-    StartEsc            ,
-    AccumStr            ,
-    AccumStrEscNul      ,
-    AccumStrEscLf       ,
-    AccumStrEscCr       ,
-    AccumStrEscTab      ,
-    AccumStrEscChar     ,
-    AccumStrEscNum      ,
-    AccumStrEscHexDig   ,
-    AccumStrEscHexUc    ,
-    AccumStrEscHexLc    ,
-    YieldChar           ,
-    YieldStr            ,
-    YieldId             ,
+    StartEsc,
+    AccumStr,
+    AccumStrEscNul,
+    AccumStrEscLf,
+    AccumStrEscCr,
+    AccumStrEscTab,
+    AccumStrEscChar,
+    AccumStrEscNum,
+    AccumStrEscHexDig,
+    AccumStrEscHexUc,
+    AccumStrEscHexLc,
+    YieldChar,
+    YieldStr,
+    YieldId,
 
-    YieldBraceL         ,
-    YieldBraceR         ,
-    YieldParenL         ,
-    YieldParenR         ,
-    YieldBracketL       ,
-    YieldBracketR       ,
-    YieldDot            ,
-    YieldAt             ,
-    YieldPlusPlus       ,
-    YieldMinusMinus     ,
-    YieldBang           ,
-    YieldTilde          ,
-    YieldQuestion       ,
-    YieldStar           ,
-    YieldSlash          ,
-    YieldPercent        ,
-    YieldPlus           ,
-    YieldMinus          ,
-    YieldLessLess       ,
-    YieldMoreMore       ,
-    YieldAmpersand      ,
-    YieldCaret          ,
-    YieldPipe           ,
-    YieldDotTilde       ,
-    YieldDotBang        ,
-    YieldDotEqual       ,
-    YieldDotQuestion    ,
-    YieldLessMore       ,
-    YieldEqualEqual     ,
-    YieldBangEqual      ,
-    YieldLess           ,
-    YieldMore           ,
-    YieldLessEqual      ,
-    YieldMoreEqual      ,
-    YieldEqualArrow     ,
-    YieldMinusArrow     ,
-    YieldEqual          ,
-    YieldColon          ,
-    YieldComma          ,
+    YieldBraceL,
+    YieldBraceR,
+    YieldParenL,
+    YieldParenR,
+    YieldBracketL,
+    YieldBracketR,
+    YieldDot,
+    YieldAt,
+    YieldPlusPlus,
+    YieldMinusMinus,
+    YieldBang,
+    YieldTilde,
+    YieldQuestion,
+    YieldStar,
+    YieldSlash,
+    YieldPercent,
+    YieldPlus,
+    YieldMinus,
+    YieldLessLess,
+    YieldMoreMore,
+    YieldAmpersand,
+    YieldCaret,
+    YieldPipe,
+    YieldDotTilde,
+    YieldDotBang,
+    YieldDotEqual,
+    YieldDotQuestion,
+    YieldLessMore,
+    YieldEqualEqual,
+    YieldBangEqual,
+    YieldLess,
+    YieldMore,
+    YieldLessEqual,
+    YieldMoreEqual,
+    YieldEqualArrow,
+    YieldMinusArrow,
+    YieldEqual,
+    YieldColon,
+    YieldComma,
 
-    ErrorInvalid        ,
-    ErrorNumInvalid     ,
-    ErrorNumOverflow    ,
-    ErrorCharUnterm     ,
-    ErrorCharLength     ,
-    ErrorEscOverflow    ,
-    ErrorStrUnterm      ,
-    ErrorEscUnterm      ,
-    ErrorEscInvalid     ,
+    ErrorInvalid,
+    ErrorNumInvalid,
+    ErrorNumOverflow,
+    ErrorCharUnterm,
+    ErrorCharLength,
+    ErrorEscOverflow,
+    ErrorStrUnterm,
+    ErrorEscUnterm,
+    ErrorEscInvalid,
 }
 use self::Action::*;
-
-macro_rules! um  { ($e:expr) => { if let   Some(e) = $e { return e } }; }
-macro_rules! umm { ($e:expr) => { if let e@Some(_) = $e { return e } }; }
 
 pub struct Lexer<I>
 where I: Iterator<Item=char>
@@ -218,22 +215,14 @@ impl<I> Lexer<I>
 where I: Iterator<Item=char>
 {
     fn new(mut iter: I) -> Self {
-        let ch    = iter.next();
-        let state = match ch { Some(_) => Initial, None => AtEof };
+        let ch = iter.next();
 
-        let mut strings  = Interner::new();
-        let     keywords = intern_keywords(&mut strings);
-
-        let context = Context {
-            start:    Pos { byte: 0, line: 1, column: 1 },
-            current:  Pos { byte: 0, line: 1, column: 1 },
-            buffer:   String::with_capacity(128),
-            number:   0,
-            strings:  strings,
-            keywords: keywords
-        };
-
-        Lexer { iter:iter, ch:ch, state:state, context:context }
+        Lexer {
+            iter:    iter,
+            ch:      ch,
+            state:   match ch { Some(_) => Initial, None => AtEof },
+            context: Context::new()
+        }
     }
 
     pub fn lex(&mut self) -> Token {
@@ -261,11 +250,14 @@ where I: Iterator<Item=char>
                 ch                  = iter.next();
             }
 
+            // Action code helpers
             macro_rules! push { ($s:expr) => { self.state = state; state = $s;  }; }
             macro_rules! pop  { ()        => { state = self.state;              }; }
+            macro_rules! ok   { ($e:expr) => { if let Some(e) = $e { return e } }; }
 
             // Invoke action code
             let token = match action {
+                // Space
                 Skip                => {                         continue },
                 Space               => {              l.start(); continue },
                 Newline             => { l.newline(); l.start(); continue },
@@ -273,28 +265,28 @@ where I: Iterator<Item=char>
                 YieldEof            => Eof,
 
                 // Numbers
-                AccumNumDec         => { um!(l.num_add_dec     (c)); continue },
-                AccumNumHexDig      => { um!(l.num_add_hex_dig (c)); continue },
-                AccumNumHexUc       => { um!(l.num_add_hex_uc  (c)); continue },
-                AccumNumHexLc       => { um!(l.num_add_hex_lc  (c)); continue },
-                AccumNumOct         => { um!(l.num_add_oct     (c)); continue },
-                AccumNumBin         => { um!(l.num_add_bin     (c)); continue },
+                AccumNumDec         => { ok!(l.num_add_dec     (c)); continue },
+                AccumNumHexDig      => { ok!(l.num_add_hex_dig (c)); continue },
+                AccumNumHexUc       => { ok!(l.num_add_hex_uc  (c)); continue },
+                AccumNumHexLc       => { ok!(l.num_add_hex_lc  (c)); continue },
+                AccumNumOct         => { ok!(l.num_add_oct     (c)); continue },
+                AccumNumBin         => { ok!(l.num_add_bin     (c)); continue },
                 YieldNum            => { l.num_get() },
 
                 // Strings & Chars
-                StartEsc            => { push!(InEsc); continue }
-                AccumStr            => { l.str_add(c);                           continue },
-                AccumStrEscNul      => { l.str_add('\0');                pop!(); continue },
-                AccumStrEscLf       => { l.str_add('\n');                pop!(); continue },
-                AccumStrEscCr       => { l.str_add('\r');                pop!(); continue },
-                AccumStrEscTab      => { l.str_add('\t');                pop!(); continue },
-                AccumStrEscChar     => { l.str_add(c);                   pop!(); continue },
-                AccumStrEscNum      => { um!(l.str_add_esc        ( )); pop!(); continue },
-                AccumStrEscHexDig   => { um!(l.str_add_esc_hex_dig(c)); pop!(); continue },
-                AccumStrEscHexUc    => { um!(l.str_add_esc_hex_uc (c)); pop!(); continue },
-                AccumStrEscHexLc    => { um!(l.str_add_esc_hex_lc (c)); pop!(); continue },
-                YieldChar           => { l.str_get_char()          },
+                StartEsc            => { push!(InEsc);                          continue }
+                AccumStr            => { l.str_add(c);                          continue },
+                AccumStrEscNul      => { l.str_add('\0');               pop!(); continue },
+                AccumStrEscLf       => { l.str_add('\n');               pop!(); continue },
+                AccumStrEscCr       => { l.str_add('\r');               pop!(); continue },
+                AccumStrEscTab      => { l.str_add('\t');               pop!(); continue },
+                AccumStrEscChar     => { l.str_add(c);                  pop!(); continue },
+                AccumStrEscNum      => { ok!(l.str_add_esc        ( )); pop!(); continue },
+                AccumStrEscHexDig   => { ok!(l.str_add_esc_hex_dig(c)); pop!(); continue },
+                AccumStrEscHexUc    => { ok!(l.str_add_esc_hex_uc (c)); pop!(); continue },
+                AccumStrEscHexLc    => { ok!(l.str_add_esc_hex_lc (c)); pop!(); continue },
                 YieldStr            => { l.str_get()               },
+                YieldChar           => { l.str_get_char()          },
                 YieldId             => { l.str_get_id_or_keyword() },
 
                 // Simple Tokens
@@ -358,23 +350,6 @@ where I: Iterator<Item=char>
             return token;
         }
     }
-}
-
-#[inline]
-fn intern_keywords(i: &mut Interner) -> HashMap<StrId, Token> {
-    let mut h = HashMap::new();
-    h.insert(i.intern("type"),     KwType    );
-    h.insert(i.intern("struct"),   KwStruct  );
-    h.insert(i.intern("union"),    KwUnion   );
-    h.insert(i.intern("if"),       KwIf      );
-    h.insert(i.intern("else"),     KwElse    );
-    h.insert(i.intern("loop"),     KwLoop    );
-    h.insert(i.intern("while"),    KwWhile   );
-    h.insert(i.intern("break"),    KwBreak   );
-    h.insert(i.intern("continue"), KwContinue);
-    h.insert(i.intern("return"),   KwReturn  );
-    h.insert(i.intern("jump"),     KwJump    );
-    h
 }
 
 #[inline]
@@ -498,15 +473,15 @@ static STATES: [TransitionSet; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  4, x, x, 8, 8, 8, 8, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 0: eof */ ( AtEof,    false, YieldNum        ),
         /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec   ),
-        /* 3:  _  */ ( InNumDec, true,  Skip          ),
-        /* 4:  x  */ ( InNumHex, true,  Skip          ),
-        /* 5:  o  */ ( InNumOct, true,  Skip          ),
-        /* 6:  b  */ ( InNumBin, true,  Skip          ),
-        /* 7: \s  */ ( Initial,  true,  YieldNum      ),
-        /* 8: opr */ ( Initial,  false, YieldNum      ),
+        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec     ),
+        /* 3:  _  */ ( InNumDec, true,  Skip            ),
+        /* 4:  x  */ ( InNumHex, true,  Skip            ),
+        /* 5:  o  */ ( InNumOct, true,  Skip            ),
+        /* 6:  b  */ ( InNumBin, true,  Skip            ),
+        /* 7: \s  */ ( Initial,  true,  YieldNum        ),
+        /* 8: opr */ ( Initial,  false, YieldNum        ),
     ]),
 
     // InNumDec - in a decimal number
@@ -521,12 +496,12 @@ static STATES: [TransitionSet; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 0: eof */ ( AtEof,    false, YieldNum        ),
         /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec   ),
-        /* 3:  _  */ ( InNumDec, true,  Skip          ),
-        /* 4: \s  */ ( Initial,  true,  YieldNum      ),
-        /* 5: opr */ ( Initial,  false, YieldNum      ),
+        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec     ),
+        /* 3:  _  */ ( InNumDec, true,  Skip            ),
+        /* 4: \s  */ ( Initial,  true,  YieldNum        ),
+        /* 5: opr */ ( Initial,  false, YieldNum        ),
     ]),
 
     // InNumHex - in a hexadecimal number
@@ -541,14 +516,14 @@ static STATES: [TransitionSet; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum       ),
-        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid  ),
-        /* 2: 0-9 */ ( InNumHex, true,  AccumNumHexDig ),
-        /* 3: A-F */ ( InNumHex, true,  AccumNumHexUc  ),
-        /* 4: a-f */ ( InNumHex, true,  AccumNumHexLc  ),
-        /* 5:  _  */ ( InNumHex, true,  Skip           ),
-        /* 6: \s  */ ( Initial,  true,  YieldNum       ),
-        /* 7: opr */ ( Initial,  false, YieldNum       ),
+        /* 0: eof */ ( AtEof,    false, YieldNum        ),
+        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
+        /* 2: 0-9 */ ( InNumHex, true,  AccumNumHexDig  ),
+        /* 3: A-F */ ( InNumHex, true,  AccumNumHexUc   ),
+        /* 4: a-f */ ( InNumHex, true,  AccumNumHexLc   ),
+        /* 5:  _  */ ( InNumHex, true,  Skip            ),
+        /* 6: \s  */ ( Initial,  true,  YieldNum        ),
+        /* 7: opr */ ( Initial,  false, YieldNum        ),
     ]),
 
     // InNumOct - in an octal number
@@ -563,12 +538,12 @@ static STATES: [TransitionSet; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 0: eof */ ( AtEof,    false, YieldNum        ),
         /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-7 */ ( InNumOct, true,  AccumNumOct   ),
-        /* 3:  _  */ ( InNumOct, true,  Skip          ),
-        /* 6: \s  */ ( Initial,  true,  YieldNum      ),
-        /* 4: opr */ ( Initial,  false, YieldNum      ),
+        /* 2: 0-7 */ ( InNumOct, true,  AccumNumOct     ),
+        /* 3:  _  */ ( InNumOct, true,  Skip            ),
+        /* 6: \s  */ ( Initial,  true,  YieldNum        ),
+        /* 4: opr */ ( Initial,  false, YieldNum        ),
     ]),
 
     // InNumBin - in a binary number
@@ -583,12 +558,12 @@ static STATES: [TransitionSet; STATE_COUNT] = [
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum      ),
+        /* 0: eof */ ( AtEof,    false, YieldNum        ),
         /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-1 */ ( InNumBin, true,  AccumNumBin   ),
-        /* 3:  _  */ ( InNumBin, true,  Skip          ),
-        /* 6: \s  */ ( Initial,  true,  YieldNum      ),
-        /* 4: opr */ ( Initial,  false, YieldNum      ),
+        /* 2: 0-1 */ ( InNumBin, true,  AccumNumBin     ),
+        /* 3:  _  */ ( InNumBin, true,  Skip            ),
+        /* 6: \s  */ ( Initial,  true,  YieldNum        ),
+        /* 4: opr */ ( Initial,  false, YieldNum        ),
     ]),
 
     // InChar <( ' )> : in a character literal
@@ -913,18 +888,64 @@ static STATES: [TransitionSet; STATE_COUNT] = [
 ];
 
 // -----------------------------------------------------------------------------
+// Keyword Map
+
+struct KeywordMap(HashMap<StrId, Token>);
+
+impl KeywordMap {
+    fn new(i: &mut Interner) -> Self {
+        let mut h = HashMap::new();
+
+        h.insert(i.intern("type"    ), KwType    );
+        h.insert(i.intern("struct"  ), KwStruct  );
+        h.insert(i.intern("union"   ), KwUnion   );
+        h.insert(i.intern("if"      ), KwIf      );
+        h.insert(i.intern("else"    ), KwElse    );
+        h.insert(i.intern("loop"    ), KwLoop    );
+        h.insert(i.intern("while"   ), KwWhile   );
+        h.insert(i.intern("break"   ), KwBreak   );
+        h.insert(i.intern("continue"), KwContinue);
+        h.insert(i.intern("return"  ), KwReturn  );
+        h.insert(i.intern("jump"    ), KwJump    );
+
+        KeywordMap(h)
+    }
+
+    #[inline]
+    fn get(&self, id: &StrId) -> Option<&Token> {
+        self.0.get(id)
+    }
+}
+
+// -----------------------------------------------------------------------------
 // Context
 
 struct Context {
-    start:      Pos,                    // position of token start
-    current:    Pos,                    // position of current character
-    number:     u64,                    // number builder
-    buffer:     String,                 // string builder
-    strings:    Interner,               // string interner
-    keywords:   HashMap<StrId, Token>   // keyword table
+    start:      Pos,            // position of token start
+    current:    Pos,            // position of current character
+    number:     u64,            // number builder
+    buffer:     String,         // string builder
+    strings:    Interner,       // string interner
+    keywords:   KeywordMap      // keyword table
 }
 
+macro_rules! ok { ($e:expr) => { if let e@Some(_) = $e { return e } }; }
+
 impl Context {
+    fn new() -> Self {
+        let mut strings  = Interner   ::new();
+        let     keywords = KeywordMap ::new(&mut strings);
+
+        Context {
+            start:    Pos { byte: 0, line: 1, column: 1 },
+            current:  Pos { byte: 0, line: 1, column: 1 },
+            buffer:   String::with_capacity(128),
+            number:   0,
+            strings:  strings,
+            keywords: keywords
+        }
+    }
+
     #[inline]
     fn start(&mut self) {
         self.start = self.current;
@@ -1011,21 +1032,21 @@ impl Context {
 
     #[inline]
     fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token> {
-        umm!(self.num_add_hex_dig(c));
+        ok!(self.num_add_hex_dig(c));
         self.str_add_esc();
         None
     }
 
     #[inline]
     fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token> {
-        umm!(self.num_add_hex_uc(c));
+        ok!(self.num_add_hex_uc(c));
         self.str_add_esc();
         None
     }
 
     #[inline]
     fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token> {
-        umm!(self.num_add_hex_lc(c));
+        ok!(self.num_add_hex_lc(c));
         self.str_add_esc();
         None
     }
