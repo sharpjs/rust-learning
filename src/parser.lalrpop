@@ -32,7 +32,7 @@ extern {
         Id          => Token::Id   (<StrId>),
         Str         => Token::Str  (<StrId>),
         Char        => Token::Char (<char>),
-        Num         => Token::Num  (<u64>),
+        Int         => Token::Int  (<u64>),
         "type"      => Token::KwType,        
         "struct"    => Token::KwStruct,      
         "union"     => Token::KwUnion,       
