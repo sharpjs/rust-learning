@@ -16,7 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::borrow::Borrow;
+use std::cell::RefCell;
 use std::collections::HashMap;
+use std::rc::Rc;
+
+// -----------------------------------------------------------------------------
+// Handle for Interned Object
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct StrId(usize);
@@ -31,46 +37,80 @@ impl Into<usize> for StrId {
     fn into(self) -> usize { self.0 }
 }
 
+// -----------------------------------------------------------------------------
+// Interned Object
+
+#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+struct Interned<T> (Rc<T>);
+
+impl<T> Interned<T> {
+    #[inline]
+    fn new<S: Into<T>>(s: S) -> Self {
+        Interned(Rc::new(s.into()))
+    }
+}
+
+// Necessary to enable &str to probe HashMap keyed by Rc<string>
+impl Borrow<str> for Interned<String> {
+    #[inline]
+    fn borrow(&self) -> &str {
+        &self.0[..]
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Interner
+
 #[derive(Clone)]
 pub struct Interner {
-    map: HashMap <String, usize>,
-    vec: Vec     <String>
+    map: RefCell<HashMap<Interned<String>, usize>>,
+    vec: RefCell<Vec    <Interned<String>       >>,
 }
 
 impl Interner {
     pub fn new() -> Self {
         Interner {
-            map: HashMap::new(),
-            vec: Vec    ::new()
+            map: RefCell::new(HashMap::new()),
+            vec: RefCell::new(Vec    ::new()),
         }
     }
 
-    pub fn intern<S: AsRef<str>>(&mut self, s: S) -> StrId {
-        let s = s.as_ref();
-
+    pub fn intern<S: AsRef<str>>(&self, val: S) -> StrId {
         // If an interned copy exists, return it
-        if let Some(&id) = self.map.get(s) {
-            return id.into();
+        let mut map = self.map.borrow_mut();
+        let     val = val.as_ref();
+
+        if let Some(&idx) = map.get(val) {
+            return idx.into();
         }
 
         // Else, intern a copy
-        let id = self.add(s);
-        self.map.insert(s.into(), id.0);
-        id
+        let mut vec = self.vec.borrow_mut();
+        let     idx = vec.len();
+        let     val = Interned::new(val);
+
+        vec.push(val.clone());
+        map.insert(val, idx);
+        idx.into()
+    }
+
+    pub fn add<S: AsRef<str>>(&self, val: S) -> StrId {
+        let mut vec = self.vec.borrow_mut();
+        let     idx = vec.len();
+        let     val = Interned::new(val.as_ref());
+
+        vec.push(val);
+        idx.into()
     }
 
     #[inline]
-    pub fn add<S: AsRef<str>>(&mut self, s: S) -> StrId {
-        let id = self.vec.len();
-        self.vec.push(s.as_ref().into());
-        id.into()
-    }
-
-    #[inline]
-    pub fn get(&self, id: StrId) -> &str {
-        &self.vec[id.0]
+    pub fn get(&self, id: StrId) -> Rc<String> {
+        self.vec.borrow()[id.0].0.clone()
     }
 }
+
+// -----------------------------------------------------------------------------
+// Tests
 
 #[cfg(test)]
 mod tests {
@@ -78,25 +118,25 @@ mod tests {
 
     #[test]
     fn intern() {
-        let mut t = Interner::new();
+        let t = Interner::new();
 
         let a = t.intern("Hello");
         let b = t.intern(&"Hello".to_string());
 
         assert!   (a == b);
-        assert_eq!("Hello", t.get(a));
+        assert_eq!("Hello", *t.get(a));
     }
 
     #[test]
     fn add() {
-        let mut t = Interner::new();
+        let t = Interner::new();
 
         let a = t.add("Hello");
         let b = t.add(&"Hello".to_string());
 
         assert!   (a != b);
-        assert_eq!("Hello", t.get(a));
-        assert_eq!("Hello", t.get(b));
+        assert_eq!("Hello", *t.get(a));
+        assert_eq!("Hello", *t.get(b));
     }
 }
 

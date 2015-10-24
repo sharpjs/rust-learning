@@ -1241,7 +1241,7 @@ mod tests {
         fn yields_id(&mut self, name: &str) -> &mut Self {
             let token = self.0.lex();
             match token {
-                Id(n) => assert_eq!(name, self.0.context.strings.get(n)),
+                Id(n) => assert_eq!(name, *self.0.context.strings.get(n)),
                 _     => panic!("lex() did not yield an identifier.")
             };
             self
