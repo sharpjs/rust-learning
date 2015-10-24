@@ -88,10 +88,12 @@ extern {
     }
 }
 
-pub Stmts: Vec<Stmt> = {
-    <v:(<Stmt> ";")*> <s:Stmt?> => match s {
+pub Stmts = Sep<Stmt, ";">;
+
+Sep<Item, Sep>: Vec<Item> = {
+    <v:(<Item> Sep)*> <i:Item?> => match i {
         None    => v,
-        Some(s) => { let mut v = v; v.push(s); v },
+        Some(i) => { let mut v = v; v.push(i); v },
     }
 };
 
