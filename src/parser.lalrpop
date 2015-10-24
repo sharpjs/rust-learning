@@ -88,14 +88,26 @@ extern {
     }
 }
 
-pub Stmts = Sep<Stmt, ";">;
+// Macros
 
-Sep<Item, Sep>: Vec<Item> = {
+// "tuple": A separated list of items. A trailing separator is forbidden.
+//
+Tup<Item, Sep>: Vec<Item> = {
+    <v:(<Item> Sep)*> <i:Item> => { let mut v = v; v.push(i); v }
+};
+
+// "sequence": A separated list of items. A trailing separator is ignored.
+//
+Seq<Item, Sep>: Vec<Item> = {
     <v:(<Item> Sep)*> <i:Item?> => match i {
         None    => v,
         Some(i) => { let mut v = v; v.push(i); v },
     }
 };
+
+// Productions
+
+pub Stmts = Seq<Stmt, ";">;
 
 pub Stmt: Stmt = {
     Id  => Stub(<>),
