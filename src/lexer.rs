@@ -379,6 +379,23 @@ where I: Iterator<Item=char>
 }
 
 // -----------------------------------------------------------------------------
+// Adapter for LALRPOP
+
+impl<I> Iterator for Lexer<I>
+where I: Iterator<Item=char>
+{
+    type Item = Result<(Pos, Token, Pos), (Pos, Message)>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self.lex() {
+            (_,   Eof,        _) => None,
+            (pos, Error(msg), _) => Some(Err( (pos, msg) )),
+            triple               => Some(Ok (   triple   )),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
 // State Transition Table
 
 #[inline]

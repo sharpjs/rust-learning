@@ -26,7 +26,7 @@ grammar(strings: &Interner)["LALR(1)"];
 
 extern {
     type Location = Pos;
-    type Error    = Message;
+    type Error    = (Pos, Message);
 
     enum Token {
         Id          => Token::Id   (<StrId>),
