@@ -106,8 +106,6 @@ enum State {
 }
 use self::State::*;
 
-const STATE_COUNT: usize = 24;
-
 type TransitionSet = (
     [u8; 128],      // Map from 7-bit char to transition index
     &'static [(     // Transition array
@@ -392,7 +390,7 @@ fn lookup(entry: &TransitionSet, ch: Option<char>) -> (char, (State, bool, Actio
 #[allow(non_upper_case_globals)]
 const x: u8 = 1;
 
-static STATES: [TransitionSet; STATE_COUNT] = [
+const STATES: &'static [TransitionSet] = &[
     // Initial
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
