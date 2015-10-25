@@ -251,7 +251,7 @@ where I: Iterator<Item=char>
             let (c, (next_state, consume, action))
                 = lookup(&STATES[state as usize], ch);
 
-            println!("{:?} {:?} => {:?} {:?} {:?}", state, ch, c, next_state, consume);
+            println!("{:?} {:?} => {:?} {:?}", state, ch, next_state, consume);
 
             // Advance state machine
             state = next_state;
@@ -373,6 +373,7 @@ where I: Iterator<Item=char>
             // Yield
             let start = l.start; l.start();
             let end   = l.current;
+            println!("yield {:?}", (start, token, end));
             return (start, token, end);
         }
     }
