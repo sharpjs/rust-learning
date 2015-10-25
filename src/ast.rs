@@ -18,6 +18,7 @@
 
 use interner::StrId;
 
+#[derive(Clone, Debug)]
 pub enum Stmt {
     Block   (Vec<Stmt>),
     Eval    (Expr),
@@ -37,6 +38,7 @@ pub enum Stmt {
 //     | While     Test Stmt
 //     deriving (Eq, Show)
 
+#[derive(Clone, Debug)]
 pub enum Expr {
     Ident   (StrId),
     Str     (StrId),

@@ -40,9 +40,6 @@ mod lexer;
 mod message;
 mod parser;
 
-fn main() {
-}
-
 // TODO: Move following into parser module
 
 use ast::*;
@@ -57,10 +54,20 @@ use std::rc::Rc;
 
 pub type Error = ParseError<Pos, Token, (Pos, Message)>;
 
-pub fn parse<S: AsRef<str>>(s: S) -> Result<Stmt, Error> {
+pub fn parse<S: AsRef<str>>(s: S) -> Result<Vec<Stmt>, Error> {
     let chars   = s.as_ref().chars();
     let strings = Rc::new(Interner::new());
     let lexer   = Lexer::new(strings.clone(), chars);
-    parser::parse_Stmt(strings.borrow(), lexer)
+    parser::parse_Stmts(strings.borrow(), lexer)
+}
+
+fn main() {
+    let x = parse("a ; b \n c");
+    println!("{:#?}", x);
+}
+
+#[test]
+fn test_main() {
+    main()
 }
 
