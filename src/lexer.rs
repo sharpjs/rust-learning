@@ -24,6 +24,9 @@ use interner::*;
 use message::*;
 use message::Message::*;
 
+// -----------------------------------------------------------------------------
+// Tokens
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token {
     Id   (StrId),   // Identifier
@@ -86,6 +89,9 @@ pub enum Token {
 }
 use self::Token::*;
 
+// -----------------------------------------------------------------------------
+// Misc Types
+
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Pos {
     pub byte:   usize,  // 0-based byte offset
@@ -114,6 +120,9 @@ type TransitionSet = (
         Action      // - action code
     )]
 );
+
+// -----------------------------------------------------------------------------
+// Action Codes
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
@@ -198,6 +207,9 @@ enum Action {
     ErrorEscInvalid,
 }
 use self::Action::*;
+
+// -----------------------------------------------------------------------------
+// Lexer
 
 pub struct Lexer<I>
 where I: Iterator<Item=char>
@@ -365,6 +377,9 @@ where I: Iterator<Item=char>
         }
     }
 }
+
+// -----------------------------------------------------------------------------
+// State Transition Table
 
 #[inline]
 fn lookup(entry: &TransitionSet, ch: Option<char>) -> (char, (State, bool, Action))
