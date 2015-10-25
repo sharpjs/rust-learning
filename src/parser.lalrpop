@@ -18,6 +18,7 @@
 
 use ast::*;
 use ast::Stmt::*;
+use ast::Expr::*;
 use interner::{Interner, StrId};
 use lexer::{Pos, Token};
 use message::Message;
@@ -110,8 +111,13 @@ Seq<Item, Sep>: Vec<Item> = {
 pub Stmts = Seq<Stmt, ";">;
 
 pub Stmt: Stmt = {
-    Id  => Stub(<>),
-    Str => Stub(<>)
+    Expr            => Eval(<>),
+    "{" <Stmts> "}" => Block(<>),
+};
+
+Expr: Expr = {
+    Id  => Ident(<>),
+    Int => Int(<>),
 };
 
 // vim: ft=rust

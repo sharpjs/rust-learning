@@ -19,7 +19,8 @@
 use interner::StrId;
 
 pub enum Stmt {
-    Stub (StrId)
+    Block   (Vec<Stmt>),
+    Eval    (Expr),
 }
 
 // data Stmt
@@ -35,4 +36,10 @@ pub enum Stmt {
 //     | If        Test Stmt Stmt
 //     | While     Test Stmt
 //     deriving (Eq, Show)
+
+pub enum Expr {
+    Ident   (StrId),
+    Str     (StrId),
+    Int     (u64),
+}
 
