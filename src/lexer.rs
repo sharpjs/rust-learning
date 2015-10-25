@@ -260,7 +260,7 @@ where I: Iterator<Item=char>
             if consume {
                 l.current.byte   += c.len_utf8();
                 l.current.column += 1;
-                ch                  = iter.next();
+                ch                = iter.next();
             }
 
             // Action code helpers
