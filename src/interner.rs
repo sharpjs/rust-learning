@@ -19,12 +19,13 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
+use std::fmt;
 use std::rc::Rc;
 
 // -----------------------------------------------------------------------------
 // Handle for Interned Object
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct StrId(usize);
 
 impl From<usize> for StrId {
@@ -35,6 +36,12 @@ impl From<usize> for StrId {
 impl Into<usize> for StrId {
     #[inline]
     fn into(self) -> usize { self.0 }
+}
+
+impl fmt::Debug for StrId {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "#{}", self.0)
+    }
 }
 
 // -----------------------------------------------------------------------------

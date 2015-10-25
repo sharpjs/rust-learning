@@ -63,7 +63,7 @@ pub fn parse<S: AsRef<str>>(s: S) -> Result<Vec<Stmt>, Error> {
 
 fn main() {
     let x = parse("a ; b \n c");
-    println!("{:#?}", x);
+    println!("\n{:#?}", x);
 }
 
 #[test]
