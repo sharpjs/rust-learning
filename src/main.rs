@@ -43,3 +43,24 @@ mod parser;
 fn main() {
 }
 
+// TODO: Move following into parser module
+
+use ast::*;
+use interner::*;
+use lexer::*;
+use message::*;
+use lalrpop_util::*;
+extern crate lalrpop_util;
+
+use std::borrow::Borrow;
+use std::rc::Rc;
+
+pub type Error = ParseError<Pos, Token, (Pos, Message)>;
+
+pub fn parse<S: AsRef<str>>(s: S) -> Result<Stmt, Error> {
+    let chars   = s.as_ref().chars();
+    let strings = Rc::new(Interner::new());
+    let lexer   = Lexer::new(strings.clone(), chars);
+    parser::parse_Stmt(strings.borrow(), lexer)
+}
+
