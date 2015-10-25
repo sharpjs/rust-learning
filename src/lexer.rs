@@ -128,7 +128,7 @@ type TransitionSet = (
 #[repr(u8)]
 enum Action {
     Skip,
-    Space,
+    Start,
     Newline,
     YieldEos,
     YieldEof,
@@ -282,9 +282,9 @@ where I: Iterator<Item=char>
             // Invoke action code
             let token = match action {
                 // Space
-                Skip                => skip! {                        },
-                Space               => skip! {              l.start() },
-                Newline             => skip! { l.newline(); l.start() },
+                Skip                => skip! {             },
+                Start               => skip! { l.start()   },
+                Newline             => skip! { l.newline() },
                 YieldEos            => Eos,
                 YieldEof            => Eof,
 
@@ -438,7 +438,7 @@ const STATES: &'static [TransitionSet] = &[
         //              State       Next?  Action
         /*  0: eof */ ( AtEof,      false, YieldEof       ),
         /*  1: ??? */ ( AtEof,      false, ErrorInvalid   ),
-        /*  2: \s  */ ( Initial,    true,  Space          ),
+        /*  2: \s  */ ( Initial,    true,  Start          ),
         /*  3: \n  */ ( AfterEos,   true,  Newline        ),
         /*  4:  ;  */ ( AfterEos,   true,  Skip           ),
         /*  5: id0 */ ( InId,       true,  AccumStr       ),
@@ -487,7 +487,7 @@ const STATES: &'static [TransitionSet] = &[
         //             State     Next?  Action
         /* 0: eof */ ( AtEof,    false, YieldEos ),
         /* 1: ??? */ ( Initial,  false, YieldEos ),
-        /* 2: \s; */ ( AfterEos, true,  Space    ),
+        /* 2: \s; */ ( AfterEos, true,  Skip     ),
         /* 3: \n  */ ( AfterEos, true,  Newline  ),
     ]),
 
