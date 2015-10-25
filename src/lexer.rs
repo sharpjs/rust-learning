@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 use std::mem;
+use std::rc::Rc;
 
 use interner::*;
 use message::*;
@@ -209,23 +210,25 @@ where I: Iterator<Item=char>
     context:    Context                 // context object give to actions
 }
 
-// TODO: Return position information.
-
 impl<I> Lexer<I>
 where I: Iterator<Item=char>
 {
-    fn new(mut iter: I) -> Self {
+    pub fn new(strings: Rc<Interner>, mut iter: I) -> Self {
         let ch = iter.next();
 
         Lexer {
             iter:    iter,
             ch:      ch,
             state:   match ch { Some(_) => Initial, None => AtEof },
-            context: Context::new()
+            context: Context::new(strings)
         }
     }
 
-    pub fn lex(&mut self) -> Token {
+    pub fn strings(&self) -> &Interner {
+        &self.context.strings
+    }
+
+    pub fn lex(&mut self) -> (Pos, Token, Pos) {
         let mut ch    =      self.ch;
         let mut state =      self.state;
         let     iter  = &mut self.iter;
@@ -358,7 +361,9 @@ where I: Iterator<Item=char>
             self.state = state;
 
             // Yield
-            return token;
+            let start = l.start; l.start();
+            let end   = l.current;
+            return (start, token, end);
         }
     }
 }
@@ -899,51 +904,40 @@ static STATES: [TransitionSet; STATE_COUNT] = [
 ];
 
 // -----------------------------------------------------------------------------
-// Keyword Map
+// Keywords
 
-struct KeywordMap(HashMap<StrId, Token>);
-
-impl KeywordMap {
-    fn new(i: &mut Interner) -> Self {
-        let mut h = HashMap::new();
-
-        h.insert(i.intern("type"    ), KwType    );
-        h.insert(i.intern("struct"  ), KwStruct  );
-        h.insert(i.intern("union"   ), KwUnion   );
-        h.insert(i.intern("if"      ), KwIf      );
-        h.insert(i.intern("else"    ), KwElse    );
-        h.insert(i.intern("loop"    ), KwLoop    );
-        h.insert(i.intern("while"   ), KwWhile   );
-        h.insert(i.intern("break"   ), KwBreak   );
-        h.insert(i.intern("continue"), KwContinue);
-        h.insert(i.intern("return"  ), KwReturn  );
-        h.insert(i.intern("jump"    ), KwJump    );
-
-        KeywordMap(h)
-    }
-
-    #[inline]
-    fn get(&self, id: &StrId) -> Option<&Token> {
-        self.0.get(id)
-    }
-}
+const KEYWORDS: &'static [(&'static str, Token)] = &[
+    ( "type"     , KwType     ),
+    ( "struct"   , KwStruct   ),
+    ( "union"    , KwUnion    ),
+    ( "if"       , KwIf       ),
+    ( "else"     , KwElse     ),
+    ( "loop"     , KwLoop     ),
+    ( "while"    , KwWhile    ),
+    ( "break"    , KwBreak    ),
+    ( "continue" , KwContinue ),
+    ( "return"   , KwReturn   ),
+    ( "jump"     , KwJump     ),
+];
 
 // -----------------------------------------------------------------------------
 // Context
 
 struct Context {
-    start:      Pos,            // position of token start
-    current:    Pos,            // position of current character
-    number:     u64,            // number builder
-    buffer:     String,         // string builder
-    strings:    Interner,       // string interner
-    keywords:   KeywordMap      // keyword table
+    start:      Pos,                    // position of token start
+    current:    Pos,                    // position of current character
+    number:     u64,                    // number builder
+    buffer:     String,                 // string builder
+    strings:    Rc<Interner>,           // string interner
+    keywords:   HashMap<StrId, Token>   // keyword table
 }
 
 impl Context {
-    fn new() -> Self {
-        let mut strings  = Interner   ::new();
-        let     keywords = KeywordMap ::new(&mut strings);
+    fn new(strings: Rc<Interner>) -> Self {
+        let mut keywords = HashMap::new();
+        for &(k, t) in KEYWORDS {
+            keywords.insert(strings.intern(k), t);
+        }
 
         Context {
             start:    Pos { byte: 0, line: 1, column: 1 },
@@ -1104,7 +1098,6 @@ fn int_from_hex_lc(c: char) -> u8 {
 
 #[cfg(test)]
 mod tests {
-    use std::str::Chars;
     use super::*;
     use super::Token::*;
 
@@ -1226,20 +1219,29 @@ mod tests {
             .yields(Eof);
     }
 
-    struct LexerHarness<'a>(Lexer<Chars<'a>>);
+    // Test Harness
+
+    use std::rc::Rc;
+    use std::str::Chars;
+    use ::interner::*;
+
+    struct LexerHarness<'a> (Lexer<Chars<'a>>);
 
     fn lex(input: &str) -> LexerHarness {
-        LexerHarness(Lexer::new(input.chars()))
+        let chars   = input.chars();
+        let strings = Rc::new(Interner::new());
+        let lexer   = Lexer::new(strings, chars);
+        LexerHarness(lexer)
     }
 
     impl<'a> LexerHarness<'a> {
         fn yields(&mut self, token: Token) -> &mut Self {
-            assert_eq!(token, self.0.lex());
+            assert_eq!(token, self.0.lex().1);
             self
         }
 
         fn yields_id(&mut self, name: &str) -> &mut Self {
-            let token = self.0.lex();
+            let token = self.0.lex().1;
             match token {
                 Id(n) => assert_eq!(name, *self.0.context.strings.get(n)),
                 _     => panic!("lex() did not yield an identifier.")
@@ -1248,7 +1250,7 @@ mod tests {
         }
 
         fn yields_error(&mut self) -> &mut Self {
-            let token = self.0.lex();
+            let token = self.0.lex().1;
             match token {
                 Error(_) => {}, // expected
                 _        => panic!("lex() did not yield an error.")
