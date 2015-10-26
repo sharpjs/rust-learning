@@ -45,11 +45,11 @@ pub enum Expr {
     Int     (u64),
 
     MemberOf  (Box<Expr>, StrId),
-    Increment (Box<Expr>),
-    Decrement (Box<Expr>),
+    Increment (Box<Expr>, Option<StrId>),
+    Decrement (Box<Expr>, Option<StrId>),
 
-    Clear     (Box<Expr>),
-    Negate    (Box<Expr>),
-    Complement(Box<Expr>),
+    Clear     (Box<Expr>, Option<StrId>),
+    Negate    (Box<Expr>, Option<StrId>),
+    Complement(Box<Expr>, Option<StrId>),
 }
 

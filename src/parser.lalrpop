@@ -117,22 +117,24 @@ Stmt: Stmt = {
 };
 
 Expr: Box<Expr> = {
-    UnaryLExpr
+    UnaryRExpr
 };
 
 UnaryRExpr: Box<Expr> = {
     UnaryLExpr,
-    "!" <Expr> => Box::new(Clear     (<>)),
-    "-" <Expr> => Box::new(Negate    (<>)),
-    "~" <Expr> => Box::new(Complement(<>)),
+    "!" <h:Hint?> <e:UnaryRExpr> => Box::new(Clear     (e, h)),
+    "-" <h:Hint?> <e:UnaryRExpr> => Box::new(Negate    (e, h)),
+    "~" <h:Hint?> <e:UnaryRExpr> => Box::new(Complement(e, h)),
 };
 
 UnaryLExpr: Box<Expr> = {
     Primary,
-    <Expr> "." <Id> => Box::new(MemberOf (<>)),
-    <Expr> "--"     => Box::new(Decrement(<>)),
-    <Expr> "++"     => Box::new(Increment(<>)),
+    <e:UnaryLExpr> "."  <i:Id>    => Box::new(MemberOf (e, i)),
+    <e:UnaryLExpr> "--" <h:Hint?> => Box::new(Decrement(e, h)),
+    <e:UnaryLExpr> "++" <h:Hint?> => Box::new(Increment(e, h)),
 };
+
+Hint: StrId = ":" <Id>;
 
 Primary: Box<Expr> = {
     Id  => Box::new(Ident(<>)),
