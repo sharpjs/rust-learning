@@ -31,6 +31,7 @@ extern {
 
     enum Token {
         Id          => Token::Id   (<StrId>),
+        Raw         => Token::Raw  (<StrId>),
         Str         => Token::Str  (<StrId>),
         Char        => Token::Char (<char>),
         Int         => Token::Int  (<u64>),

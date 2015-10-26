@@ -30,6 +30,7 @@ use message::Message::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token {
+    Raw  (StrId),   // Raw output
     Id   (StrId),   // Identifier
     Str  (StrId),   // Literal: string
     Char (char),    // Literal: character
@@ -111,7 +112,7 @@ impl fmt::Debug for Pos {
 enum State {
     Initial, AfterEos, InId,
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
-    InChar, AtCharEnd, InStr,
+    InChar, AtCharEnd, InStr, InRaw,
     InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
     AfterDot, AfterPlus, AfterMinus,
     AfterLess, AfterMore,  AfterEqual, AfterBang,
@@ -161,6 +162,7 @@ enum Action {
     AccumStrEscHexLc,
     YieldChar,
     YieldStr,
+    YieldRaw,
     YieldId,
 
     YieldBraceL,
@@ -208,8 +210,9 @@ enum Action {
     ErrorNumOverflow,
     ErrorCharUnterm,
     ErrorCharLength,
-    ErrorEscOverflow,
     ErrorStrUnterm,
+    ErrorRawUnterm,
+    ErrorEscOverflow,
     ErrorEscUnterm,
     ErrorEscInvalid,
 }
@@ -316,8 +319,9 @@ where I: Iterator<Item=char>
                 AccumStrEscHexUc    => maybe! { pop!(); l.str_add_esc_hex_uc  (  c ) },
                 AccumStrEscHexLc    => maybe! { pop!(); l.str_add_esc_hex_lc  (  c ) },
                 StartEsc            => skip!  { push!(InEsc) },
-                YieldStr            => l.str_get(),
+                YieldStr            => l.str_get_str(),
                 YieldChar           => l.str_get_char(),
+                YieldRaw            => l.str_get_raw(),
                 YieldId             => l.str_get_id_or_keyword(),
 
                 // Simple Tokens
@@ -367,8 +371,9 @@ where I: Iterator<Item=char>
                 ErrorNumOverflow    => Error(Lex_NumOverflow),
                 ErrorCharUnterm     => Error(Lex_CharUnterminated),
                 ErrorCharLength     => Error(Lex_CharLength),
-                ErrorEscOverflow    => Error(Lex_EscOverflow),
                 ErrorStrUnterm      => Error(Lex_StrUnterminated),
+                ErrorRawUnterm      => Error(Lex_RawUnterminated),
+                ErrorEscOverflow    => Error(Lex_EscOverflow),
                 ErrorEscUnterm      => Error(Lex_EscUnterminated),
                 ErrorEscInvalid     => Error(Lex_EscInvalid),
             };
@@ -453,7 +458,7 @@ const STATES: &'static [TransitionSet] = &[
         /*  7: 1-9 */ ( InNumDec,   true,  AccumNumDec    ),
         /*  8:  '  */ ( InChar,     true,  Skip           ),
         /*  9:  "  */ ( InStr,      true,  Skip           ),
-        /* 10:  `  */ ( InStr,      true,  Skip           ), // TODO InTildeStr
+        /* 10:  `  */ ( InRaw,      true,  Skip           ),
         /* 11:  {  */ ( Initial,    true,  YieldBraceL    ),
         /* 12:  }  */ ( Initial,    true,  YieldBraceR    ),
         /* 13:  (  */ ( Initial,    true,  YieldParenL    ),
@@ -671,6 +676,23 @@ const STATES: &'static [TransitionSet] = &[
         /* 1: ??? */ ( InStr,   true,  AccumStr       ),
         /* 2:  \  */ ( InStr,   true,  StartEsc       ),
         /* 3:  "  */ ( Initial, true,  YieldStr       ),
+    ]),
+
+    // InRaw <( ` )> : in a raw output block
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State    Next?  Action
+        /* 0: eof */ ( AtEof,   false, ErrorRawUnterm ),
+        /* 1: ??? */ ( InRaw,   true,  AccumStr       ),
+        /* 3:  `  */ ( Initial, true,  YieldRaw       ),
     ]),
 
     // InEsc <( ['"] \ )> : after escape characer
@@ -1090,10 +1112,10 @@ impl Context {
     }
 
     #[inline]
-    fn str_get(&mut self) -> Token {
-        let s = self.strings.add(&self.buffer);
+    fn str_intern(&mut self) -> StrId {
+        let id = self.strings.intern(&self.buffer);
         self.buffer.clear();
-        Str(s)
+        id
     }
 
     #[inline]
@@ -1104,8 +1126,18 @@ impl Context {
     }
 
     #[inline]
+    fn str_get_str(&mut self) -> Token {
+        Str(self.str_intern())
+    }
+
+    #[inline]
+    fn str_get_raw(&mut self) -> Token {
+        Raw(self.str_intern())
+    }
+
+    #[inline]
     fn str_get_id_or_keyword(&mut self) -> Token {
-        let id = self.strings.intern(&self.buffer);
+        let id = self.str_intern();
 
         match self.keywords.get(&id) {
             Some(&k) => k,
@@ -1238,6 +1270,11 @@ mod tests {
     }
 
     #[test]
+    fn raw() {
+        lex("`a`") .yields_raw("a");
+    }
+
+    #[test]
     fn punctuation() {
         lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - << >> & ^ | .~ .! .= .? \
              <> == != < > <= >= => -> = : ,")
@@ -1275,6 +1312,15 @@ mod tests {
     impl<'a> LexerHarness<'a> {
         fn yields(&mut self, token: Token) -> &mut Self {
             assert_eq!(token, self.0.lex().1);
+            self
+        }
+
+        fn yields_raw(&mut self, name: &str) -> &mut Self {
+            let token = self.0.lex().1;
+            match token {
+                Raw(n) => assert_eq!(name, *self.0.context.strings.get(n)),
+                _      => panic!("lex() did not yield a raw output block.")
+            };
             self
         }
 

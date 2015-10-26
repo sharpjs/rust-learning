@@ -47,12 +47,13 @@ messages! {
     Lex_NumInvalid       => "Invalid character in numeric literal.",
     Lex_NumOverflow      => "Overflow in numeric literal.  \
                              Aex integers are unsigned 64-bit.",
+    Lex_RawUnterminated  => "Unterminated raw block.",
+    Lex_StrUnterminated  => "Unterminated string literal.",
     Lex_CharUnterminated => "Unterminated character literal.",
     Lex_CharLength       => "Invalid character literal length.  \
                              Character literals must contain exactly one character.",
-    Lex_StrUnterminated  => "Overflow in Unicode escape sequence.  \
+    Lex_EscInvalid       => "Overflow in Unicode escape sequence.  \
                              The maximum permitted is \\u{10FFFF}.",
-    Lex_EscInvalid       => "Unterminated string literal.",
     Lex_EscUnterminated  => "Incomplete escape sequence.",
     Lex_EscOverflow      => "Invalid escape sequence."
 }
