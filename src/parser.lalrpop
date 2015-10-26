@@ -115,9 +115,28 @@ Stmt: Stmt = {
     "{" <Stmts> "}" => Block(<>),
 };
 
-Expr: Expr = {
-    Id  => Ident(<>),
-    Int => Int(<>),
+Expr: Box<Expr> = {
+    UnaryLExpr
+};
+
+UnaryRExpr: Box<Expr> = {
+    UnaryLExpr,
+    "!" <Expr> => Box::new(Clear     (<>)),
+    "-" <Expr> => Box::new(Negate    (<>)),
+    "~" <Expr> => Box::new(Complement(<>)),
+};
+
+UnaryLExpr: Box<Expr> = {
+    Primary,
+    <Expr> "." <Id> => Box::new(MemberOf (<>)),
+    <Expr> "--"     => Box::new(Decrement(<>)),
+    <Expr> "++"     => Box::new(Increment(<>)),
+};
+
+Primary: Box<Expr> = {
+    Id  => Box::new(Ident(<>)),
+    Int => Box::new(Int  (<>)),
+    "(" <Expr> ")"
 };
 
 // vim: ft=rust

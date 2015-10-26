@@ -21,7 +21,7 @@ use interner::StrId;
 #[derive(Clone, Debug)]
 pub enum Stmt {
     Block   (Vec<Stmt>),
-    Eval    (Expr),
+    Eval    (Box<Expr>),
 }
 
 // data Stmt
@@ -43,5 +43,13 @@ pub enum Expr {
     Ident   (StrId),
     Str     (StrId),
     Int     (u64),
+
+    MemberOf  (Box<Expr>, StrId),
+    Increment (Box<Expr>),
+    Decrement (Box<Expr>),
+
+    Clear     (Box<Expr>),
+    Negate    (Box<Expr>),
+    Complement(Box<Expr>),
 }
 
