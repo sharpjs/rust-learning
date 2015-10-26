@@ -117,30 +117,43 @@ Stmt: Stmt = {
 };
 
 Expr: Box<Expr> = {
-    UnaryRExpr
+    Term
 };
 
-UnaryRExpr: Box<Expr> = {
-    UnaryLExpr,
-    "!" <h:Hint?> <e:UnaryRExpr> => Box::new(Clear     (e, h)),
-    "-" <h:Hint?> <e:UnaryRExpr> => Box::new(Negate    (e, h)),
-    "~" <h:Hint?> <e:UnaryRExpr> => Box::new(Complement(e, h)),
+Term: Box<Expr> = {
+    Factor,
+    <l:Term> "+" <h:Hint?> <r:Factor> => Box::new(Add     (l, r, h)),
+    <l:Term> "-" <h:Hint?> <r:Factor> => Box::new(Subtract(l, r, h)),
 };
 
-UnaryLExpr: Box<Expr> = {
-    Primary,
-    <e:UnaryLExpr> "."  <i:Id>    => Box::new(MemberOf (e, i)),
-    <e:UnaryLExpr> "--" <h:Hint?> => Box::new(Decrement(e, h)),
-    <e:UnaryLExpr> "++" <h:Hint?> => Box::new(Increment(e, h)),
+Factor: Box<Expr> = {
+    UnaryR,
+    <l:Factor> "*" <h:Hint?> <r:UnaryR> => Box::new(Multiply(l, r, h)),
+    <l:Factor> "/" <h:Hint?> <r:UnaryR> => Box::new(Divide  (l, r, h)),
+    <l:Factor> "%" <h:Hint?> <r:UnaryR> => Box::new(Modulo  (l, r, h)),
 };
 
-Hint: StrId = ":" <Id>;
+UnaryR: Box<Expr> = {
+    UnaryL,
+    "!" <h:Hint?> <e:UnaryR> => Box::new(Clear     (e, h)),
+    "-" <h:Hint?> <e:UnaryR> => Box::new(Negate    (e, h)),
+    "~" <h:Hint?> <e:UnaryR> => Box::new(Complement(e, h)),
+};
 
-Primary: Box<Expr> = {
+UnaryL: Box<Expr> = {
+    Atom,
+    <e:UnaryL> "."  <i:Id>    => Box::new(MemberOf (e, i)),
+    <e:UnaryL> "--" <h:Hint?> => Box::new(Decrement(e, h)),
+    <e:UnaryL> "++" <h:Hint?> => Box::new(Increment(e, h)),
+};
+
+Atom: Box<Expr> = {
     Id  => Box::new(Ident(<>)),
     Int => Box::new(Int  (<>)),
     "(" <Expr> ")"
 };
+
+Hint: StrId = ":" <Id>;
 
 // vim: ft=rust
 

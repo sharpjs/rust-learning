@@ -44,12 +44,19 @@ pub enum Expr {
     Str     (StrId),
     Int     (u64),
 
-    MemberOf  (Box<Expr>, StrId),
-    Increment (Box<Expr>, Option<StrId>),
-    Decrement (Box<Expr>, Option<StrId>),
+    MemberOf   (Box<Expr>, StrId),
+    Increment  (Box<Expr>, Option<StrId>),
+    Decrement  (Box<Expr>, Option<StrId>),
 
-    Clear     (Box<Expr>, Option<StrId>),
-    Negate    (Box<Expr>, Option<StrId>),
-    Complement(Box<Expr>, Option<StrId>),
+    Clear      (Box<Expr>, Option<StrId>),
+    Negate     (Box<Expr>, Option<StrId>),
+    Complement (Box<Expr>, Option<StrId>),
+
+    Multiply   (Box<Expr>, Box<Expr>, Option<StrId>),
+    Divide     (Box<Expr>, Box<Expr>, Option<StrId>),
+    Modulo     (Box<Expr>, Box<Expr>, Option<StrId>),
+
+    Add        (Box<Expr>, Box<Expr>, Option<StrId>),
+    Subtract   (Box<Expr>, Box<Expr>, Option<StrId>),
 }
 
