@@ -117,7 +117,32 @@ Stmt: Stmt = {
 };
 
 Expr: Box<Expr> = {
-    Term
+    BitOp,
+};
+
+BitOp: Box<Expr> = {
+    Or,
+    <l:BitOp> ".~" <h:Hint?> <r:Or> => Box::new(BitChange(l, r, h)),
+    <l:BitOp> ".!" <h:Hint?> <r:Or> => Box::new(BitClear (l, r, h)),
+    <l:BitOp> ".=" <h:Hint?> <r:Or> => Box::new(BitSet   (l, r, h)),
+    <l:BitOp> ".?" <h:Hint?> <r:Or> => Box::new(BitTest  (l, r, h)),
+};
+
+Or: Box<Expr> = {
+    And,
+    <l:Or> "|" <h:Hint?> <r:And> => Box::new(BitOr (l, r, h)),
+    <l:Or> "^" <h:Hint?> <r:And> => Box::new(BitXor(l, r, h)),
+};
+
+And: Box<Expr> = {
+    Shift,
+    <l:And> "&" <h:Hint?> <r:Shift> => Box::new(BitAnd(l, r, h)),
+};
+
+Shift: Box<Expr> = {
+    Term,
+    <l:Shift> "<<" <h:Hint?> <r:Term> => Box::new(ShiftL(l, r, h)),
+    <l:Shift> ">>" <h:Hint?> <r:Term> => Box::new(ShiftR(l, r, h)),
 };
 
 Term: Box<Expr> = {
@@ -150,7 +175,7 @@ UnaryL: Box<Expr> = {
 Atom: Box<Expr> = {
     Id  => Box::new(Ident(<>)),
     Int => Box::new(Int  (<>)),
-    "(" <Expr> ")"
+    "(" <Expr> ")",
 };
 
 Hint: StrId = ":" <Id>;

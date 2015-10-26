@@ -58,5 +58,17 @@ pub enum Expr {
 
     Add        (Box<Expr>, Box<Expr>, Option<StrId>),
     Subtract   (Box<Expr>, Box<Expr>, Option<StrId>),
+
+    ShiftL     (Box<Expr>, Box<Expr>, Option<StrId>),
+    ShiftR     (Box<Expr>, Box<Expr>, Option<StrId>),
+
+    BitAnd     (Box<Expr>, Box<Expr>, Option<StrId>),
+    BitXor     (Box<Expr>, Box<Expr>, Option<StrId>),
+    BitOr      (Box<Expr>, Box<Expr>, Option<StrId>),
+
+    BitChange  (Box<Expr>, Box<Expr>, Option<StrId>),
+    BitClear   (Box<Expr>, Box<Expr>, Option<StrId>),
+    BitSet     (Box<Expr>, Box<Expr>, Option<StrId>),
+    BitTest    (Box<Expr>, Box<Expr>, Option<StrId>),
 }
 
