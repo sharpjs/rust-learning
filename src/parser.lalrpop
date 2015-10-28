@@ -115,7 +115,7 @@ Seq<Item, Sep>: Vec<Item> = {
 pub Stmts = Seq<Stmt, ";">;
 
 Stmt: Stmt = {
-    Expr            => Eval(<>),
+    Expr            => Eval (<>),
     "{" <Stmts> "}" => Block(<>),
 };
 
