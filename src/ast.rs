@@ -70,5 +70,13 @@ pub enum Expr {
     BitClear   (Box<Expr>, Box<Expr>, Option<StrId>),
     BitSet     (Box<Expr>, Box<Expr>, Option<StrId>),
     BitTest    (Box<Expr>, Box<Expr>, Option<StrId>),
+
+    Compare    (Box<Expr>, Box<Expr>, Option<StrId>),
+
+    Set        (Box<Expr>, Box<Expr>, Option<StrId>),
+    SetCond    (Box<Expr>, Box<Test>, Option<StrId>),
 }
+
+#[derive(Clone, Debug)]
+pub struct Test (pub StrId, pub Option<Box<Expr>>);
 

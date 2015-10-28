@@ -30,11 +30,14 @@ extern {
     type Error    = (Pos, Message);
 
     enum Token {
-        Id          => Token::Id   (<StrId>),
         Raw         => Token::Raw  (<StrId>),
-        Str         => Token::Str  (<StrId>),
-        Char        => Token::Char (<char>),
+        Id          => Token::Id   (<StrId>),
+        Flag        => Token::Flag (<StrId>),
+
         Int         => Token::Int  (<u64>),
+        Char        => Token::Char (<char>),
+        Str         => Token::Str  (<StrId>),
+
         "type"      => Token::KwType,        
         "struct"    => Token::KwStruct,      
         "union"     => Token::KwUnion,       
@@ -117,7 +120,14 @@ Stmt: Stmt = {
 };
 
 Expr: Box<Expr> = {
+    Compare,
+    <l:Compare> "=" <h:Hint?> <r:Expr> => Box::new(Set    (l, r, h)),
+    <l:Compare> "=" <h:Hint?> <r:Test> => Box::new(SetCond(l, r, h)),
+};
+
+Compare: Box<Expr> = {
     BitOp,
+    <l:Compare> "<>" <h:Hint?> <r:BitOp> => Box::new(Compare(l, r, h)),
 };
 
 BitOp: Box<Expr> = {
@@ -178,7 +188,32 @@ Atom: Box<Expr> = {
     "(" <Expr> ")",
 };
 
-Hint: StrId = ":" <Id>;
+// Conditions
+
+Test: Box<Test> = {
+    <f:Flag> => {
+        Box::new(Test(f, None))
+    },
+    <e:Compare> "=>" <f:Flag> => {
+        Box::new(Test(f, Some(e)))
+    },
+    <l:Compare> <f:Rel> <h:Hint?> <r:Compare> => {
+        Box::new(Test(f, Some(Box::new(Compare(l, r, h)))))
+    },
+};
+
+Rel: StrId = {
+    "==" => strings.intern("=="),
+    "!=" => strings.intern("!="),
+    "<"  => strings.intern("<" ),
+    ">"  => strings.intern(">" ),
+    "<=" => strings.intern("<="),
+    ">=" => strings.intern(">="),
+};
+
+// Misc
+
+Hint = ":" <Id>;
 
 // vim: ft=rust
 

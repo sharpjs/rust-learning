@@ -32,9 +32,12 @@ use message::Message::*;
 pub enum Token {
     Raw  (StrId),   // Raw output
     Id   (StrId),   // Identifier
-    Str  (StrId),   // Literal: string
-    Char (char),    // Literal: character
+    Flag (StrId),   // Condition flag
+
     Int  (u64),     // Literal: integer
+    Char (char),    // Literal: character
+    Str  (StrId),   // Literal: string
+
     KwType,         // Keyword: type
     KwStruct,       // Keyword: struct
     KwUnion,        // Keyword: union
@@ -46,6 +49,7 @@ pub enum Token {
     KwContinue,     // Keyword: continue
     KwReturn,       // Keyword: return
     KwJump,         // Keyword: jump
+
     BraceL,         // {
     BraceR,         // }
     ParenL,         // (
@@ -85,8 +89,10 @@ pub enum Token {
     Equal,          // =
     Colon,          // :
     Comma,          // ,
+
     Eos,            // End of statement
     Eof,            // End of file
+
     Error (Message) // Lexical error
 }
 use self::Token::*;
