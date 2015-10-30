@@ -38,7 +38,7 @@ pub enum Stmt {
 //     | While     Test Stmt
 //     deriving (Eq, Show)
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Expr {
     Ident   (StrId),
     Str     (StrId),
@@ -77,6 +77,6 @@ pub enum Expr {
     SetCond    (Box<Expr>, Box<Test>, Option<StrId>),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Test (pub StrId, pub Option<Box<Expr>>);
 

@@ -39,6 +39,7 @@ mod interner;
 mod lexer;
 mod message;
 mod parser;
+mod parser2;
 
 // TODO: Move following into parser module
 
