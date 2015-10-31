@@ -49,13 +49,22 @@ struct Parser<I: Iterator<Item=char>> {
     result: ParseResult,
 }
 
+macro_rules! advance {
+    ( $p:ident, $t:pat ) => {
+        match $p.token {
+            $t => { $p.advance(); true },
+            _  => false
+        }
+    };
+}
+
 macro_rules! expect {
-    ( $p:ident, $t:expr ) => {{
-        let t = $p.token;
-        if t != $t { return Err(()); }
-        $p.advance();
-        t
-    }};
+    ( $p:ident, $t:pat ) => {
+        match $p.token {
+            $t => $p.advance(),
+            _  => return Err(())
+        }
+    };
 }
 
 impl<I: Iterator<Item=char>> Parser<I> {
