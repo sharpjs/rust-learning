@@ -20,7 +20,7 @@ use ast::*;
 use ast::Stmt::*;
 use ast::Expr::*;
 use interner::Interner;
-use lexer::{Lexer, Token};
+use lexer::{Lexer, Token, Pos};
 use std::rc::Rc;
 use message::*;
 
@@ -43,15 +43,20 @@ pub trait Parse {
 }
 
 struct Parser<I: Iterator<Item=char>> {
+    token:  Token,
+    span:   (Pos, Pos),
     lexer:  Lexer<I>,
     result: ParseResult,
 }
 
 impl<I: Iterator<Item=char>> Parser<I> {
     fn new(input: I) -> Self {
-        let strings = Rc::new(Interner::new());
-        let lexer   = Lexer::new(strings.clone(), input);
+        let     strings   = Rc::new(Interner::new());
+        let mut lexer     = Lexer::new(strings.clone(), input);
+        let (l, token, r) = lexer.lex();
         Parser {
+            token:  token,
+            span:   (l, r),
             lexer:  lexer,
             result: ParseResult {
                 ast:      Err(()),
