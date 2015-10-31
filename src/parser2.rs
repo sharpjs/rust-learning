@@ -84,16 +84,37 @@ impl<I: Iterator<Item=char>> Parser<I> {
     }
 
     fn parse(mut self) -> Self {
-        self.result.ast = self.parse_stmts();
+        println!("parse: begin");
+        self.result.ast = self.parse_stmts_until(Token::Eof);
+        println!("parse: end");
         self
     }
 
     // stmts:
-    //   EOS? (stmt EOS)<* (stmt EOS?)?
+    //   EOS? ( (stmt EOS)* stmt EOS? )? end
     //
-    fn parse_stmts(&mut self) -> Many<Stmt> {
-        let s = try!(self.parse_stmt());
-        Ok(vec![s])
+    fn parse_stmts_until(&mut self, end: Token) -> Many<Stmt> {
+        let mut stmts = vec![];
+
+        // EOS?
+        if self.token == Token::Eos { self.advance(); }
+
+        // end
+        if self.token == end { return Ok(stmts); }
+
+        loop {
+            // stmt
+            stmts.push(try!(self.parse_stmt()));
+
+            // end
+            if self.token == end { return Ok(stmts); }
+
+            // EOS
+            expect!(self, Token::Eos);
+
+            // end
+            if self.token == end { return Ok(stmts); }
+        }
     }
 
     // stmt:
@@ -108,11 +129,13 @@ impl<I: Iterator<Item=char>> Parser<I> {
     //   INT
     //
     pub fn parse_expr(&mut self) -> One<Expr> {
-        let (l, token, r) = self.lexer.lex();
-
-        match token {
-            Token::Int(x) => Ok(Box::new(Expr::Int(x))),
-            _         => Err(())
+        match self.token {
+            Token::Int(x) => {
+                println!("parser: found integer literal");
+                self.advance();
+                Ok(Box::new(Int(x)))
+            },
+            _ => Err(())
         }
     }
 }
@@ -130,15 +153,28 @@ fn eval(e: Expr) -> Box<Stmt> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ast::*;
+    use super::eval;
+  //use ast::*;
     use ast::Expr::*;
 
-    #[test]
-    fn empty() {
-        assert_eq!(
-            parse("42".chars()).ast,
-            Ok(vec![Box::new(Stmt::Eval(Box::new(Int(42))))])
-        );
+    macro_rules! assert_parse {
+        ( $i:expr, $( $s:expr ),* ) => {{
+            assert_eq!(
+                parse($i.chars()).ast,
+                Ok(vec![$($s),*])
+            );
+        }};
     }
+
+    #[test] fn empty()         { assert_parse!( "",                                 ); }
+    #[test] fn eos()           { assert_parse!( ";",                                ); }
+    #[test] fn stmt()          { assert_parse!(  "4",    eval(Int(4))               ); }
+    #[test] fn eos_stmt()      { assert_parse!( ";4",    eval(Int(4))               ); }
+    #[test] fn stmt_eos()      { assert_parse!(  "4;",   eval(Int(4))               ); }
+    #[test] fn eos_stmt_eos()  { assert_parse!( ";4;",   eval(Int(4))               ); }
+    #[test] fn stmts()         { assert_parse!(  "4;2",  eval(Int(4)), eval(Int(2)) ); }
+    #[test] fn eos_stmts()     { assert_parse!( ";4;2",  eval(Int(4)), eval(Int(2)) ); }
+    #[test] fn stmts_eos()     { assert_parse!(  "4;2;", eval(Int(4)), eval(Int(2)) ); }
+    #[test] fn eos_stmts_eos() { assert_parse!( ";4;2;", eval(Int(4)), eval(Int(2)) ); }
 }
 
