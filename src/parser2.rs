@@ -49,6 +49,15 @@ struct Parser<I: Iterator<Item=char>> {
     result: ParseResult,
 }
 
+macro_rules! expect {
+    ( $p:ident, $t:expr ) => {{
+        let t = $p.token;
+        if t != $t { return Err(()); }
+        $p.advance();
+        t
+    }};
+}
+
 impl<I: Iterator<Item=char>> Parser<I> {
     fn new(input: I) -> Self {
         let     strings   = Rc::new(Interner::new());
@@ -64,6 +73,14 @@ impl<I: Iterator<Item=char>> Parser<I> {
                 messages: vec![]
             }
         }
+    }
+
+    fn advance(&mut self) -> &mut Self {
+        println!("parser: advancing");
+        let (l, tok, r) = self.lexer.lex();
+        self.token = tok;
+        self.span = (l, r);
+        self
     }
 
     fn parse(mut self) -> Self {
@@ -98,6 +115,13 @@ impl<I: Iterator<Item=char>> Parser<I> {
             _         => Err(())
         }
     }
+}
+
+// Convenience
+
+#[inline]
+fn eval(e: Expr) -> Box<Stmt> {
+    Box::new(Eval(Box::new(e)))
 }
 
 // -----------------------------------------------------------------------------
