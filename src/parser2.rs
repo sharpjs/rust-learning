@@ -100,29 +100,26 @@ impl<I: Iterator<Item=char>> Parser<I> {
     }
 
     // stmts:
-    //   EOS? ( (stmt EOS)* stmt EOS? )? end
+    //   EOS? ( stmt EOS )* stmt? end
     //
     fn parse_stmts_until(&mut self, end: Token) -> Many<Stmt> {
         let mut stmts = vec![];
 
         // EOS?
-        if self.token == Token::Eos { self.advance(); }
-
-        // end
-        if self.token == end { return Ok(stmts); }
+        advance!(self, Token::Eos);
 
         loop {
+            // end?
+            if self.token == end { return Ok(stmts); }
+
             // stmt
             stmts.push(try!(self.parse_stmt()));
 
-            // end
+            // end?
             if self.token == end { return Ok(stmts); }
 
             // EOS
             expect!(self, Token::Eos);
-
-            // end
-            if self.token == end { return Ok(stmts); }
         }
     }
 
