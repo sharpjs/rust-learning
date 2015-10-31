@@ -18,7 +18,7 @@
 
 use interner::StrId;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt {
     Block   (Vec<Stmt>),
     Eval    (Box<Expr>),

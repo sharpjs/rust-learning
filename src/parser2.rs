@@ -17,32 +17,80 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use ast::*;
+use ast::Stmt::*;
+use ast::Expr::*;
 use interner::Interner;
 use lexer::{Lexer, Token};
 use std::rc::Rc;
-//use message::*;
+use message::*;
 
-pub fn parser<I: Iterator<Item=char>>(input: I) -> Parser<I> {
-    let strings = Rc::new(Interner::new());
-    let lexer   = Box::new(Lexer::new(strings.clone(), input));
-    Parser {
-        lexer: lexer,
-        strings: strings
-    }
+type T       = Token;
+type One <T> = Result<    Box<T>,  ()>;
+type Many<T> = Result<Vec<Box<T>>, ()>;
+
+pub struct ParseResult {
+    pub ast:      Result<Vec<Box<Stmt>>, ()>, // abstract syntax tree, if parse succeeded
+    pub strings:  Rc<Interner>,               // interned strings
+    pub messages: Vec<Message>,               // messages (errors, warnings, etc.)
 }
 
-pub struct Parser<I: Iterator<Item=char>> {
-    lexer:   Box<Lexer<I>>,
-    strings: Rc<Interner>,
+pub fn parse<I: Iterator<Item=char>>(input: I) -> ParseResult {
+    Parser::new(input).parse().result
+}
+
+pub trait Parse {
+    fn parse(&self) -> ParseResult;
+}
+
+struct Parser<I: Iterator<Item=char>> {
+    lexer:  Lexer<I>,
+    result: ParseResult,
 }
 
 impl<I: Iterator<Item=char>> Parser<I> {
-    pub fn parse_expr(&mut self) -> Option<Box<Expr>> {
+    fn new(input: I) -> Self {
+        let strings = Rc::new(Interner::new());
+        let lexer   = Lexer::new(strings.clone(), input);
+        Parser {
+            lexer:  lexer,
+            result: ParseResult {
+                ast:      Err(()),
+                strings:  strings,
+                messages: vec![]
+            }
+        }
+    }
+
+    fn parse(mut self) -> Self {
+        self.result.ast = self.parse_stmts();
+        self
+    }
+
+    // stmts:
+    //   EOS? (stmt EOS)<* (stmt EOS?)?
+    //
+    fn parse_stmts(&mut self) -> Many<Stmt> {
+        let s = try!(self.parse_stmt());
+        Ok(vec![s])
+    }
+
+    // stmt:
+    //   expr
+    //
+    fn parse_stmt(&mut self) -> One<Stmt> {
+        let e = try!(self.parse_expr());
+        Ok(Box::new(Eval(e)))
+    }
+
+    // expr:
+    //   INT
+    //
+    pub fn parse_expr(&mut self) -> One<Expr> {
         let (l, token, r) = self.lexer.lex();
 
         match token {
-            Token::Int(x) => Some(Box::new(Expr::Int(x))),
-            _ => None
+            Token::Int(x) => Ok(Box::new(Expr::Int(x))),
+            _         => Err(())
         }
     }
 }
@@ -52,32 +100,16 @@ impl<I: Iterator<Item=char>> Parser<I> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use ast::*;
     use ast::Expr::*;
 
     #[test]
     fn empty() {
-        parse("42").yields_expr(Int(42));
-    }
-
-    // Test Harness
-
-    use super::*;
-    use std::str::Chars;
-
-    struct ParserHarness<'a> (Parser<Chars<'a>>);
-
-    fn parse(input: &str) -> ParserHarness {
-        let chars   = input.chars();
-        let parser  = parser(chars);
-        ParserHarness(parser)
-    }
-
-    impl<'a> ParserHarness<'a> {
-        fn yields_expr(&mut self, expr: Expr) -> &mut Self {
-            assert_eq!(expr, *self.0.parse_expr().unwrap());
-            self
-        }
+        assert_eq!(
+            parse("42".chars()).ast,
+            Ok(vec![Box::new(Stmt::Eval(Box::new(Int(42))))])
+        );
     }
 }
 
