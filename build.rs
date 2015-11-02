@@ -16,11 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// There's nothing here yet.
-
-extern crate lalrpop;
-
 fn main() {
-    lalrpop::process_root().unwrap();
+    // There's nothing here yet.
 }
 

@@ -19,6 +19,8 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+// Returns true if the value matches any of the given patterns.
+//
 macro_rules! is {
     { $val:expr => $( $pat:pat ),* } => {
         match $val {
@@ -38,37 +40,7 @@ mod ast;
 mod interner;
 mod lexer;
 mod message;
-mod parser;
 mod parser2;
 
-// TODO: Move following into parser module
-
-use ast::*;
-use interner::*;
-use lexer::*;
-use message::*;
-use lalrpop_util::*;
-extern crate lalrpop_util;
-
-use std::borrow::Borrow;
-use std::rc::Rc;
-
-pub type Error = ParseError<Pos, Token, (Pos, Message)>;
-
-pub fn parse<S: AsRef<str>>(s: S) -> Result<Vec<Stmt>, Error> {
-    let chars   = s.as_ref().chars();
-    let strings = Rc::new(Interner::new());
-    let lexer   = Lexer::new(strings.clone(), chars);
-    parser::parse_Stmts(strings.borrow(), lexer)
-}
-
-fn main() {
-    let x = parse("a++:q * -3 + (m >> 2) & 4 | 3 ^ 5 / what; b.c \n c--");
-    println!("\n{:#?}", x);
-}
-
-#[test]
-fn test_main() {
-    main()
-}
+fn main() {}
 
