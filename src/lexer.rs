@@ -116,7 +116,8 @@ impl fmt::Debug for Pos {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum State {
-    Initial, AfterEos, InId,
+    Initial, InSpace, AfterEos,
+    InIdOrKw,
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
     InChar, AtCharEnd, InStr, InRaw,
     InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
@@ -127,11 +128,10 @@ enum State {
 use self::State::*;
 
 type TransitionSet = (
-    [u8; 128],      // Map from 7-bit char to transition index
-    &'static [(     // Transition array
-        State,      // - next state
-        bool,       // - true => consume char
-        Action      // - action code
+    [u8; 128],          // Map from 7-bit char to transition index
+    &'static [(         // Array of transitions:
+        State,          //   - next state
+        Action          //   - custom action
     )]
 );
 
@@ -141,10 +141,12 @@ type TransitionSet = (
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum Action {
-    Skip,
     Start,
-    Newline,
+    Skip,
+    SkipEol,
+
     YieldEos,
+    YieldEosEol,
     YieldEof,
 
     AccumNumDec,
@@ -155,21 +157,22 @@ enum Action {
     AccumNumBin,
     YieldNum,
 
-    StartEsc,
     AccumStr,
-    AccumStrEscNul,
-    AccumStrEscLf,
-    AccumStrEscCr,
-    AccumStrEscTab,
-    AccumStrEscChar,
-    AccumStrEscNum,
-    AccumStrEscHexDig,
-    AccumStrEscHexUc,
-    AccumStrEscHexLc,
     YieldChar,
     YieldStr,
     YieldRaw,
-    YieldId,
+    YieldIdOrKw,
+
+    StartEsc,
+    YieldEscNul,
+    YieldEscLf,
+    YieldEscCr,
+    YieldEscTab,
+    YieldEscChar,
+    YieldEscNum,
+    YieldEscHexDig,
+    YieldEscHexUc,
+    YieldEscHexLc,
 
     YieldBraceL,
     YieldBraceR,
@@ -182,6 +185,7 @@ enum Action {
     YieldPlusPlus,
     YieldMinusMinus,
     YieldBang,
+    YieldBang2,
     YieldTilde,
     YieldQuestion,
     YieldStar,
@@ -260,26 +264,22 @@ where I: Iterator<Item=char>
         let     iter  = &mut self.iter;
         let     l     = &mut self.context;
 
-        println!("\nstate = {:?}", state);
+        println!("\nlex: state = {:?}", state);
 
         loop {
             // Lookup handler for this state and char
-            let (c, (next_state, consume, action))
-                = lookup(&STATES[state as usize], ch);
-
-            println!("{:?} {:?} => {:?} {:?}", state, ch, next_state, consume);
-
-            // Advance state machine
+            let (c, (next_state, action)) = lookup(&STATES[state as usize], ch);
+            println!("lex: {:?} {:?} => {:?} {:?}", state, c, next_state, action);
             state = next_state;
 
-            // Consume character and get next
-            if consume {
-                l.current.byte   += c.len_utf8();
-                l.current.column += 1;
-                ch                = iter.next();
-            }
-
             // Action code helpers
+            macro_rules! consume {
+                () => {{
+                    l.current.byte   += c.len_utf8();
+                    l.current.column += 1;
+                    ch                = iter.next();
+                }};
+            }
             macro_rules! push {
                 ( $s:expr ) => {{ self.state = state; state = $s }};
             }
@@ -298,78 +298,85 @@ where I: Iterator<Item=char>
             // Invoke action code
             let token = match action {
                 // Space
-                Skip                => skip! {             },
-                Start               => skip! { l.start()   },
-                Newline             => skip! { l.newline() },
-                YieldEos            => Eos,
-                YieldEof            => Eof,
+                Start               => { l.start();               continue },
+                Skip                => { consume!();              continue },
+                SkipEol             => { consume!(); l.newline(); continue },
+
+                // Terminators
+                YieldEos            => { consume!();              Eos },
+                YieldEosEol         => { consume!(); l.newline(); Eos },
+                YieldEof            => {                          Eof },
 
                 // Numbers
-                AccumNumDec         => maybe! { l.num_add_dec     (c) },
-                AccumNumHexDig      => maybe! { l.num_add_hex_dig (c) },
-                AccumNumHexUc       => maybe! { l.num_add_hex_uc  (c) },
-                AccumNumHexLc       => maybe! { l.num_add_hex_lc  (c) },
-                AccumNumOct         => maybe! { l.num_add_oct     (c) },
-                AccumNumBin         => maybe! { l.num_add_bin     (c) },
-                YieldNum            => l.num_get(),
+                AccumNumDec         => { consume!(); maybe!(l.num_add_dec     (c)); continue },
+                AccumNumHexDig      => { consume!(); maybe!(l.num_add_hex_dig (c)); continue },
+                AccumNumHexUc       => { consume!(); maybe!(l.num_add_hex_uc  (c)); continue },
+                AccumNumHexLc       => { consume!(); maybe!(l.num_add_hex_lc  (c)); continue },
+                AccumNumOct         => { consume!(); maybe!(l.num_add_oct     (c)); continue },
+                AccumNumBin         => { consume!(); maybe!(l.num_add_bin     (c)); continue },
+
+                YieldNum            => { l.num_get() },
+
+                // Identifiers & Keywords
+                AccumStr            => { consume!(); l.str_add(c); continue },
+                YieldChar           => { consume!(); l.str_get_char() },
+                YieldStr            => { consume!(); l.str_get_str()  },
+                YieldRaw            => { consume!(); l.str_get_raw()  },
+                YieldIdOrKw         => { l.str_get_id_or_keyword() },
 
                 // Strings & Chars
-                AccumStr            => skip!  {         l.str_add             (  c ) },
-                AccumStrEscNul      => skip!  { pop!(); l.str_add             ('\0') },
-                AccumStrEscLf       => skip!  { pop!(); l.str_add             ('\n') },
-                AccumStrEscCr       => skip!  { pop!(); l.str_add             ('\r') },
-                AccumStrEscTab      => skip!  { pop!(); l.str_add             ('\t') },
-                AccumStrEscChar     => skip!  { pop!(); l.str_add             (  c ) },
-                AccumStrEscNum      => maybe! { pop!(); l.str_add_esc         (    ) },
-                AccumStrEscHexDig   => maybe! { pop!(); l.str_add_esc_hex_dig (  c ) },
-                AccumStrEscHexUc    => maybe! { pop!(); l.str_add_esc_hex_uc  (  c ) },
-                AccumStrEscHexLc    => maybe! { pop!(); l.str_add_esc_hex_lc  (  c ) },
-                StartEsc            => skip!  { push!(InEsc) },
-                YieldStr            => l.str_get_str(),
-                YieldChar           => l.str_get_char(),
-                YieldRaw            => l.str_get_raw(),
-                YieldId             => l.str_get_id_or_keyword(),
+                StartEsc            => { consume!(); push!(InEsc);            continue },
+                YieldEscNul         => { consume!(); pop!(); l.str_add('\0'); continue },
+                YieldEscLf          => { consume!(); pop!(); l.str_add('\n'); continue },
+                YieldEscCr          => { consume!(); pop!(); l.str_add('\r'); continue },
+                YieldEscTab         => { consume!(); pop!(); l.str_add('\t'); continue },
+                YieldEscChar        => { consume!(); pop!(); l.str_add(  c ); continue },
+                YieldEscNum         => { consume!(); pop!(); maybe!(l.str_add_esc());          continue },
+                YieldEscHexDig      => { consume!(); pop!(); maybe!(l.str_add_esc_hex_dig(c)); continue },
+                YieldEscHexUc       => { consume!(); pop!(); maybe!(l.str_add_esc_hex_uc(c));  continue },
+                YieldEscHexLc       => { consume!(); pop!(); maybe!(l.str_add_esc_hex_lc(c));  continue },
 
                 // Simple Tokens
-                YieldBraceL         => BraceL,
-                YieldBraceR         => BraceR,
-                YieldParenL         => ParenL,
-                YieldParenR         => ParenR,
-                YieldBracketL       => BracketL,
-                YieldBracketR       => BracketR,
-                YieldDot            => Dot,
-                YieldAt             => At,
-                YieldPlusPlus       => PlusPlus,
-                YieldMinusMinus     => MinusMinus,
-                YieldBang           => Bang,
-                YieldTilde          => Tilde,
-                YieldQuestion       => Question,
-                YieldStar           => Star,
-                YieldSlash          => Slash,
-                YieldPercent        => Percent,
-                YieldPlus           => Plus,
-                YieldMinus          => Minus,
-                YieldLessLess       => LessLess,
-                YieldMoreMore       => MoreMore,
-                YieldAmpersand      => Ampersand,
-                YieldCaret          => Caret,
-                YieldPipe           => Pipe,
-                YieldDotTilde       => DotTilde,
-                YieldDotBang        => DotBang,
-                YieldDotEqual       => DotEqual,
-                YieldDotQuestion    => DotQuestion,
-                YieldLessMore       => LessMore,
-                YieldEqualEqual     => EqualEqual,
-                YieldBangEqual      => BangEqual,
-                YieldLess           => Less,
-                YieldMore           => More,
-                YieldLessEqual      => LessEqual,
-                YieldMoreEqual      => MoreEqual,
-                YieldEqualArrow     => EqualArrow,
-                YieldMinusArrow     => MinusArrow,
-                YieldEqual          => Equal,
-                YieldColon          => Colon,
-                YieldComma          => Comma,
+                YieldBraceL         => { consume!(); BraceL      },
+                YieldBraceR         => { consume!(); BraceR      },
+                YieldParenL         => { consume!(); ParenL      },
+                YieldParenR         => { consume!(); ParenR      },
+                YieldBracketL       => { consume!(); BracketL    },
+                YieldBracketR       => { consume!(); BracketR    },
+                YieldDot            => {             Dot         },
+                YieldAt             => { consume!(); At          },
+                YieldPlusPlus       => { consume!(); PlusPlus    },
+                YieldMinusMinus     => { consume!(); MinusMinus  },
+                YieldBang           => {             Bang        },
+                YieldBang2          => { consume!(); Bang        },
+                YieldTilde          => { consume!(); Tilde       },
+                YieldQuestion       => { consume!(); Question    },
+                YieldStar           => { consume!(); Star        },
+                YieldSlash          => { consume!(); Slash       },
+                YieldPercent        => { consume!(); Percent     },
+                YieldPlus           => {             Plus        },
+                YieldMinus          => {             Minus       },
+                YieldLessLess       => { consume!(); LessLess    },
+                YieldMoreMore       => { consume!(); MoreMore    },
+                YieldAmpersand      => { consume!(); Ampersand   },
+                YieldCaret          => { consume!(); Caret       },
+                YieldPipe           => { consume!(); Pipe        },
+                YieldDotTilde       => { consume!(); DotTilde    },
+                YieldDotBang        => { consume!(); DotBang     },
+                YieldDotEqual       => { consume!(); DotEqual    },
+                YieldDotQuestion    => { consume!(); DotQuestion },
+                YieldLessMore       => { consume!(); LessMore    },
+                YieldEqualEqual     => { consume!(); EqualEqual  },
+                YieldBangEqual      => { consume!(); BangEqual   },
+                YieldLess           => {             Less        },
+                YieldMore           => {             More        },
+                YieldLessEqual      => { consume!(); LessEqual   },
+                YieldMoreEqual      => { consume!(); MoreEqual   },
+                YieldEqualArrow     => { consume!(); EqualArrow  },
+                YieldMinusArrow     => { consume!(); MinusArrow  },
+                YieldEqual          => {             Equal       },
+                YieldColon          => { consume!(); Colon       },
+                YieldComma          => { consume!(); Comma       },
 
                 // Errors
                 ErrorInvalid        => Error(Lex_Invalid),
@@ -391,7 +398,7 @@ where I: Iterator<Item=char>
             // Yield
             let start = l.start; l.start();
             let end   = l.current;
-            println!("yield {:?}", (start, token, end));
+            println!("lex: yield {:?}", (start, token, end));
             return (start, token, end);
         }
     }
@@ -418,9 +425,9 @@ where I: Iterator<Item=char>
 // State Transition Table
 
 #[inline]
-fn lookup(entry: &TransitionSet, ch: Option<char>) -> (char, (State, bool, Action))
+fn lookup(entry: &TransitionSet, ch: Option<char>) -> (char, (State, Action))
 {
-    // Lookup A: char -> handler number
+    // Lookup A: char -> transition index
     let (n, c) = match ch {
         Some(c) => {
             let n = c as usize;
@@ -433,7 +440,7 @@ fn lookup(entry: &TransitionSet, ch: Option<char>) -> (char, (State, bool, Actio
         None => (0, '\0')                   // EOF
     };
 
-    // Lookup B: handler number -> handler
+    // Lookup B: transition index -> transition
     (c, entry.1[n])
 }
 
@@ -453,42 +460,60 @@ const STATES: &'static [TransitionSet] = &[
        10, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,11,29,12,20, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //              State       Next?  Action
-        /*  0: eof */ ( AtEof,      false, YieldEof       ),
-        /*  1: ??? */ ( AtEof,      false, ErrorInvalid   ),
-        /*  2: \s  */ ( Initial,    true,  Start          ),
-        /*  3: \n  */ ( AfterEos,   true,  Newline        ),
-        /*  4:  ;  */ ( AfterEos,   true,  Skip           ),
-        /*  5: id0 */ ( InId,       true,  AccumStr       ),
-        /*  6:  0  */ ( AfterZero,  true,  Skip           ),
-        /*  7: 1-9 */ ( InNumDec,   true,  AccumNumDec    ),
-        /*  8:  '  */ ( InChar,     true,  Skip           ),
-        /*  9:  "  */ ( InStr,      true,  Skip           ),
-        /* 10:  `  */ ( InRaw,      true,  Skip           ),
-        /* 11:  {  */ ( Initial,    true,  YieldBraceL    ),
-        /* 12:  }  */ ( Initial,    true,  YieldBraceR    ),
-        /* 13:  (  */ ( Initial,    true,  YieldParenL    ),
-        /* 14:  )  */ ( Initial,    true,  YieldParenR    ),
-        /* 15:  [  */ ( Initial,    true,  YieldBracketL  ),
-        /* 16:  ]  */ ( Initial,    true,  YieldBracketR  ),
-        /* 17:  .  */ ( AfterDot,   true,  Skip           ),
-        /* 18:  @  */ ( Initial,    true,  YieldAt        ),
-        /* 19:  !  */ ( AfterBang,  true,  Skip           ),
-        /* 20:  ~  */ ( Initial,    true,  YieldTilde     ),
-        /* 21:  ?  */ ( Initial,    true,  YieldQuestion  ),
-        /* 22:  *  */ ( Initial,    true,  YieldStar      ),
-        /* 23:  /  */ ( Initial,    true,  YieldSlash     ),
-        /* 24:  %  */ ( Initial,    true,  YieldPercent   ),
-        /* 25:  +  */ ( AfterPlus,  true,  Skip           ),
-        /* 26:  -  */ ( AfterMinus, true,  Skip           ),
-        /* 27:  &  */ ( Initial,    true,  YieldAmpersand ),
-        /* 28:  ^  */ ( Initial,    true,  YieldCaret     ),
-        /* 29:  |  */ ( Initial,    true,  YieldPipe      ),
-        /* 30:  <  */ ( AfterLess,  true,  Skip           ),
-        /* 31:  >  */ ( AfterMore,  true,  Skip           ),
-        /* 32:  =  */ ( AfterEqual, true,  Skip           ),
-        /* 33:  :  */ ( Initial,    true,  YieldColon     ),
-        /* 34:  ,  */ ( Initial,    true,  YieldComma     ),
+        //              State       Action
+        /*  0: eof */ ( AtEof,      YieldEof       ),
+        /*  1: ??? */ ( AtEof,      ErrorInvalid   ),
+        /*  2: \s  */ ( InSpace,    Skip           ),
+        /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
+        /*  4:  ;  */ ( AfterEos,   YieldEos       ),
+        /*  5: id0 */ ( InIdOrKw,   AccumStr       ),
+
+        /*  6:  0  */ ( AfterZero,  Skip           ),
+        /*  7: 1-9 */ ( InNumDec,   AccumNumDec    ),
+        /*  8:  '  */ ( InChar,     Skip           ),
+        /*  9:  "  */ ( InStr,      Skip           ),
+        /* 10:  `  */ ( InRaw,      Skip           ),
+        /* 11:  {  */ ( Initial,    YieldBraceL    ),
+        /* 12:  }  */ ( Initial,    YieldBraceR    ),
+        /* 13:  (  */ ( Initial,    YieldParenL    ),
+        /* 14:  )  */ ( Initial,    YieldParenR    ),
+        /* 15:  [  */ ( Initial,    YieldBracketL  ),
+        /* 16:  ]  */ ( Initial,    YieldBracketR  ),
+        /* 17:  .  */ ( AfterDot,   Skip           ),
+        /* 18:  @  */ ( Initial,    YieldAt        ),
+        /* 19:  !  */ ( AfterBang,  Skip           ),
+        /* 20:  ~  */ ( Initial,    YieldTilde     ),
+        /* 21:  ?  */ ( Initial,    YieldQuestion  ),
+        /* 22:  *  */ ( Initial,    YieldStar      ),
+        /* 23:  /  */ ( Initial,    YieldSlash     ),
+        /* 24:  %  */ ( Initial,    YieldPercent   ),
+        /* 25:  +  */ ( AfterPlus,  Skip           ),
+        /* 26:  -  */ ( AfterMinus, Skip           ),
+        /* 27:  &  */ ( Initial,    YieldAmpersand ),
+        /* 28:  ^  */ ( Initial,    YieldCaret     ),
+        /* 29:  |  */ ( Initial,    YieldPipe      ),
+        /* 30:  <  */ ( AfterLess,  Skip           ),
+        /* 31:  >  */ ( AfterMore,  Skip           ),
+        /* 32:  =  */ ( AfterEqual, Skip           ),
+        /* 33:  :  */ ( Initial,    YieldColon     ),
+        /* 34:  ,  */ ( Initial,    YieldComma     ),
+    ]),
+
+    // InSpace - In whitespace
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State    Action
+        /* 0: eof */ ( AtEof,   Start ),
+        /* 1: ??? */ ( Initial, Start ),
+        /* 2: \s  */ ( InSpace, Skip  ),
     ]),
 
     // AfterEos - After end of statement
@@ -502,14 +527,14 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State     Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldEos ),
-        /* 1: ??? */ ( Initial,  false, YieldEos ),
-        /* 2: \s; */ ( AfterEos, true,  Skip     ),
-        /* 3: \n  */ ( AfterEos, true,  Newline  ),
+        //             State     Action
+        /* 0: eof */ ( AtEof,    Start   ),
+        /* 1: ??? */ ( Initial,  Start   ),
+        /* 2: \s; */ ( AfterEos, Skip    ),
+        /* 3: \n  */ ( AfterEos, SkipEol ),
     ]),
 
-    // InId - In identifier
+    // InIdOrKw - In identifier or keyword
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -520,12 +545,12 @@ const STATES: &'static [TransitionSet] = &[
         x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // `abcdefg hijklmno
         2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, YieldId  ),
-        /* 1: ??? */ ( Initial, false, YieldId  ),
-        /* 2: id  */ ( InId,    true,  AccumStr ),
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldIdOrKw ),
+        /* 1: ??? */ ( Initial,  YieldIdOrKw ),
+        /* 2: id  */ ( InIdOrKw, AccumStr    ),
     ]),
-
+  
     // AfterZero - after 0 introducing a number literal
     ([
         x, x, x, x, x, x, x, x,  x, 7, 8, x, x, 7, x, x, // ........ .tn..r..
@@ -537,16 +562,16 @@ const STATES: &'static [TransitionSet] = &[
         8, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  4, x, x, 8, 8, 8, 8, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum        ),
-        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec     ),
-        /* 3:  _  */ ( InNumDec, true,  Skip            ),
-        /* 4:  x  */ ( InNumHex, true,  Skip            ),
-        /* 5:  o  */ ( InNumOct, true,  Skip            ),
-        /* 6:  b  */ ( InNumBin, true,  Skip            ),
-        /* 7: \s  */ ( Initial,  true,  YieldNum        ),
-        /* 8: opr */ ( Initial,  false, YieldNum        ),
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
+        /* 3:  _  */ ( InNumDec, Skip            ),
+        /* 4:  x  */ ( InNumHex, Skip            ),
+        /* 5:  o  */ ( InNumOct, Skip            ),
+        /* 6:  b  */ ( InNumBin, Skip            ),
+        /* 7: \s  */ ( InSpace,  YieldNum        ),
+        /* 8: opr */ ( Initial,  YieldNum        ),
     ]),
 
     // InNumDec - in a decimal number
@@ -560,13 +585,13 @@ const STATES: &'static [TransitionSet] = &[
         5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum        ),
-        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-9 */ ( InNumDec, true,  AccumNumDec     ),
-        /* 3:  _  */ ( InNumDec, true,  Skip            ),
-        /* 4: \s  */ ( Initial,  true,  YieldNum        ),
-        /* 5: opr */ ( Initial,  false, YieldNum        ),
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
+        /* 3:  _  */ ( InNumDec, Skip            ),
+        /* 4: \s  */ ( InSpace,  YieldNum        ),
+        /* 5: opr */ ( Initial,  YieldNum        ),
     ]),
 
     // InNumHex - in a hexadecimal number
@@ -580,15 +605,15 @@ const STATES: &'static [TransitionSet] = &[
         7, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum        ),
-        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-9 */ ( InNumHex, true,  AccumNumHexDig  ),
-        /* 3: A-F */ ( InNumHex, true,  AccumNumHexUc   ),
-        /* 4: a-f */ ( InNumHex, true,  AccumNumHexLc   ),
-        /* 5:  _  */ ( InNumHex, true,  Skip            ),
-        /* 6: \s  */ ( Initial,  true,  YieldNum        ),
-        /* 7: opr */ ( Initial,  false, YieldNum        ),
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 2: 0-9 */ ( InNumHex, AccumNumHexDig  ),
+        /* 3: A-F */ ( InNumHex, AccumNumHexUc   ),
+        /* 4: a-f */ ( InNumHex, AccumNumHexLc   ),
+        /* 5:  _  */ ( InNumHex, Skip            ),
+        /* 6: \s  */ ( InSpace,  YieldNum        ),
+        /* 7: opr */ ( Initial,  YieldNum        ),
     ]),
 
     // InNumOct - in an octal number
@@ -602,13 +627,13 @@ const STATES: &'static [TransitionSet] = &[
         5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum        ),
-        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-7 */ ( InNumOct, true,  AccumNumOct     ),
-        /* 3:  _  */ ( InNumOct, true,  Skip            ),
-        /* 6: \s  */ ( Initial,  true,  YieldNum        ),
-        /* 4: opr */ ( Initial,  false, YieldNum        ),
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 2: 0-7 */ ( InNumOct, AccumNumOct     ),
+        /* 3:  _  */ ( InNumOct, Skip            ),
+        /* 6: \s  */ ( InSpace,  YieldNum        ),
+        /* 4: opr */ ( Initial,  YieldNum        ),
     ]),
 
     // InNumBin - in a binary number
@@ -622,13 +647,13 @@ const STATES: &'static [TransitionSet] = &[
         5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,    false, YieldNum        ),
-        /* 1: ??? */ ( AtEof,    false, ErrorNumInvalid ),
-        /* 2: 0-1 */ ( InNumBin, true,  AccumNumBin     ),
-        /* 3:  _  */ ( InNumBin, true,  Skip            ),
-        /* 6: \s  */ ( Initial,  true,  YieldNum        ),
-        /* 4: opr */ ( Initial,  false, YieldNum        ),
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 2: 0-1 */ ( InNumBin, AccumNumBin     ),
+        /* 3:  _  */ ( InNumBin, Skip            ),
+        /* 6: \s  */ ( InSpace,  YieldNum        ),
+        /* 4: opr */ ( Initial,  YieldNum        ),
     ]),
 
     // InChar <( ' )> : in a character literal
@@ -642,11 +667,11 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,     false, ErrorCharUnterm ),
-        /* 1: ??? */ ( AtCharEnd, true,  AccumStr        ),
-        /* 2:  \  */ ( AtCharEnd, true,  StartEsc        ),
-        /* 3:  '  */ ( AtEof,     false, ErrorCharLength ),
+        //             State      Action
+        /* 0: eof */ ( AtEof,     ErrorCharUnterm ),
+        /* 1: ??? */ ( AtCharEnd, AccumStr        ),
+        /* 2:  \  */ ( AtCharEnd, StartEsc        ),
+        /* 3:  '  */ ( AtEof,     ErrorCharLength ),
     ]),
 
     // AtCharEnd <( ' char )> : expecting the end of a character literal
@@ -660,10 +685,10 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, ErrorCharUnterm ),
-        /* 1: ??? */ ( AtEof,   false, ErrorCharLength ),
-        /* 2:  '  */ ( Initial, true,  YieldChar       ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   ErrorCharUnterm ),
+        /* 1: ??? */ ( AtEof,   ErrorCharLength ),
+        /* 2:  '  */ ( Initial, YieldChar       ),
     ]),
 
     // InStr <( " )> : in a string literal
@@ -677,11 +702,11 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, ErrorStrUnterm ),
-        /* 1: ??? */ ( InStr,   true,  AccumStr       ),
-        /* 2:  \  */ ( InStr,   true,  StartEsc       ),
-        /* 3:  "  */ ( Initial, true,  YieldStr       ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   ErrorStrUnterm ),
+        /* 1: ??? */ ( InStr,   AccumStr       ),
+        /* 2:  \  */ ( InStr,   StartEsc       ),
+        /* 3:  "  */ ( Initial, YieldStr       ),
     ]),
 
     // InRaw <( ` )> : in a raw output block
@@ -695,10 +720,10 @@ const STATES: &'static [TransitionSet] = &[
         2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, ErrorRawUnterm ),
-        /* 1: ??? */ ( InRaw,   true,  AccumStr       ),
-        /* 3:  `  */ ( Initial, true,  YieldRaw       ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   ErrorRawUnterm ),
+        /* 1: ??? */ ( InRaw,   AccumStr       ),
+        /* 3:  `  */ ( Initial, YieldRaw       ),
     ]),
 
     // InEsc <( ['"] \ )> : after escape characer
@@ -712,18 +737,18 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // `abcdefg hijklmno
         x, x, 4, x, 5,10, x, x,  9, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State       Next?  Action
-        /*  0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
-        /*  1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
-        /*  2:  0  */ ( InStr,     true,  AccumStrEscNul  ), // pops state
-        /*  3:  n  */ ( InStr,     true,  AccumStrEscLf   ), // pops state
-        /*  4:  r  */ ( InStr,     true,  AccumStrEscCr   ), // pops state
-        /*  5:  t  */ ( InStr,     true,  AccumStrEscTab  ), // pops state
-        /*  6:  \  */ ( InStr,     true,  AccumStrEscChar ), // pops state
-        /*  7:  '  */ ( InStr,     true,  AccumStrEscChar ), // pops state
-        /*  8:  "  */ ( InStr,     true,  AccumStrEscChar ), // pops state
-        /*  9:  x  */ ( AtEscHex0, true,  Skip            ),
-        /* 10:  u  */ ( AtEscUni0, true,  Skip            ),
+        //              State      Action
+        /*  0: eof */ ( AtEof,     ErrorEscUnterm  ),
+        /*  1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /*  2:  0  */ ( InStr,     YieldEscNul     ), // pops state
+        /*  3:  n  */ ( InStr,     YieldEscLf      ), // pops state
+        /*  4:  r  */ ( InStr,     YieldEscCr      ), // pops state
+        /*  5:  t  */ ( InStr,     YieldEscTab     ), // pops state
+        /*  6:  \  */ ( InStr,     YieldEscChar    ), // pops state
+        /*  7:  '  */ ( InStr,     YieldEscChar    ), // pops state
+        /*  8:  "  */ ( InStr,     YieldEscChar    ), // pops state
+        /*  9:  x  */ ( AtEscHex0, Skip            ),
+        /* 10:  u  */ ( AtEscUni0, Skip            ),
     ]),
 
     // AtEscHex0 <( ['"] \ x )> : at byte escape digit 0
@@ -737,12 +762,12 @@ const STATES: &'static [TransitionSet] = &[
         x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
-        /* 1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
-        /* 2: 0-9 */ ( AtEscHex1, true,  AccumNumHexDig  ),
-        /* 3: A-F */ ( AtEscHex1, true,  AccumNumHexUc   ),
-        /* 4: a-f */ ( AtEscHex1, true,  AccumNumHexLc   ),
+        //             State      Action
+        /* 0: eof */ ( AtEof,     ErrorEscUnterm  ),
+        /* 1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /* 2: 0-9 */ ( AtEscHex1, AccumNumHexDig  ),
+        /* 3: A-F */ ( AtEscHex1, AccumNumHexUc   ),
+        /* 4: a-f */ ( AtEscHex1, AccumNumHexLc   ),
     ]),
 
     // AtEscHex1 <( ['"] \ x hex )> : at byte escape digit 1
@@ -756,12 +781,12 @@ const STATES: &'static [TransitionSet] = &[
         x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof, false, ErrorEscUnterm    ),
-        /* 1: ??? */ ( AtEof, false, ErrorEscInvalid   ),
-        /* 2: 0-9 */ ( InStr, true,  AccumStrEscHexDig ), // pops state
-        /* 3: A-F */ ( InStr, true,  AccumStrEscHexUc  ), // pops state
-        /* 4: a-f */ ( InStr, true,  AccumStrEscHexLc  ), // pops state
+        //             State  Action
+        /* 0: eof */ ( AtEof, ErrorEscUnterm  ),
+        /* 1: ??? */ ( AtEof, ErrorEscInvalid ),
+        /* 2: 0-9 */ ( InStr, YieldEscHexDig  ), // pops state
+        /* 3: A-F */ ( InStr, YieldEscHexUc   ), // pops state
+        /* 4: a-f */ ( InStr, YieldEscHexLc   ), // pops state
     ]),
 
     // AtEscUni0 <( ['"] \ u )> : in unicode escape, expecting {
@@ -775,10 +800,10 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
-        /* 1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
-        /* 2:  {  */ ( AtEscUni1, true,  Skip            ),
+        //             State      Action
+        /* 0: eof */ ( AtEof,     ErrorEscUnterm  ),
+        /* 1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /* 2:  {  */ ( AtEscUni1, Skip            ),
     ]),
 
     // AtEscUni1 <( ['"] \ u { )> : in unicode escape, expecting hex digit
@@ -792,13 +817,13 @@ const STATES: &'static [TransitionSet] = &[
         x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,     false, ErrorEscUnterm  ),
-        /* 1: ??? */ ( AtEof,     false, ErrorEscInvalid ),
-        /* 2: 0-9 */ ( AtEscUni1, true,  AccumNumHexDig  ),
-        /* 3: A-F */ ( AtEscUni1, true,  AccumNumHexUc   ),
-        /* 4: a-f */ ( AtEscUni1, true,  AccumNumHexLc   ),
-        /* 5:  }  */ ( InStr,     true,  AccumStrEscNum  ), // pops state
+        //             State      Action
+        /* 0: eof */ ( AtEof,     ErrorEscUnterm  ),
+        /* 1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /* 2: 0-9 */ ( AtEscUni1, AccumNumHexDig  ),
+        /* 3: A-F */ ( AtEscUni1, AccumNumHexUc   ),
+        /* 4: a-f */ ( AtEscUni1, AccumNumHexLc   ),
+        /* 5:  }  */ ( InStr,     YieldEscNum     ), // pops state
     ]),
 
     // AfterDot <( . )> : after a dot
@@ -812,14 +837,14 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, YieldDot         ),
-        /* 1: ??? */ ( Initial, false, YieldDot         ),
-        /* 2: \s  */ ( Initial, true,  YieldDot         ),
-        /* 3:  ~  */ ( Initial, true,  YieldDotTilde    ),
-        /* 4:  !  */ ( Initial, true,  YieldDotBang     ),
-        /* 5:  =  */ ( Initial, true,  YieldDotEqual    ),
-        /* 6:  ?  */ ( Initial, true,  YieldDotQuestion ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   YieldDot         ),
+        /* 1: ??? */ ( Initial, YieldDot         ),
+        /* 2: \s  */ ( Initial, YieldDot         ),
+        /* 3:  ~  */ ( Initial, YieldDotTilde    ),
+        /* 4:  !  */ ( Initial, YieldDotBang     ),
+        /* 5:  =  */ ( Initial, YieldDotEqual    ),
+        /* 6:  ?  */ ( Initial, YieldDotQuestion ),
     ]),
 
     // AfterPlus <( + )> : after a plus sign
@@ -833,11 +858,11 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, YieldPlus     ),
-        /* 1: ??? */ ( Initial, false, YieldPlus     ),
-        /* 2: \s  */ ( Initial, true,  YieldPlus     ),
-        /* 3:  +  */ ( Initial, true,  YieldPlusPlus ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   YieldPlus     ),
+        /* 1: ??? */ ( Initial, YieldPlus     ),
+        /* 2: \s  */ ( Initial, YieldPlus     ),
+        /* 3:  +  */ ( Initial, YieldPlusPlus ),
     ]),
 
     // AfterMinus <( - )> : after a minus sign
@@ -851,12 +876,12 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, YieldMinus      ),
-        /* 1: ??? */ ( Initial, false, YieldMinus      ),
-        /* 2: \s  */ ( Initial, true,  YieldMinus      ),
-        /* 3:  -  */ ( Initial, true,  YieldMinusMinus ),
-        /* 4:  >  */ ( Initial, true,  YieldMinusArrow ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   YieldMinus      ),
+        /* 1: ??? */ ( Initial, YieldMinus      ),
+        /* 2: \s  */ ( Initial, YieldMinus      ),
+        /* 3:  -  */ ( Initial, YieldMinusMinus ),
+        /* 4:  >  */ ( Initial, YieldMinusArrow ),
     ]),
 
     // AfterLess <( < )> : after a less-than sign
@@ -870,13 +895,13 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, YieldLess      ),
-        /* 1: ??? */ ( Initial, false, YieldLess      ),
-        /* 2: \s  */ ( Initial, true,  YieldLess      ),
-        /* 3:  <  */ ( Initial, true,  YieldLessLess  ),
-        /* 4:  >  */ ( Initial, true,  YieldLessMore  ),
-        /* 5:  =  */ ( Initial, true,  YieldLessEqual ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   YieldLess      ),
+        /* 1: ??? */ ( Initial, YieldLess      ),
+        /* 2: \s  */ ( Initial, YieldLess      ),
+        /* 3:  <  */ ( Initial, YieldLessLess  ),
+        /* 4:  >  */ ( Initial, YieldLessMore  ),
+        /* 5:  =  */ ( Initial, YieldLessEqual ),
     ]),
 
     // AfterMore <( > )> : after a greater-than sign
@@ -890,13 +915,13 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, YieldMore      ),
-        /* 1: ??? */ ( Initial, false, YieldMore      ),
-        /* 2: \s  */ ( Initial, true,  YieldMore      ),
-        /* 3:  <  */ ( Initial, true,  YieldMoreMore  ), // TODO: exchange
-        /* 4:  >  */ ( Initial, true,  YieldMoreMore  ),
-        /* 5:  =  */ ( Initial, true,  YieldMoreEqual ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   YieldMore      ),
+        /* 1: ??? */ ( Initial, YieldMore      ),
+        /* 2: \s  */ ( Initial, YieldMore      ),
+        /* 3:  <  */ ( Initial, YieldMoreMore  ), // TODO: exchange
+        /* 4:  >  */ ( Initial, YieldMoreMore  ),
+        /* 5:  =  */ ( Initial, YieldMoreEqual ),
     ]),
 
     // AfterEqual <( = )> : after an equal sign
@@ -910,12 +935,12 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,   false, YieldEqual      ),
-        /* 1: ??? */ ( Initial, false, YieldEqual      ),
-        /* 2: \s  */ ( Initial, true,  YieldEqual      ),
-        /* 3:  >  */ ( Initial, true,  YieldEqualArrow ),
-        /* 4:  =  */ ( Initial, true,  YieldEqualEqual ),
+        //             State    Action
+        /* 0: eof */ ( AtEof,   YieldEqual      ),
+        /* 1: ??? */ ( Initial, YieldEqual      ),
+        /* 2: \s  */ ( Initial, YieldEqual      ),
+        /* 3:  >  */ ( Initial, YieldEqualArrow ),
+        /* 4:  =  */ ( Initial, YieldEqualEqual ),
     ]),
 
     // AfterBang <( ! )> : after a bang mark
@@ -929,12 +954,12 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State    Next?  Action
-        /* 0: eof */ ( AtEof,     false, YieldBang      ),
-        /* 1: ??? */ ( Initial,   false, YieldBang      ),
-        /* 2: \s  */ ( Initial,   true,  YieldBang      ),
-        /* 3:  =  */ ( Initial,   true,  YieldBangEqual ),
-        /* 4:  !  */ ( AfterBang, false, YieldBang      ),
+        //             State      Action
+        /* 0: eof */ ( AtEof,     YieldBang      ),
+        /* 1: ??? */ ( Initial,   YieldBang      ),
+        /* 2: \s  */ ( Initial,   YieldBang      ),
+        /* 3:  =  */ ( Initial,   YieldBangEqual ),
+        /* 4:  !  */ ( AfterBang, YieldBang2     ), // need to consume!
     ]),
 
 //  // State <( prior chars )> : state description
@@ -948,7 +973,7 @@ const STATES: &'static [TransitionSet] = &[
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
 //  ],&[
-        //             State  Next?  Action
+//      //             State  Next?  Action
 //      /* 0: eof */ ( AtEof, false, Skip ),
 //      /* 1: ??? */ ( AtEof, false, Skip ),
 //  ]),
@@ -964,8 +989,8 @@ const STATES: &'static [TransitionSet] = &[
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
         0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
     ],&[
-        //             State  Next?  Action
-        /* 0: eof */ ( AtEof, false, YieldEof ),
+        //             State  Action
+        /* 0: eof */ ( AtEof, YieldEof ),
     ]),
 ];
 
@@ -1237,6 +1262,13 @@ mod tests {
     }
 
     #[test]
+    fn str() {
+        lex("\"\"")  .yields_str("")  .yields(Eof);
+        lex("\"aa\"").yields_str("aa").yields(Eof);
+        lex("\"a")   .yields_error();
+    }
+
+    #[test]
     fn char_escape() {
         lex("'\\0'" ).yields(Char('\0')).yields(Eof);
         lex("'\\n'" ).yields(Char('\n')).yields(Eof);
@@ -1321,20 +1353,29 @@ mod tests {
             self
         }
 
-        fn yields_raw(&mut self, name: &str) -> &mut Self {
-            let token = self.0.lex().1;
-            match token {
-                Raw(n) => assert_eq!(name, *self.0.context.strings.get(n)),
-                _      => panic!("lex() did not yield a raw output block.")
-            };
-            self
-        }
-
         fn yields_id(&mut self, name: &str) -> &mut Self {
             let token = self.0.lex().1;
             match token {
                 Id(n) => assert_eq!(name, *self.0.context.strings.get(n)),
                 _     => panic!("lex() did not yield an identifier.")
+            };
+            self
+        }
+
+        fn yields_str(&mut self, expected: &str) -> &mut Self {
+            let token = self.0.lex().1;
+            match token {
+                Str(n) => assert_eq!(expected, *self.0.context.strings.get(n)),
+                _      => panic!("lex() did not yield a string.")
+            };
+            self
+        }
+
+        fn yields_raw(&mut self, name: &str) -> &mut Self {
+            let token = self.0.lex().1;
+            match token {
+                Raw(n) => assert_eq!(name, *self.0.context.strings.get(n)),
+                _      => panic!("lex() did not yield a raw output block.")
             };
             self
         }
