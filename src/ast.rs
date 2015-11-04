@@ -20,29 +20,40 @@ use interner::StrId;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt {
+    // Meta
     Block   (Vec<Stmt>),
+    // Declarational
+    TypeDef (StrId, Box<Type>),
+    Label   (StrId),
+    Bss     (StrId, Box<Type>),
+    Data    (StrId, Box<Type>, Box<Expr>),
+    Alias   (StrId, Box<Type>, Box<Expr>),
+    Func    (StrId, Box<Type>, Box<Stmt>),
+    // Executable
     Eval    (Box<Expr>),
+    Loop    (Box<Stmt>),
+    If      (Cond, Box<Stmt>, Option<Box<Stmt>>),
+    While   (Cond, Box<Stmt>),
 }
 
-// data Stmt
-//     = Block     [Stmt]
-//     | TypeDef   String Type
-//     | Label     String
-//     | Bss       String Type
-//     | Data      String Type Exp
-//     | Alias     String Type Exp
-//     | Func      String Type Stmt
-//     | Eval      Exp
-//     | Loop      Stmt
-//     | If        Test Stmt Stmt
-//     | While     Test Stmt
-//     deriving (Eq, Show)
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Type {
+    TypeRef (StrId),
+    Array   (Box<Type>, Option<u64>),
+    Ptr     (Box<Type>, Box<Type>),
+    Struct  (Vec<Member>),
+    Union   (Vec<Member>),
+    Func    (Vec<Member>, Vec<Member>),
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Member (StrId, Box<Type>);
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Expr {
-    Ident   (StrId),
-    Str     (StrId),
-    Int     (u64),
+    Ident      (StrId),
+    Str        (StrId),
+    Int        (u64),
 
     MemberOf   (Box<Expr>, StrId),
     Increment  (Box<Expr>, Option<StrId>),
@@ -74,9 +85,9 @@ pub enum Expr {
     Compare    (Box<Expr>, Box<Expr>, Option<StrId>),
 
     Set        (Box<Expr>, Box<Expr>, Option<StrId>),
-    SetCond    (Box<Expr>, Box<Test>, Option<StrId>),
+    SetCond    (Box<Expr>, Box<Cond>, Option<StrId>),
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Test (pub StrId, pub Option<Box<Expr>>);
+pub struct Cond (pub StrId, pub Option<Box<Expr>>);
 
