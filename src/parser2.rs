@@ -108,21 +108,11 @@ impl<I: Iterator<Item=char>> Parser<I> {
     //
     fn parse_stmts_until(&mut self, end: Token) -> Many<Stmt> {
         let mut stmts = vec![];
-
-        // EOS?
         advance!(self, Token::Eos);
-
         loop {
-            // end?
             if self.token == end { return Ok(stmts); }
-
-            // stmt
             stmts.push(try!(self.parse_stmt()));
-
-            // end?
             if self.token == end { return Ok(stmts); }
-
-            // EOS
             expect!(self, Token::Eos);
         }
     }
@@ -140,10 +130,17 @@ impl<I: Iterator<Item=char>> Parser<I> {
     //
     pub fn parse_expr(&mut self) -> One<Expr> {
         match self.token {
+            // INT
             Token::Int(x) => {
-                println!("parser: found integer literal");
                 self.advance();
                 Ok(Box::new(Int(x)))
+            },
+            // '(' expr ')'
+            Token::ParenL => {
+                self.advance();
+                let e = self.parse_expr();
+                expect!(self, Token::ParenR);
+                e
             },
             _ => Err(())
         }
@@ -176,6 +173,7 @@ mod tests {
         }};
     }
 
+    // Statements
     #[test] fn empty()         { assert_parse!( "",                                 ); }
     #[test] fn eos()           { assert_parse!( ";",                                ); }
     #[test] fn stmt()          { assert_parse!(  "4",    eval(Int(4))               ); }
@@ -186,5 +184,8 @@ mod tests {
     #[test] fn eos_stmts()     { assert_parse!( ";4;2",  eval(Int(4)), eval(Int(2)) ); }
     #[test] fn stmts_eos()     { assert_parse!(  "4;2;", eval(Int(4)), eval(Int(2)) ); }
     #[test] fn eos_stmts_eos() { assert_parse!( ";4;2;", eval(Int(4)), eval(Int(2)) ); }
+
+    // Atomic Expressions
+    #[test] fn parens() { assert_parse!( "(4)", eval(Int(4)) ); }
 }
 
