@@ -16,13 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::rc::Rc;
+
 use ast::*;
 use ast::Stmt::*;
 use ast::Expr::*;
 use interner::Interner;
-use lexer::{Lexer, Token, Pos};
-use std::rc::Rc;
+use lexer::{Lexer, Token};
 use message::*;
+use util::Pos;
 
 type T       = Token;
 type One <T> = Result<    Box<T>,  ()>;

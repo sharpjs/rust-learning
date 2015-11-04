@@ -17,13 +17,13 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::fmt;
 use std::mem;
 use std::rc::Rc;
 
 use interner::*;
 use message::*;
 use message::Message::*;
+use util::Pos;
 
 // -----------------------------------------------------------------------------
 // Tokens
@@ -98,20 +98,7 @@ pub enum Token {
 use self::Token::*;
 
 // -----------------------------------------------------------------------------
-// Misc Types
-
-#[derive(Clone, Copy, PartialEq, Eq)]
-pub struct Pos {
-    pub byte:   usize,  // 0-based byte offset
-    pub line:   u32,    // 1-based line number
-    pub column: u32,    // 1-based column number
-}
-
-impl fmt::Debug for Pos {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<{}|{}:{}>", self.byte, self.line, self.column)
-    }
-}
+// State
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
