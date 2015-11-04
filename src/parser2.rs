@@ -50,19 +50,22 @@ struct Parser<I: Iterator<Item=char>> {
 }
 
 macro_rules! advance {
-    ( $p:ident, $t:pat ) => {
+    ( $p:ident ) => {
+        $p.advance()
+    };
+    ( $p:ident, $( $t:pat ),+ ) => {
         match $p.token {
-            $t => { $p.advance(); true },
-            _  => false
+            $( $t )|+ => { $p.advance(); true },
+            _         => false
         }
     };
 }
 
 macro_rules! expect {
-    ( $p:ident, $t:pat ) => {
+    ( $p:ident, $( $t:pat ),+ ) => {
         match $p.token {
-            $t => $p.advance(),
-            _  => return Err(())
+            $( $t )|+ => $p.advance(),
+            _         => return Err(())
         }
     };
 }
@@ -84,12 +87,11 @@ impl<I: Iterator<Item=char>> Parser<I> {
         }
     }
 
-    fn advance(&mut self) -> &mut Self {
+    fn advance(&mut self) {
         println!("parser: advancing");
         let (l, tok, r) = self.lexer.lex();
         self.token = tok;
         self.span = (l, r);
-        self
     }
 
     fn parse(mut self) -> Self {
