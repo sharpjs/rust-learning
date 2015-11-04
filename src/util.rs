@@ -42,14 +42,46 @@ impl Pos {
 
     #[inline]
     pub fn newline(&mut self) {
-        self.column = 1;
         self.line  += 1;
+        self.column = 1;
     }
 }
 
 impl fmt::Debug for Pos {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<{}|{}:{}>", self.byte, self.line, self.column)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[cfg(test)]
+    mod pos {
+        use super::super::*;
+
+        #[test]
+        fn bof() {
+            let p = Pos::bof();
+            assert_eq!(p, Pos { byte: 0, line: 1, column: 1 });
+        }
+
+        #[test]
+        fn advance() {
+            let mut p = Pos::bof();
+            p.advance('a');
+            assert_eq!(p, Pos { byte: 1, line: 1, column: 2 });
+            p.advance('\u{10ABCD}');
+            assert_eq!(p, Pos { byte: 5, line: 1, column: 3 });
+        }
+
+        #[test]
+        fn newline() {
+            let mut p = Pos::bof();
+            p.advance('\n');
+            p.newline();
+            assert_eq!(p, Pos { byte: 1, line: 2, column: 1 });
+        }
     }
 }
 
