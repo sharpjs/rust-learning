@@ -16,6 +16,62 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use util::Pos;
+use std::borrow::Cow;
+use std::io::{stderr, Write};
+
+pub struct Messages {
+    messages:    Vec<Message_>,
+    error_count: usize
+}
+
+impl Messages {
+    pub fn new() -> Self {
+        Messages {
+            messages:    vec![],
+            error_count: 0
+        }
+    }
+
+    pub fn has_errors(&self) -> bool {
+        self.error_count > 0
+    }
+
+    pub fn error_count(&self) -> usize {
+        self.error_count
+    }
+
+    pub fn print(&self) {
+        for m in &self.messages {
+            let r = writeln!(stderr(), "{}:{}: {:?}: {}",
+                m.position.line,
+                m.position.column,
+                m.level,
+                m.text
+            );
+
+            if let Err(_) = r { return }
+        }
+    }
+}
+
+fn format_message(m: &Message_) -> &str { &m.text }
+
+pub struct Message_ {
+    pub id:         MessageId,
+    pub level:      MessageLevel,
+    pub position:   Pos,
+    pub text:       Cow<'static, str>,
+}
+
+impl Message_ {
+}
+
+pub type MessageId = Message;
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+pub enum MessageLevel { Warning, Error }
+
 // Defines a messages enum and a map from enum items to strings.
 macro_rules! messages {
     { $( $id:ident => $str:expr ),* } => {
@@ -30,9 +86,6 @@ macro_rules! messages {
             $( $str ),*
         ];
     };
-}
-
-
 }
 
 messages! {
