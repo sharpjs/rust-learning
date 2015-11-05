@@ -127,6 +127,7 @@ impl<I: Iterator<Item=char>> Parser<I> {
 
     // expr:
     //   INT
+    //   '(' expr ')'
     //
     pub fn parse_expr(&mut self) -> One<Expr> {
         match self.token {
