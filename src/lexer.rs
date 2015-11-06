@@ -22,7 +22,7 @@ use std::rc::Rc;
 
 use interner::*;
 use message::*;
-use message::Message::*;
+use message::MessageId::*;
 use util::Pos;
 
 // -----------------------------------------------------------------------------
@@ -93,7 +93,7 @@ pub enum Token {
     Eos,            // End of statement
     Eof,            // End of file
 
-    Error (Message) // Lexical error
+    Error (MessageId) // Lexical error
 }
 use self::Token::*;
 
@@ -397,7 +397,7 @@ where I: Iterator<Item=char>
 impl<I> Iterator for Lexer<I>
 where I: Iterator<Item=char>
 {
-    type Item = Result<(Pos, Token, Pos), (Pos, Message)>;
+    type Item = Result<(Pos, Token, Pos), (Pos, MessageId)>;
 
     fn next(&mut self) -> Option<Self::Item> {
         match self.lex() {
