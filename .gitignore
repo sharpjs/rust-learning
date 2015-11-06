@@ -4,6 +4,3 @@
 # Rust
 /target/
 
-# Generated
-/src/parser.rs
-
