@@ -31,17 +31,20 @@ use self::MessageLevel::*;
 #[repr(u8)]
 pub enum MessageId {
     // Lexer Messages
-    Lex_Invalid,
-    Lex_NumInvalid,
-    Lex_NumOverflow,
-    Lex_RawUnterminated,
-    Lex_StrUnterminated,
-    Lex_CharUnterminated,
+    Lex_Unrec,
+    Lex_UnrecNum,
+    Lex_UnrecEsc,
+    Lex_UntermChar,
+    Lex_UntermStr,
+    Lex_UntermRaw,
+    Lex_UntermEsc,
     Lex_CharLength,
-    Lex_EscInvalid,
-    Lex_EscUnterminated,
-    Lex_EscOverflow,
+    Lex_OverflowNum,
+    Lex_OverflowEsc,
     // Parser Messages
+    // ...
+    // Semantic Analysis Messages
+    // ...
 }
 use self::MessageId::*;
 
@@ -89,33 +92,67 @@ impl Messages {
         }
     }
 
-    pub fn err_invalid_char(&mut self, p: Pos, c: char) {
-        self.add(p, Error, Lex_Invalid, format!(
+    pub fn err_unrec(&mut self, p: Pos, c: char) {
+        self.add(p, Error, Lex_Unrec, format!(
             "Unrecognized character: '{}'", c
         ));
     }
 
-    pub fn err_num_invalid_char(&mut self, p: Pos, c: char) {
-        self.add(p, Error, Lex_NumInvalid, format!(
+    pub fn err_unrec_num(&mut self, p: Pos, c: char) {
+        self.add(p, Error, Lex_UnrecNum, format!(
             "Unrecognized character in number literal: '{}'", c
         ));
     }
 
-    pub fn err_num_overflow(&mut self, p: Pos) {
-        self.add(p, Error, Lex_NumOverflow,
+    pub fn err_unrec_esc(&mut self, p: Pos, c: char) {
+        self.add(p, Error, Lex_UnrecEsc, format!(
+            "Unrecognized character in escape sequence: '{}'", c
+        ));
+    }
+
+    pub fn err_unterm_char(&mut self, p: Pos) {
+        self.add(p, Error, Lex_UntermChar,
+            "Unterminated character literal."
+        );
+    }
+
+    pub fn err_unterm_str(&mut self, p: Pos) {
+        self.add(p, Error, Lex_UntermStr,
+            "Unterminated string literal."
+        );
+    }
+
+    pub fn err_unterm_raw(&mut self, p: Pos) {
+        self.add(p, Error, Lex_UntermRaw,
+            "Unterminated raw block."
+        );
+    }
+
+    pub fn err_unterm_esc(&mut self, p: Pos) {
+        self.add(p, Error, Lex_UntermEsc,
+            "Unterminated escape sequence.",
+        );
+    }
+
+    pub fn err_length_char(&mut self, p: Pos) {
+        self.add(p, Error, Lex_CharLength,
+            "Invalid character literal length. \
+             Character literals must contain exactly one character.",
+        );
+    }
+
+    pub fn err_overflow_num(&mut self, p: Pos) {
+        self.add(p, Error, Lex_OverflowNum,
             "Overflow in number literal.  Integers are unsigned 64-bit."
         );
     }
 
-//    Lex_RawUnterminated  => "Unterminated raw block.",
-//    Lex_StrUnterminated  => "Unterminated string literal.",
-//    Lex_CharUnterminated => "Unterminated character literal.",
-//    Lex_CharLength       => "Invalid character literal length.  \
-//                             Character literals must contain exactly one character.",
-//    Lex_EscInvalid       => "Overflow in Unicode escape sequence.  \
-//                             The maximum permitted is \\u{10FFFF}.",
-//    Lex_EscUnterminated  => "Incomplete escape sequence.",
-//    Lex_EscOverflow      => "Invalid escape sequence."
+    pub fn err_overflow_esc(&mut self, p: Pos) {
+        self.add(p, Error, Lex_OverflowEsc,
+            "Overflow in Unicode escape sequence. \
+             The maximum permitted is \\u{10FFFF}.",
+        );
+    }
 }
 
 impl Display for Messages {
@@ -159,7 +196,7 @@ mod tests {
         let mut m = Messages::new();
         let     p = Pos::bof();
 
-        m.err_invalid_char(p, 'c');
+        m.err_unrec(p, 'c');
 
         assert_eq!(1,     m.error_count());
         assert_eq!(true,  m.has_errors());
@@ -174,9 +211,9 @@ mod tests {
         let mut m = Messages::new();
         let mut p = Pos::bof();
 
-        m.err_invalid_char(p, 'c');
+        m.err_unrec(p, 'c');
         p.advance('c');
-        m.err_invalid_char(p, 'd');
+        m.err_unrec(p, 'd');
 
         assert_eq!(2,    m.error_count());
         assert_eq!(true, m.has_errors());

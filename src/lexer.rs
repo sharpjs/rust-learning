@@ -21,8 +21,7 @@ use std::mem;
 use std::rc::Rc;
 
 use interner::*;
-use message::*;
-use message::MessageId::*;
+use message::Messages;
 use util::Pos;
 
 // -----------------------------------------------------------------------------
@@ -62,7 +61,6 @@ pub enum Token {
     MinusMinus,     // --
     Bang,           // !
     Tilde,          // ~
-    Question,       // ?
     Star,           // *
     Slash,          // /
     Percent,        // %
@@ -77,6 +75,7 @@ pub enum Token {
     DotBang,        // .!
     DotEqual,       // .=
     DotQuestion,    // .?
+    Question,       // ?
     LessMore,       // <>
     EqualEqual,     // ==
     BangEqual,      // !=
@@ -93,7 +92,7 @@ pub enum Token {
     Eos,            // End of statement
     Eof,            // End of file
 
-    Error (MessageId) // Lexical error
+    Error           // Lexical error
 }
 use self::Token::*;
 
@@ -203,15 +202,13 @@ enum Action {
     YieldComma,
 
     ErrorInvalid,
-    ErrorNumInvalid,
-    ErrorNumOverflow,
-    ErrorCharUnterm,
-    ErrorCharLength,
-    ErrorStrUnterm,
-    ErrorRawUnterm,
-    ErrorEscOverflow,
-    ErrorEscUnterm,
-    ErrorEscInvalid,
+    ErrorInvalidNum,
+    ErrorInvalidEsc,
+    ErrorUntermChar,
+    ErrorUntermStr,
+    ErrorUntermRaw,
+    ErrorUntermEsc,
+    ErrorLengthChar,
 }
 use self::Action::*;
 
@@ -366,16 +363,14 @@ where I: Iterator<Item=char>
                 YieldComma          => { consume!(); Comma       },
 
                 // Errors
-                ErrorInvalid        => Error(Lex_Invalid),
-                ErrorNumInvalid     => Error(Lex_NumInvalid),
-                ErrorNumOverflow    => Error(Lex_NumOverflow),
-                ErrorCharUnterm     => Error(Lex_CharUnterminated),
-                ErrorCharLength     => Error(Lex_CharLength),
-                ErrorStrUnterm      => Error(Lex_StrUnterminated),
-                ErrorRawUnterm      => Error(Lex_RawUnterminated),
-                ErrorEscOverflow    => Error(Lex_EscOverflow),
-                ErrorEscUnterm      => Error(Lex_EscUnterminated),
-                ErrorEscInvalid     => Error(Lex_EscInvalid),
+                ErrorInvalid        => { l.messages.err_unrec       (l.start, c); Error },
+                ErrorInvalidNum     => { l.messages.err_unrec_num   (l.start, c); Error },
+                ErrorInvalidEsc     => { l.messages.err_unrec_esc   (l.start, c); Error },
+                ErrorUntermChar     => { l.messages.err_unterm_char (l.start,  ); Error },
+                ErrorUntermStr      => { l.messages.err_unterm_str  (l.start,  ); Error },
+                ErrorUntermRaw      => { l.messages.err_unterm_raw  (l.start,  ); Error },
+                ErrorUntermEsc      => { l.messages.err_unterm_esc  (l.start,  ); Error },
+                ErrorLengthChar     => { l.messages.err_length_char (l.start,  ); Error },
             };
 
             // Remember state for next invocation
@@ -387,23 +382,6 @@ where I: Iterator<Item=char>
             let end   = l.current;
             println!("lex: yield {:?}", (start, token, end));
             return (start, token, end);
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Adapter for LALRPOP
-
-impl<I> Iterator for Lexer<I>
-where I: Iterator<Item=char>
-{
-    type Item = Result<(Pos, Token, Pos), (Pos, MessageId)>;
-
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.lex() {
-            (_,   Eof,        _) => None,
-            (pos, Error(msg), _) => Some(Err( (pos, msg) )),
-            triple               => Some(Ok (   triple   )),
         }
     }
 }
@@ -551,7 +529,7 @@ const STATES: &'static [TransitionSet] = &[
     ],&[
         //             State     Action
         /* 0: eof */ ( AtEof,    YieldNum        ),
-        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
         /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
         /* 3:  _  */ ( InNumDec, Skip            ),
         /* 4:  x  */ ( InNumHex, Skip            ),
@@ -574,7 +552,7 @@ const STATES: &'static [TransitionSet] = &[
     ],&[
         //             State     Action
         /* 0: eof */ ( AtEof,    YieldNum        ),
-        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
         /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
         /* 3:  _  */ ( InNumDec, Skip            ),
         /* 4: \s  */ ( InSpace,  YieldNum        ),
@@ -594,7 +572,7 @@ const STATES: &'static [TransitionSet] = &[
     ],&[
         //             State     Action
         /* 0: eof */ ( AtEof,    YieldNum        ),
-        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
         /* 2: 0-9 */ ( InNumHex, AccumNumHexDig  ),
         /* 3: A-F */ ( InNumHex, AccumNumHexUc   ),
         /* 4: a-f */ ( InNumHex, AccumNumHexLc   ),
@@ -616,7 +594,7 @@ const STATES: &'static [TransitionSet] = &[
     ],&[
         //             State     Action
         /* 0: eof */ ( AtEof,    YieldNum        ),
-        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
         /* 2: 0-7 */ ( InNumOct, AccumNumOct     ),
         /* 3:  _  */ ( InNumOct, Skip            ),
         /* 6: \s  */ ( InSpace,  YieldNum        ),
@@ -636,7 +614,7 @@ const STATES: &'static [TransitionSet] = &[
     ],&[
         //             State     Action
         /* 0: eof */ ( AtEof,    YieldNum        ),
-        /* 1: ??? */ ( AtEof,    ErrorNumInvalid ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
         /* 2: 0-1 */ ( InNumBin, AccumNumBin     ),
         /* 3:  _  */ ( InNumBin, Skip            ),
         /* 6: \s  */ ( InSpace,  YieldNum        ),
@@ -655,10 +633,10 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State      Action
-        /* 0: eof */ ( AtEof,     ErrorCharUnterm ),
+        /* 0: eof */ ( AtEof,     ErrorUntermChar ),
         /* 1: ??? */ ( AtCharEnd, AccumStr        ),
         /* 2:  \  */ ( AtCharEnd, StartEsc        ),
-        /* 3:  '  */ ( AtEof,     ErrorCharLength ),
+        /* 3:  '  */ ( AtEof,     ErrorLengthChar ),
     ]),
 
     // AtCharEnd <( ' char )> : expecting the end of a character literal
@@ -673,8 +651,8 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Action
-        /* 0: eof */ ( AtEof,   ErrorCharUnterm ),
-        /* 1: ??? */ ( AtEof,   ErrorCharLength ),
+        /* 0: eof */ ( AtEof,   ErrorUntermChar ),
+        /* 1: ??? */ ( AtEof,   ErrorLengthChar ),
         /* 2:  '  */ ( Initial, YieldChar       ),
     ]),
 
@@ -690,7 +668,7 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Action
-        /* 0: eof */ ( AtEof,   ErrorStrUnterm ),
+        /* 0: eof */ ( AtEof,   ErrorUntermStr ),
         /* 1: ??? */ ( InStr,   AccumStr       ),
         /* 2:  \  */ ( InStr,   StartEsc       ),
         /* 3:  "  */ ( Initial, YieldStr       ),
@@ -708,7 +686,7 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State    Action
-        /* 0: eof */ ( AtEof,   ErrorRawUnterm ),
+        /* 0: eof */ ( AtEof,   ErrorUntermRaw ),
         /* 1: ??? */ ( InRaw,   AccumStr       ),
         /* 3:  `  */ ( Initial, YieldRaw       ),
     ]),
@@ -725,8 +703,8 @@ const STATES: &'static [TransitionSet] = &[
         x, x, 4, x, 5,10, x, x,  9, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //              State      Action
-        /*  0: eof */ ( AtEof,     ErrorEscUnterm  ),
-        /*  1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /*  0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /*  1: ??? */ ( AtEof,     ErrorInvalidEsc ),
         /*  2:  0  */ ( InStr,     YieldEscNul     ), // pops state
         /*  3:  n  */ ( InStr,     YieldEscLf      ), // pops state
         /*  4:  r  */ ( InStr,     YieldEscCr      ), // pops state
@@ -750,8 +728,8 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State      Action
-        /* 0: eof */ ( AtEof,     ErrorEscUnterm  ),
-        /* 1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
         /* 2: 0-9 */ ( AtEscHex1, AccumNumHexDig  ),
         /* 3: A-F */ ( AtEscHex1, AccumNumHexUc   ),
         /* 4: a-f */ ( AtEscHex1, AccumNumHexLc   ),
@@ -769,8 +747,8 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State  Action
-        /* 0: eof */ ( AtEof, ErrorEscUnterm  ),
-        /* 1: ??? */ ( AtEof, ErrorEscInvalid ),
+        /* 0: eof */ ( AtEof, ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof, ErrorInvalidEsc ),
         /* 2: 0-9 */ ( InStr, YieldEscHexDig  ), // pops state
         /* 3: A-F */ ( InStr, YieldEscHexUc   ), // pops state
         /* 4: a-f */ ( InStr, YieldEscHexLc   ), // pops state
@@ -788,8 +766,8 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State      Action
-        /* 0: eof */ ( AtEof,     ErrorEscUnterm  ),
-        /* 1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
         /* 2:  {  */ ( AtEscUni1, Skip            ),
     ]),
 
@@ -805,8 +783,8 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //             State      Action
-        /* 0: eof */ ( AtEof,     ErrorEscUnterm  ),
-        /* 1: ??? */ ( AtEof,     ErrorEscInvalid ),
+        /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
         /* 2: 0-9 */ ( AtEscUni1, AccumNumHexDig  ),
         /* 3: A-F */ ( AtEscUni1, AccumNumHexUc   ),
         /* 4: a-f */ ( AtEscUni1, AccumNumHexLc   ),
@@ -1007,7 +985,8 @@ struct Context {
     number:     u64,                    // number builder
     buffer:     String,                 // string builder
     strings:    Rc<Interner>,           // string interner
-    keywords:   HashMap<StrId, Token>   // keyword table
+    keywords:   HashMap<StrId, Token>,  // keyword table
+    messages:   Messages                // messages collector
 }
 
 impl Context {
@@ -1023,7 +1002,8 @@ impl Context {
             buffer:   String::with_capacity(128),
             number:   0,
             strings:  strings,
-            keywords: keywords
+            keywords: keywords,
+            messages: Messages::new()
         }
     }
 
@@ -1076,12 +1056,12 @@ impl Context {
 
         n = match n.checked_mul(base as u64) {
             Some(n) => n,
-            None    => return Some(Error(Lex_NumOverflow))
+            None    => return self.err_overflow_num()
         };
 
         n = match n.checked_add(digit as u64) {
             Some(n) => n,
-            None    => return Some(Error(Lex_NumOverflow))
+            None    => return self.err_overflow_num()
         };
 
         self.number = n;
@@ -1105,7 +1085,7 @@ impl Context {
     #[inline]
     fn str_add_esc(&mut self) -> Option<Token> {
         let n = self.number as u32;
-        if  n > UNICODE_MAX { return Some(Error(Lex_EscOverflow)) }
+        if  n > UNICODE_MAX { return self.err_overflow_esc() }
         let c = unsafe { mem::transmute(n) };
         self.buffer.push(c);
         None
@@ -1161,6 +1141,18 @@ impl Context {
             Some(&k) => k,
             None     => Id(id)
         }
+    }
+
+    // Error Actions
+
+    fn err_overflow_num(&mut self) -> Option<Token> {
+        self.messages.err_overflow_num(self.start);
+        Some(Error)
+    }
+
+    fn err_overflow_esc(&mut self) -> Option<Token> {
+        self.messages.err_overflow_esc(self.start);
+        Some(Error)
     }
 }
 
@@ -1370,8 +1362,8 @@ mod tests {
         fn yields_error(&mut self) -> &mut Self {
             let token = self.0.lex().1;
             match token {
-                Error(_) => {}, // expected
-                _        => panic!("lex() did not yield an error.")
+                Error => {}, // expected
+                _     => panic!("lex() did not yield an error.")
             };
             self
         }
