@@ -40,7 +40,7 @@ mod ast;
 mod interner;
 mod lexer;
 mod message;
-mod parser2;
+mod parser;
 mod util;
 
 fn main() {}
