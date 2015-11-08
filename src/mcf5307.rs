@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::borrow::Borrow;
+use std::io::{self, Write};
 
 use types::*;
 use util::*;
@@ -146,24 +147,38 @@ impl Mode {
     fn is_dst(&self) -> bool { self.uses() & U_DST != 0 }
 }
 
-pub fn add_g<'s, 'd, S, D>(src: S, dst: D) -> D
-    where S: Borrow<Operand<'s>>,
-          D: Borrow<Operand<'d>>
-{
-    {
-        let s = src.borrow();
-        let d = dst.borrow();
-        require_types_equal(s, d);
+pub struct CodeGen<W: io::Write> {
+    out: W
+}
 
-        let s = &s.mode;
-        let d = &d.mode;
-        match (s, d) {
-            (&Data(_), _) if d.is_dst() => write_insn_2(s, d),
-            (_, &Data(_)) if s.is_src() => write_insn_2(s, d),
-            _                           => panic!("X")
-        }
+impl<W> CodeGen<W> where W: io::Write {
+    pub fn new(out: W) -> Self {
+        CodeGen { out: out }
     }
-    dst
+
+    pub fn add_g<'s, 'd, S, D>(&mut self, src: S, dst: D) -> D
+        where S: Borrow<Operand<'s>>,
+              D: Borrow<Operand<'d>>
+    {
+        {
+            let s = src.borrow();
+            let d = dst.borrow();
+            require_types_equal(s, d);
+
+            let s = &s.mode;
+            let d = &d.mode;
+            match (s, d) {
+                (&Data(_), _) if d.is_dst() => self.write_insn_2("add", s, d),
+                (_, &Data(_)) if s.is_src() => self.write_insn_2("add", s, d),
+                _                           => panic!("X")
+            }
+        }
+        dst
+    }
+
+    fn write_insn_2(&mut self, op: &str, src: &Mode, dst: &Mode) {
+        // TODO
+    }
 }
 
 fn require_types_equal(a: &Operand, b: &Operand)
@@ -173,21 +188,24 @@ fn require_types_equal(a: &Operand, b: &Operand)
     }
 }
 
-fn write_insn_2(src: &Mode, dst: &Mode) {
-    // TODO
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::Mode::*;
+
+    use std::io;
+
     use types::*;
     use util::*;
 
     #[test]
     fn foo() {
-        let src = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Mode::Imm(Const::Const(4)) });
-        let dst = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Mode::Data(D0) });
-        let res = add_g(src, dst.clone());
+        let src = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Imm(Const::Const(4)) });
+        let dst = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Data(D0) });
+
+        let mut gen = CodeGen::new(io::stdout());
+
+        let res = gen.add_g(src, dst.clone());
         assert_eq!(dst, res);
     }
 }
