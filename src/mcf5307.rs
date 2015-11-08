@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::borrow::Borrow;
+use std::fmt::{self, Display, Formatter};
 use std::io::{self, Write};
 
 use types::*;
@@ -28,6 +29,15 @@ use util::*;
 pub enum Const {
     Name  (String),
     Const (u64), // TODO: make this work with types
+}
+
+impl Display for Const {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            &Const::Name  (ref s) => write!(f, "{}",    s),
+            &Const::Const (ref v) => write!(f, "{:#X}", v),
+        }
+    }
 }
 
 // Data Registers
@@ -46,6 +56,12 @@ pub const D7: DataReg = DataReg(7);
 
 static DATA_REGS: [DataReg; 8] = [D0, D1, D2, D3, D4, D5, D6, D7];
 
+impl Display for DataReg {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "%d{}", self.0)
+    }
+}
+
 // Address Registers
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -62,10 +78,30 @@ pub const A7: AddrReg = AddrReg(7);
 
 static ADDR_REGS: [AddrReg; 8] = [A0, A1, A2, A3, A4, A5, A6, A7];
 
+impl Display for AddrReg {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "%a{}", self.0)
+    }
+}
+
 // Control Registers
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
+
+impl Display for CtrlReg {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let s = match self {
+            &CtrlReg::VBR    => "vbr",
+            &CtrlReg::CACR   => "cacr",
+            &CtrlReg::ACR0   => "acr0",
+            &CtrlReg::ACR1   => "acr1",
+            &CtrlReg::MBAR   => "mbar",
+            &CtrlReg::RAMBAR => "rambar",
+        };
+        write!(f, "%{}", s)
+    }
+}
 
 // Index Registers
 
@@ -73,6 +109,15 @@ enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
 enum Index {
     Data (DataReg),
     Addr (AddrReg),
+}
+
+impl Display for Index {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            &Index::Data(ref r) => r.fmt(f),
+            &Index::Addr(ref r) => r.fmt(f),
+        }
+    }
 }
 
 // Operands
@@ -147,6 +192,31 @@ impl Mode {
     fn is_dst(&self) -> bool { self.uses() & U_DST != 0 }
 }
 
+impl fmt::Display for Mode {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            &Imm         (ref v)               => write!(f, "#{}",  v),
+            &Abs16       (ref v)               => write!(f, "{}:w", v),
+            &Abs32       (ref v)               => write!(f, "{}:l", v),
+            &Data        (ref r)               => r.fmt(f),
+            &Addr        (ref r)               => r.fmt(f),
+            &Ctrl        (ref r)               => r.fmt(f),
+            &Regs        (..)                  => write!(f, "?"),
+            &AddrInd     (ref r)               => write!(f, "({})",             r),
+            &AddrIndInc  (ref r)               => write!(f, "({})+",            r),
+            &AddrIndDec  (ref r)               => write!(f, "-({})",            r),
+            &AddrDisp    (ref b, ref d)        => write!(f, "({}, {})",         b, d),
+            &AddrDispIdx (ref b, ref d, ref i) => write!(f, "({}, {}, {}*{})",  b, d, i, 1),
+            &PcDisp      (       ref d)        => write!(f, "(%pc, {})",           d),
+            &PcDispIdx   (       ref d, ref i) => write!(f, "(%pc, {}, {}*{})",    d, i, 1),
+            &PC                                => write!(f, "%pc"),
+            &SR                                => write!(f, "%sr"),
+            &CCR                               => write!(f, "%ccr"),
+            &BC                                => write!(f, "bc"),
+        }
+    }
+}
+
 pub struct CodeGen<W: io::Write> {
     out: W
 }
@@ -177,7 +247,7 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 
     fn write_insn_2(&mut self, op: &str, src: &Mode, dst: &Mode) {
-        // TODO
+        writeln!(self.out, "    {} {}, {}", op, src, dst).unwrap();
     }
 }
 
