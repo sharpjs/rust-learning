@@ -108,7 +108,12 @@ const U_NONE: Uses = 0;
 const U_SRC:  Uses = 1 << 0;
 const U_DST:  Uses = 1 << 1;
 
-pub type Operand = (Pos, &'static Type, Mode);
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Operand<'a> {
+    pos:    Pos,
+    ty:     &'a Type,
+    mode:   Mode
+}
 
 impl Mode {
     fn uses(&self) -> Uses {
@@ -141,35 +146,29 @@ impl Mode {
     fn is_dst(&self) -> bool { self.uses() & U_DST != 0 }
 }
 
-pub fn add_g<S, D>(src: S, dst: D) -> D
-    where S: Borrow<Operand>,
-          D: Borrow<Operand>
+pub fn add_g<'s, 'd, S, D>(src: S, dst: D) -> D
+    where S: Borrow<Operand<'s>>,
+          D: Borrow<Operand<'d>>
 {
     {
         let s = src.borrow();
         let d = dst.borrow();
         require_types_equal(s, d);
 
-        let &(_, _, ref sm) = src.borrow();
-        let &(_, _, ref dm) = dst.borrow();
-
-        match (sm, dm) {
-            (&Data(_), _) if dm.is_dst() => write_insn_2(sm, dm),
-            (_, &Data(_)) if sm.is_src() => write_insn_2(sm, dm),
-            _                            => panic!("X")
+        let s = &s.mode;
+        let d = &d.mode;
+        match (s, d) {
+            (&Data(_), _) if d.is_dst() => write_insn_2(s, d),
+            (_, &Data(_)) if s.is_src() => write_insn_2(s, d),
+            _                           => panic!("X")
         }
     }
     dst
 }
 
-fn require_types_equal<A, B>(a: A, b: B)
-    where A: Borrow<Operand>,
-          B: Borrow<Operand>
+fn require_types_equal(a: &Operand, b: &Operand)
 {
-    let &(_, ref a, _) = a.borrow();
-    let &(_, ref b, _) = b.borrow();
-
-    if a != b {
+    if &a.ty != &b.ty {
         panic!("Type mismatch."); // TODO: Error
     }
 }
@@ -186,8 +185,8 @@ mod tests {
 
     #[test]
     fn foo() {
-        let src = Box::new((Pos::bof(), &U8, Mode::Imm(Const::Const(4))));
-        let dst = Box::new((Pos::bof(), &U8, Mode::Data(D0)));
+        let src = Box::new(Operand { pos: Pos::bof(), ty: &U8, mode: Mode::Imm(Const::Const(4)) });
+        let dst = Box::new(Operand { pos: Pos::bof(), ty: &U8, mode: Mode::Data(D0) });
         let res = add_g(src, dst.clone());
         assert_eq!(dst, res);
     }
