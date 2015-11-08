@@ -44,5 +44,7 @@ mod parser;
 mod types;
 mod util;
 
+mod mcf5307;
+
 fn main() {}
 
