@@ -38,15 +38,15 @@ pub struct Member {
 //    Int:    u64
 //}
 
-pub static U8:  Type = Int { value_width:  8, store_width:  8, signed: false };
-pub static U16: Type = Int { value_width: 16, store_width: 16, signed: false };
-pub static U32: Type = Int { value_width: 32, store_width: 32, signed: false };
-pub static U64: Type = Int { value_width: 64, store_width: 64, signed: false };
+pub const U8:  &'static Type = &Int { value_width:  8, store_width:  8, signed: false };
+pub const U16: &'static Type = &Int { value_width: 16, store_width: 16, signed: false };
+pub const U32: &'static Type = &Int { value_width: 32, store_width: 32, signed: false };
+pub const U64: &'static Type = &Int { value_width: 64, store_width: 64, signed: false };
 
-pub static I8:  Type = Int { value_width:  8, store_width:  8, signed: true };
-pub static I16: Type = Int { value_width: 16, store_width: 16, signed: true };
-pub static I32: Type = Int { value_width: 32, store_width: 32, signed: true };
-pub static I64: Type = Int { value_width: 64, store_width: 64, signed: true };
+pub const I8:  &'static Type = &Int { value_width:  8, store_width:  8, signed: true };
+pub const I16: &'static Type = &Int { value_width: 16, store_width: 16, signed: true };
+pub const I32: &'static Type = &Int { value_width: 32, store_width: 32, signed: true };
+pub const I64: &'static Type = &Int { value_width: 64, store_width: 64, signed: true };
 
 impl Type {
     pub fn is_scalar(&self) -> bool {

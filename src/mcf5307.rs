@@ -185,8 +185,8 @@ mod tests {
 
     #[test]
     fn foo() {
-        let src = Box::new(Operand { pos: Pos::bof(), ty: &U8, mode: Mode::Imm(Const::Const(4)) });
-        let dst = Box::new(Operand { pos: Pos::bof(), ty: &U8, mode: Mode::Data(D0) });
+        let src = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Mode::Imm(Const::Const(4)) });
+        let dst = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Mode::Data(D0) });
         let res = add_g(src, dst.clone());
         assert_eq!(dst, res);
     }
