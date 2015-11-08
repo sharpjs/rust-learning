@@ -163,27 +163,27 @@ pub struct Operand<'a> {
 
 impl Mode {
     fn uses(&self) -> Uses {
-        match *self {
-            Imm         (..) => U_SRC         ,
-            Abs16       (..) => U_SRC | U_DST ,    
-            Abs32       (..) => U_SRC | U_DST ,
-            Data        (..) => U_SRC | U_DST ,
-            Addr        (..) => U_SRC | U_DST ,
-            Ctrl        (..) =>         U_DST ,
-            AddrInd     (..) => U_SRC | U_DST ,
-            AddrIndInc  (..) => U_SRC | U_DST ,
-            AddrIndDec  (..) => U_SRC | U_DST ,
-            AddrDisp    (..) => U_SRC | U_DST ,
-            AddrDispIdx (..) => U_SRC | U_DST ,
-            PcDisp      (..) => U_SRC         ,
-            PcDispIdx   (..) => U_SRC         ,
-            _                => U_NONE
+        match self {
+            &Imm         (..) => U_SRC         ,
+            &Abs16       (..) => U_SRC | U_DST ,    
+            &Abs32       (..) => U_SRC | U_DST ,
+            &Data        (..) => U_SRC | U_DST ,
+            &Addr        (..) => U_SRC | U_DST ,
+            &Ctrl        (..) =>         U_DST ,
+            &AddrInd     (..) => U_SRC | U_DST ,
+            &AddrIndInc  (..) => U_SRC | U_DST ,
+            &AddrIndDec  (..) => U_SRC | U_DST ,
+            &AddrDisp    (..) => U_SRC | U_DST ,
+            &AddrDispIdx (..) => U_SRC | U_DST ,
+            &PcDisp      (..) => U_SRC         ,
+            &PcDispIdx   (..) => U_SRC         ,
+            _                 => U_NONE
         }
     }
 
     fn is_q(&self) -> bool {
-        match *self {
-            Imm(Const::Const(i)) => 1 <= i && i <= 8,
+        match self {
+            &Imm(Const::Const(i)) => 1 <= i && i <= 8,
             _ => false
         }
     }
@@ -272,9 +272,7 @@ mod tests {
     fn foo() {
         let src = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Imm(Const::Const(4)) });
         let dst = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Data(D0) });
-
         let mut gen = CodeGen::new(io::stdout());
-
         let res = gen.add_g(src, dst.clone());
         assert_eq!(dst, res);
     }
