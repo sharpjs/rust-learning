@@ -108,8 +108,7 @@ const U_NONE: Uses = 0;
 const U_SRC:  Uses = 1 << 0;
 const U_DST:  Uses = 1 << 1;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Operand (Pos, &'static Type, Mode);
+pub type Operand = (Pos, &'static Type, Mode);
 
 impl Mode {
     fn uses(&self) -> Uses {
@@ -147,16 +146,32 @@ pub fn add_g<S, D>(src: S, dst: D) -> D
           D: Borrow<Operand>
 {
     {
-        let &Operand(_, _, ref sm) = src.borrow();
-        let &Operand(_, _, ref dm) = dst.borrow();
+        let s = src.borrow();
+        let d = dst.borrow();
+        require_types_equal(s, d);
+
+        let &(_, _, ref sm) = src.borrow();
+        let &(_, _, ref dm) = dst.borrow();
 
         match (sm, dm) {
             (&Data(_), _) if dm.is_dst() => write_insn_2(sm, dm),
             (_, &Data(_)) if sm.is_src() => write_insn_2(sm, dm),
-            _            => {}
+            _                            => panic!("X")
         }
     }
     dst
+}
+
+fn require_types_equal<A, B>(a: A, b: B)
+    where A: Borrow<Operand>,
+          B: Borrow<Operand>
+{
+    let &(_, ref a, _) = a.borrow();
+    let &(_, ref b, _) = b.borrow();
+
+    if a != b {
+        panic!("Type mismatch."); // TODO: Error
+    }
 }
 
 fn write_insn_2(src: &Mode, dst: &Mode) {
@@ -171,10 +186,10 @@ mod tests {
 
     #[test]
     fn foo() {
-        let src = Operand(Pos::bof(), &U8, Mode::Imm(Const::Const(4)));
-        let dst = Operand(Pos::bof(), &U8, Mode::Data(D0));
-        let res = add_g(&src, &dst);
-        assert_eq!(&dst, res);
+        let src = Box::new((Pos::bof(), &U8, Mode::Imm(Const::Const(4))));
+        let dst = Box::new((Pos::bof(), &U8, Mode::Data(D0)));
+        let res = add_g(src, dst.clone());
+        assert_eq!(dst, res);
     }
 }
 
