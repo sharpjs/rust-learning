@@ -41,6 +41,7 @@ mod interner;
 mod lexer;
 mod message;
 mod parser;
+mod types;
 mod util;
 
 fn main() {}
