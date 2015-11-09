@@ -23,19 +23,24 @@ use std::io::{self, Write};
 use types::*;
 use util::*;
 
-// Constants
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Const {
-    Name  (String),
-    Const (u64), // TODO: make this work with types
+pub trait Modey : Display {
+    fn uses   (&self) -> Uses;
+    fn is_q   (&self) -> bool { false }
+    fn is_src (&self) -> bool { self.uses() & U_SRC != 0 }
+    fn is_dst (&self) -> bool { self.uses() & U_DST != 0 }
 }
+
+impl Modey for DataReg {
+    fn uses(&self) -> Uses { U_SRC | U_DST }
+}
+
+// Immediate
 
 impl Display for Const {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            &Const::Name  (ref s) => write!(f, "{}",    s),
-            &Const::Const (ref v) => write!(f, "{:#X}", v),
+            &Const::Sym(ref s) => write!(f, "?{}",   s),
+            &Const::Num(ref v) => write!(f, "{:#X}", v),
         }
     }
 }
@@ -183,7 +188,7 @@ impl Mode {
 
     fn is_q(&self) -> bool {
         match self {
-            &Imm(Const::Const(i)) => 1 <= i && i <= 8,
+            &Imm(Const::Num(i)) => 1 <= i && i <= 8,
             _ => false
         }
     }
@@ -270,7 +275,7 @@ mod tests {
 
     #[test]
     fn foo() {
-        let src = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Imm(Const::Const(4)) });
+        let src = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Imm(Const::Num(4)) });
         let dst = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Data(D0) });
         let mut gen = CodeGen::new(io::stdout());
         let res = gen.add_g(src, dst.clone());

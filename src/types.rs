@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::rc::Rc;
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type {
     Int     { value_width: u8, store_width: u8, signed: bool },
@@ -29,14 +31,15 @@ use self::Type::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Member {
-    name:   String,
+    name:   Rc<String>,
     type_:  Box<Type>,
 }
 
-//#[derive(Clone, Eq, PartialEq, Debug)]
-//pub enum Value {
-//    Int:    u64
-//}
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Const {
+    Sym(Rc<String>),
+    Num(u64),
+}
 
 pub const U8:  &'static Type = &Int { value_width:  8, store_width:  8, signed: false };
 pub const U16: &'static Type = &Int { value_width: 16, store_width: 16, signed: false };
