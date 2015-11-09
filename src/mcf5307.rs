@@ -170,18 +170,18 @@ impl Mode {
     fn uses(&self) -> Uses {
         match self {
             &Imm         (..) => U_SRC         ,
+            &PcDisp      (..) => U_SRC         ,
+            &PcDispIdx   (..) => U_SRC         ,
             &Abs16       (..) => U_SRC | U_DST ,    
             &Abs32       (..) => U_SRC | U_DST ,
             &Data        (..) => U_SRC | U_DST ,
             &Addr        (..) => U_SRC | U_DST ,
-            &Ctrl        (..) =>         U_DST ,
             &AddrInd     (..) => U_SRC | U_DST ,
             &AddrIndInc  (..) => U_SRC | U_DST ,
             &AddrIndDec  (..) => U_SRC | U_DST ,
             &AddrDisp    (..) => U_SRC | U_DST ,
             &AddrDispIdx (..) => U_SRC | U_DST ,
-            &PcDisp      (..) => U_SRC         ,
-            &PcDispIdx   (..) => U_SRC         ,
+            &Ctrl        (..) =>         U_DST ,
             _                 => U_NONE
         }
     }
