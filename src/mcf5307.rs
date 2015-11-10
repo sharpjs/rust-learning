@@ -16,30 +16,59 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(non_upper_case_globals)]
+
 use std::borrow::Borrow;
 use std::fmt::{self, Display, Formatter};
 use std::io::{self, Write};
 
 use types::*;
+use types::*;
 use util::*;
 
-pub trait Modey : Display {
-    fn uses   (&self) -> Uses;
-    fn is_q   (&self) -> bool { false }
-    fn is_src (&self) -> bool { self.uses() & U_SRC != 0 }
-    fn is_dst (&self) -> bool { self.uses() & U_DST != 0 }
-}
+// Addressing Mode Id
 
-impl Modey for DataReg {
-    fn uses(&self) -> Uses { U_SRC | U_DST }
-}
+// NOTE: Required because stable Rust does not provide an API to read enum
+// discriminator values.
 
-// Immediate
+// NOTE: Cannot use newtype pattern here, as Rust does not have "generalized
+// newtype deriving" like Haskell.  We would want ModeId to derive BitOr.
+
+type ModeId = u32;
+const M_Imm:         ModeId = 1 <<  0;
+const M_Abs16:       ModeId = 1 <<  1;
+const M_Abs32:       ModeId = 1 <<  2;
+const M_Data:        ModeId = 1 <<  3;
+const M_Addr:        ModeId = 1 <<  4;
+const M_Ctrl:        ModeId = 1 <<  5;
+const M_Regs:        ModeId = 1 <<  6;
+const M_AddrInd:     ModeId = 1 <<  7;
+const M_AddrIndInc:  ModeId = 1 <<  8;
+const M_AddrIndDec:  ModeId = 1 <<  9;
+const M_AddrDisp:    ModeId = 1 << 10;
+const M_AddrDispIdx: ModeId = 1 << 11;
+const M_PcDisp:      ModeId = 1 << 12;
+const M_PcDispIdx:   ModeId = 1 << 13;
+const M_PC:          ModeId = 1 << 14;
+const M_SR:          ModeId = 1 << 15;
+const M_CCR:         ModeId = 1 << 16;
+const M_BC:          ModeId = 1 << 17;
+
+const M_Reg: ModeId
+    = M_Data | M_Addr;
+
+const M_Dst: ModeId
+    = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
+
+const M_Src: ModeId
+    = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
+
+// Constants (defined in types.rs)
 
 impl Display for Const {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            &Const::Sym(ref s) => write!(f, "?{}",   s),
+            &Const::Sym(ref s) => s.fmt(f),
             &Const::Num(ref v) => write!(f, "{:#X}", v),
         }
     }
@@ -92,19 +121,19 @@ impl Display for AddrReg {
 // Control Registers
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
+pub enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
 
 impl Display for CtrlReg {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let s = match self {
-            &CtrlReg::VBR    => "vbr",
-            &CtrlReg::CACR   => "cacr",
-            &CtrlReg::ACR0   => "acr0",
-            &CtrlReg::ACR1   => "acr1",
-            &CtrlReg::MBAR   => "mbar",
-            &CtrlReg::RAMBAR => "rambar",
+            &CtrlReg::VBR    => "%vbr",
+            &CtrlReg::CACR   => "%cacr",
+            &CtrlReg::ACR0   => "%acr0",
+            &CtrlReg::ACR1   => "%acr1",
+            &CtrlReg::MBAR   => "%mbar",
+            &CtrlReg::RAMBAR => "%rambar",
         };
-        write!(f, "%{}", s)
+        s.fmt(f)
     }
 }
 
@@ -138,7 +167,6 @@ pub enum Mode {
     Data        (DataReg),
     Addr        (AddrReg),
     Ctrl        (CtrlReg),
-    Regs        (Vec<DataReg>, Vec<AddrReg>),
 
     // Indirect
     AddrInd     (AddrReg),
@@ -150,14 +178,9 @@ pub enum Mode {
     PcDispIdx   (         Const, Index),
 
     // Special
-    PC, SR, CCR, BC,
+    Regs(u32), PC, SR, CCR, BC,
 }
 use self::Mode::*;
-
-type Uses = u16;
-const U_NONE: Uses = 0;
-const U_SRC:  Uses = 1 << 0;
-const U_DST:  Uses = 1 << 1;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Operand<'a> {
@@ -167,23 +190,31 @@ pub struct Operand<'a> {
 }
 
 impl Mode {
-    fn uses(&self) -> Uses {
+    fn id(&self) -> ModeId {
         match self {
-            &Imm         (..) => U_SRC         ,
-            &PcDisp      (..) => U_SRC         ,
-            &PcDispIdx   (..) => U_SRC         ,
-            &Abs16       (..) => U_SRC | U_DST ,    
-            &Abs32       (..) => U_SRC | U_DST ,
-            &Data        (..) => U_SRC | U_DST ,
-            &Addr        (..) => U_SRC | U_DST ,
-            &AddrInd     (..) => U_SRC | U_DST ,
-            &AddrIndInc  (..) => U_SRC | U_DST ,
-            &AddrIndDec  (..) => U_SRC | U_DST ,
-            &AddrDisp    (..) => U_SRC | U_DST ,
-            &AddrDispIdx (..) => U_SRC | U_DST ,
-            &Ctrl        (..) =>         U_DST ,
-            _                 => U_NONE
+            &Imm         (..) => M_Imm,
+            &Abs16       (..) => M_Abs16,
+            &Abs32       (..) => M_Abs32,
+            &Data        (..) => M_Data,
+            &Addr        (..) => M_Addr,
+            &Ctrl        (..) => M_Ctrl,
+            &AddrInd     (..) => M_AddrInd,
+            &AddrIndInc  (..) => M_AddrIndInc,
+            &AddrIndDec  (..) => M_AddrIndDec,
+            &AddrDisp    (..) => M_AddrDisp,
+            &AddrDispIdx (..) => M_AddrDispIdx,
+            &PcDisp      (..) => M_PcDisp,
+            &PcDispIdx   (..) => M_PcDispIdx,
+            &Regs        (..) => M_Regs,
+            &PC          (..) => M_PC,
+            &SR          (..) => M_SR,
+            &CCR         (..) => M_CCR,
+            &BC          (..) => M_BC,
         }
+    }
+
+    fn is(&self, modes: ModeId) -> bool {
+        self.id() & modes != 0
     }
 
     fn is_q(&self) -> bool {
@@ -192,13 +223,10 @@ impl Mode {
             _ => false
         }
     }
-
-    fn is_src(&self) -> bool { self.uses() & U_SRC != 0 }
-    fn is_dst(&self) -> bool { self.uses() & U_DST != 0 }
 }
 
-impl fmt::Display for Mode {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl Display for Mode {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             &Imm         (ref v)               => write!(f, "#{}",  v),
             &Abs16       (ref v)               => write!(f, "{}:w", v),
@@ -206,14 +234,14 @@ impl fmt::Display for Mode {
             &Data        (ref r)               => r.fmt(f),
             &Addr        (ref r)               => r.fmt(f),
             &Ctrl        (ref r)               => r.fmt(f),
-            &Regs        (..)                  => write!(f, "?"),
-            &AddrInd     (ref r)               => write!(f, "({})",             r),
-            &AddrIndInc  (ref r)               => write!(f, "({})+",            r),
-            &AddrIndDec  (ref r)               => write!(f, "-({})",            r),
-            &AddrDisp    (ref b, ref d)        => write!(f, "({}, {})",         b, d),
-            &AddrDispIdx (ref b, ref d, ref i) => write!(f, "({}, {}, {}*{})",  b, d, i, 1),
-            &PcDisp      (       ref d)        => write!(f, "(%pc, {})",           d),
-            &PcDispIdx   (       ref d, ref i) => write!(f, "(%pc, {}, {}*{})",    d, i, 1),
+            &Regs        (..)                  => write!(f, "**TODO**"),
+            &AddrInd     (ref r)               => write!(f, "({})",  r),
+            &AddrIndInc  (ref r)               => write!(f, "({})+", r),
+            &AddrIndDec  (ref r)               => write!(f, "-({})", r),
+            &AddrDisp    (ref b, ref d)        => write!(f, "({},{})",       b, d),
+            &AddrDispIdx (ref b, ref d, ref i) => write!(f, "({},{},{}*{})", b, d, i, 1),
+            &PcDisp      (       ref d)        => write!(f, "(%pc,{})",       d),
+            &PcDispIdx   (       ref d, ref i) => write!(f, "(%pc,{},{}*{})", d, i, 1),
             &PC                                => write!(f, "%pc"),
             &SR                                => write!(f, "%sr"),
             &CCR                               => write!(f, "%ccr"),
@@ -221,6 +249,8 @@ impl fmt::Display for Mode {
         }
     }
 }
+
+// Code Generator
 
 pub struct CodeGen<W: io::Write> {
     out: W
@@ -243,8 +273,8 @@ impl<W> CodeGen<W> where W: io::Write {
             let s = &s.mode;
             let d = &d.mode;
             match (s, d) {
-                (&Data(_), _) if d.is_dst() => self.write_insn_2("add", s, d),
-                (_, &Data(_)) if s.is_src() => self.write_insn_2("add", s, d),
+                (&Data(_), _) if d.is(M_Dst) => self.write_insn_2("add", s, d),
+                (_, &Data(_)) if s.is(M_Src) => self.write_insn_2("add", s, d),
                 _                           => panic!("X")
             }
         }
