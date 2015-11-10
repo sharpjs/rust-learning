@@ -23,7 +23,6 @@ use std::fmt::{self, Display, Formatter};
 use std::io::{self, Write};
 
 use types::*;
-use types::*;
 use util::*;
 
 // Addressing Mode Id
