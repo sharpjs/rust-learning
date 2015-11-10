@@ -66,9 +66,9 @@ const M_Src: ModeId
 
 impl Display for Const {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            &Const::Sym(ref s) => s.fmt(f),
-            &Const::Num(ref v) => write!(f, "{:#X}", v),
+        match *self {
+            Const::Sym(ref s) => s.fmt(f),
+            Const::Num(ref v) => write!(f, "{:#X}", v),
         }
     }
 }
@@ -124,13 +124,13 @@ pub enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
 
 impl Display for CtrlReg {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let s = match self {
-            &CtrlReg::VBR    => "%vbr",
-            &CtrlReg::CACR   => "%cacr",
-            &CtrlReg::ACR0   => "%acr0",
-            &CtrlReg::ACR1   => "%acr1",
-            &CtrlReg::MBAR   => "%mbar",
-            &CtrlReg::RAMBAR => "%rambar",
+        let s = match *self {
+            CtrlReg::VBR    => "%vbr",
+            CtrlReg::CACR   => "%cacr",
+            CtrlReg::ACR0   => "%acr0",
+            CtrlReg::ACR1   => "%acr1",
+            CtrlReg::MBAR   => "%mbar",
+            CtrlReg::RAMBAR => "%rambar",
         };
         s.fmt(f)
     }
@@ -146,9 +146,9 @@ enum Index {
 
 impl Display for Index {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            &Index::Data(ref r) => r.fmt(f),
-            &Index::Addr(ref r) => r.fmt(f),
+        match *self {
+            Index::Data(ref r) => r.fmt(f),
+            Index::Addr(ref r) => r.fmt(f),
         }
     }
 }
@@ -190,25 +190,25 @@ pub struct Operand<'a> {
 
 impl Mode {
     fn id(&self) -> ModeId {
-        match self {
-            &Imm         (..) => M_Imm,
-            &Abs16       (..) => M_Abs16,
-            &Abs32       (..) => M_Abs32,
-            &Data        (..) => M_Data,
-            &Addr        (..) => M_Addr,
-            &Ctrl        (..) => M_Ctrl,
-            &AddrInd     (..) => M_AddrInd,
-            &AddrIndInc  (..) => M_AddrIndInc,
-            &AddrIndDec  (..) => M_AddrIndDec,
-            &AddrDisp    (..) => M_AddrDisp,
-            &AddrDispIdx (..) => M_AddrDispIdx,
-            &PcDisp      (..) => M_PcDisp,
-            &PcDispIdx   (..) => M_PcDispIdx,
-            &Regs        (..) => M_Regs,
-            &PC          (..) => M_PC,
-            &SR          (..) => M_SR,
-            &CCR         (..) => M_CCR,
-            &BC          (..) => M_BC,
+        match *self {
+            Imm         (..) => M_Imm,
+            Abs16       (..) => M_Abs16,
+            Abs32       (..) => M_Abs32,
+            Data        (..) => M_Data,
+            Addr        (..) => M_Addr,
+            Ctrl        (..) => M_Ctrl,
+            AddrInd     (..) => M_AddrInd,
+            AddrIndInc  (..) => M_AddrIndInc,
+            AddrIndDec  (..) => M_AddrIndDec,
+            AddrDisp    (..) => M_AddrDisp,
+            AddrDispIdx (..) => M_AddrDispIdx,
+            PcDisp      (..) => M_PcDisp,
+            PcDispIdx   (..) => M_PcDispIdx,
+            Regs        (..) => M_Regs,
+            PC          (..) => M_PC,
+            SR          (..) => M_SR,
+            CCR         (..) => M_CCR,
+            BC          (..) => M_BC,
         }
     }
 
@@ -217,8 +217,8 @@ impl Mode {
     }
 
     fn is_q(&self) -> bool {
-        match self {
-            &Imm(Const::Num(i)) => 1 <= i && i <= 8,
+        match *self {
+            Imm(Const::Num(i)) => 1 <= i && i <= 8,
             _ => false
         }
     }
@@ -226,25 +226,25 @@ impl Mode {
 
 impl Display for Mode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            &Imm         (ref v)               => write!(f, "#{}",  v),
-            &Abs16       (ref v)               => write!(f, "{}:w", v),
-            &Abs32       (ref v)               => write!(f, "{}:l", v),
-            &Data        (ref r)               => r.fmt(f),
-            &Addr        (ref r)               => r.fmt(f),
-            &Ctrl        (ref r)               => r.fmt(f),
-            &Regs        (..)                  => write!(f, "**TODO**"),
-            &AddrInd     (ref r)               => write!(f, "({})",  r),
-            &AddrIndInc  (ref r)               => write!(f, "({})+", r),
-            &AddrIndDec  (ref r)               => write!(f, "-({})", r),
-            &AddrDisp    (ref b, ref d)        => write!(f, "({},{})",       b, d),
-            &AddrDispIdx (ref b, ref d, ref i) => write!(f, "({},{},{}*{})", b, d, i, 1),
-            &PcDisp      (       ref d)        => write!(f, "(%pc,{})",       d),
-            &PcDispIdx   (       ref d, ref i) => write!(f, "(%pc,{},{}*{})", d, i, 1),
-            &PC                                => write!(f, "%pc"),
-            &SR                                => write!(f, "%sr"),
-            &CCR                               => write!(f, "%ccr"),
-            &BC                                => write!(f, "bc"),
+        match *self {
+            Imm         (ref v)               => write!(f, "#{}",  v),
+            Abs16       (ref v)               => write!(f, "{}:w", v),
+            Abs32       (ref v)               => write!(f, "{}:l", v),
+            Data        (ref r)               => r.fmt(f),
+            Addr        (ref r)               => r.fmt(f),
+            Ctrl        (ref r)               => r.fmt(f),
+            Regs        (..)                  => write!(f, "**TODO**"),
+            AddrInd     (ref r)               => write!(f, "({})",  r),
+            AddrIndInc  (ref r)               => write!(f, "({})+", r),
+            AddrIndDec  (ref r)               => write!(f, "-({})", r),
+            AddrDisp    (ref b, ref d)        => write!(f, "({},{})",       b, d),
+            AddrDispIdx (ref b, ref d, ref i) => write!(f, "({},{},{}*{})", b, d, i, 1),
+            PcDisp      (       ref d)        => write!(f, "(%pc,{})",       d),
+            PcDispIdx   (       ref d, ref i) => write!(f, "(%pc,{},{}*{})", d, i, 1),
+            PC                                => write!(f, "%pc"),
+            SR                                => write!(f, "%sr"),
+            CCR                               => write!(f, "%ccr"),
+            BC                                => write!(f, "bc"),
         }
     }
 }
