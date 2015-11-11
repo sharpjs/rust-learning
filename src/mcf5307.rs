@@ -19,7 +19,7 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Display, Formatter, Write as WriteFmt};
 use std::io::{self, Write};
 
 use types::*;
@@ -177,7 +177,7 @@ pub enum Mode {
     PcDispIdx   (         Const, Index),
 
     // Special
-    Regs(u32), PC, SR, CCR, BC,
+    Regs(u8, u8), PC, SR, CCR, BC,
 }
 use self::Mode::*;
 
@@ -233,7 +233,7 @@ impl Display for Mode {
             Data        (ref r)               => r.fmt(f),
             Addr        (ref r)               => r.fmt(f),
             Ctrl        (ref r)               => r.fmt(f),
-            Regs        (..)                  => write!(f, "**TODO**"),
+            Regs        (d, a)                => fmt_regs(d, a, f),
             AddrInd     (ref r)               => write!(f, "({})",  r),
             AddrIndInc  (ref r)               => write!(f, "({})+", r),
             AddrIndDec  (ref r)               => write!(f, "-({})", r),
@@ -247,6 +247,51 @@ impl Display for Mode {
             BC                                => write!(f, "bc"),
         }
     }
+}
+
+fn fmt_regs(data: u8, addr: u8, f: &mut Formatter) -> fmt::Result {
+    let join =
+    try!(fmt_list(data, &DATA_REGS, false, f));
+    try!(fmt_list(addr, &ADDR_REGS, join,  f));
+    Ok(())
+}
+
+fn fmt_list<R>(bits: u8, regs: &[R; 8], mut join: bool, f: &mut Formatter)
+    -> Result<bool, fmt::Error>
+    where R: Display
+{
+    let mut n     = 0;      // register number
+    let mut bit   = 1;      // bit for register in bitmask
+    let mut start = None;   // register number starting current range
+
+    loop {
+        let has = n < 8 && (bits & bit) != 0;
+
+        match (has, start) {
+            (true, None) => {
+                start = Some(n)
+            },
+            (false, Some(s)) => {
+                if join {
+                    try!(f.write_char('/'))
+                }
+                try!(regs[s].fmt(f));
+                if n > s + 1 {
+                    try!(f.write_char('-'));
+                    try!(regs[n - 1].fmt(f));
+                }
+                start = None;
+                join  = true;
+            },
+            _ => { /*nop*/ }
+        }
+
+        if n == 8 { break }
+        n += 1;
+        bit = bit.wrapping_shl(1);
+    }
+
+    Ok(join)
 }
 
 // Code Generator
@@ -309,6 +354,13 @@ mod tests {
         let mut gen = CodeGen::new(io::stdout());
         let res = gen.add_g(src, dst.clone());
         assert_eq!(dst, res);
+    }
+
+    #[test]
+    fn fmt_regs() {
+        let s = format!("{}", Regs(0xE3, 0x3E));
+
+        assert_eq!(s, "%d0-%d1/%d5-%d7/%a1-%a5");
     }
 }
 
