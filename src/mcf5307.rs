@@ -21,9 +21,7 @@
 use std::borrow::Borrow;
 use std::fmt::{self, Display, Formatter, Write};
 use std::ops::BitOr;
-use std::ops::BitAnd;
 use std::io;
-use std::marker::PhantomData;
 
 use types::*;
 use util::*;
@@ -83,27 +81,31 @@ impl Display for AddrReg {
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct RegSet (u16);
 
+// This is a bitmask of the numbered registers:
+//   bits: [15 .. 08] [07 .. 00]
+//   regs:  a7 .. a0   d7 .. d0
+
 impl From<DataReg> for RegSet {
-    fn from(r: DataReg) -> RegSet { RegSet(1 << 0 << r.num()) }
+    fn from(r: DataReg) -> RegSet { RegSet(0x0001 << r.num()) }
 }
 
 impl From<AddrReg> for RegSet {
-    fn from(r: AddrReg) -> RegSet { RegSet(1 << 8 << r.num()) }
+    fn from(r: AddrReg) -> RegSet { RegSet(0x0100 << r.num()) }
 }
 
-impl<T> BitOr<T> for DataReg where T: Into<RegSet> {
+impl<R: Into<RegSet>> BitOr<R> for DataReg {
     type Output = RegSet;
-    fn bitor(self, r: T) -> RegSet { RegSet::from(self) | r.into() }
+    fn bitor(self, r: R) -> RegSet { RegSet::from(self) | r.into() }
 }
 
-impl<T> BitOr<T> for AddrReg where T: Into<RegSet> {
+impl<R: Into<RegSet>> BitOr<R> for AddrReg {
     type Output = RegSet;
-    fn bitor(self, r: T) -> RegSet { RegSet::from(self) | r.into() }
+    fn bitor(self, r: R) -> RegSet { RegSet::from(self) | r.into() }
 }
 
-impl<T> BitOr<T> for RegSet where T: Into<RegSet> {
+impl<R: Into<RegSet>> BitOr<R> for RegSet {
     type Output = RegSet;
-    fn bitor(self, r: T) -> RegSet { RegSet(self.0 | r.into().0) }
+    fn bitor(self, r: R) -> RegSet { RegSet(self.0 | r.into().0) }
 }
 
 impl Display for RegSet {
