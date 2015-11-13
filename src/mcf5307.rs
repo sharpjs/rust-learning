@@ -96,7 +96,7 @@ impl Display for CtrlReg {
             CtrlReg::MBAR   => "%mbar",
             CtrlReg::RAMBAR => "%rambar",
         };
-        s.fmt(f)
+        f.write_str(s)
     }
 }
 
@@ -204,10 +204,10 @@ impl Mode {
             PcDisp      (..) => M_PcDisp,
             PcDispIdx   (..) => M_PcDispIdx,
             Regs        (..) => M_Regs,
-            PC          (..) => M_PC,
-            SR          (..) => M_SR,
-            CCR         (..) => M_CCR,
-            BC          (..) => M_BC,
+            PC               => M_PC,
+            SR               => M_SR,
+            CCR              => M_CCR,
+            BC               => M_BC,
         }
     }
 
@@ -240,10 +240,10 @@ impl Display for Mode {
             AddrDispIdx (ref b, ref d, ref i) => write!(f, "({},{},{}*{})", b, d, i, 1),
             PcDisp      (       ref d)        => write!(f, "(%pc,{})",       d),
             PcDispIdx   (       ref d, ref i) => write!(f, "(%pc,{},{}*{})", d, i, 1),
-            PC                                => write!(f, "%pc"),
-            SR                                => write!(f, "%sr"),
-            CCR                               => write!(f, "%ccr"),
-            BC                                => write!(f, "bc"),
+            PC                                => f.write_str("%pc"),
+            SR                                => f.write_str("%sr"),
+            CCR                               => f.write_str("%ccr"),
+            BC                                => f.write_str("bc"),
         }
     }
 }
