@@ -67,8 +67,9 @@ const M_Src: ModeId
 impl Display for Const {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Const::Sym(ref s) => s.fmt(f),
-            Const::Num(ref v) => write!(f, "{:#X}", v),
+            Const::Sym(ref s)           => s.fmt(f),
+            Const::Num(    v) if v < 10 => write!(f, "{}",    v),
+            Const::Num(    v)           => write!(f, "{:#X}", v),
         }
     }
 }
