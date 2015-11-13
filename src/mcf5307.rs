@@ -19,8 +19,11 @@
 #![allow(non_upper_case_globals)]
 
 use std::borrow::Borrow;
-use std::fmt::{self, Display, Formatter, Write as WriteFmt};
-use std::io::{self, Write};
+use std::fmt::{self, Display, Formatter, Write};
+use std::ops::BitOr;
+use std::ops::BitAnd;
+use std::io;
+use std::marker::PhantomData;
 
 use types::*;
 use util::*;
@@ -40,45 +43,114 @@ impl Display for Const {
 // Data Registers
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct DataReg (u8);
+#[repr(u8)]
+pub enum DataReg { D0, D1, D2, D3, D4, D5, D6, D7 }
+use self::DataReg::*;
 
-pub const D0: DataReg = DataReg(0);
-pub const D1: DataReg = DataReg(1);
-pub const D2: DataReg = DataReg(2);
-pub const D3: DataReg = DataReg(3);
-pub const D4: DataReg = DataReg(4);
-pub const D5: DataReg = DataReg(5);
-pub const D6: DataReg = DataReg(6);
-pub const D7: DataReg = DataReg(7);
+pub static DATA_REGS: [DataReg; 8] = [D0, D1, D2, D3, D4, D5, D6, D7];
 
-static DATA_REGS: [DataReg; 8] = [D0, D1, D2, D3, D4, D5, D6, D7];
+impl DataReg {
+    fn num(self) -> u8 { self as u8 }
+}
 
 impl Display for DataReg {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "%d{}", self.0)
+        write!(f, "%d{}", *self as u8)
     }
 }
 
 // Address Registers
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-pub struct AddrReg (u8);
+#[repr(u8)]
+pub enum AddrReg { A0, A1, A2, A3, A4, A5, A6, A7 }
+use self::AddrReg::*;
 
-pub const A0: AddrReg = AddrReg(0);
-pub const A1: AddrReg = AddrReg(1);
-pub const A2: AddrReg = AddrReg(2);
-pub const A3: AddrReg = AddrReg(3);
-pub const A4: AddrReg = AddrReg(4);
-pub const A5: AddrReg = AddrReg(5);
-pub const A6: AddrReg = AddrReg(6);
-pub const A7: AddrReg = AddrReg(7);
+pub static ADDR_REGS: [AddrReg; 8] = [A0, A1, A2, A3, A4, A5, A6, A7];
 
-static ADDR_REGS: [AddrReg; 8] = [A0, A1, A2, A3, A4, A5, A6, A7];
+impl AddrReg {
+    fn num(self) -> u8 { self as u8 }
+}
 
 impl Display for AddrReg {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "%a{}", self.0)
+        write!(f, "%a{}", *self as u8)
     }
+}
+
+// Register Set
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct RegSet (u16);
+
+impl From<DataReg> for RegSet {
+    fn from(r: DataReg) -> RegSet { RegSet(1 << 0 << r.num()) }
+}
+
+impl From<AddrReg> for RegSet {
+    fn from(r: AddrReg) -> RegSet { RegSet(1 << 8 << r.num()) }
+}
+
+impl<T> BitOr<T> for DataReg where T: Into<RegSet> {
+    type Output = RegSet;
+    fn bitor(self, r: T) -> RegSet { RegSet::from(self) | r.into() }
+}
+
+impl<T> BitOr<T> for AddrReg where T: Into<RegSet> {
+    type Output = RegSet;
+    fn bitor(self, r: T) -> RegSet { RegSet::from(self) | r.into() }
+}
+
+impl<T> BitOr<T> for RegSet where T: Into<RegSet> {
+    type Output = RegSet;
+    fn bitor(self, r: T) -> RegSet { RegSet(self.0 | r.into().0) }
+}
+
+impl Display for RegSet {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let join =
+        try!(fmt_regs((self.0 & 0xFF) as u8, &DATA_REGS, false, f));
+        try!(fmt_regs((self.0 >>   8) as u8, &ADDR_REGS, join,  f));
+        Ok(())
+    }
+}
+
+fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool, f: &mut Formatter)
+    -> Result<bool, fmt::Error>
+    where R: Display
+{
+    let mut n     = 0;      // register number
+    let mut bit   = 1;      // bit for register in bitmask
+    let mut start = None;   // register number starting current range
+
+    loop {
+        let has = n < 8 && (bits & bit) != 0;
+
+        match (has, start) {
+            (true, None) => {
+                start = Some(n)
+            },
+            (false, Some(s)) => {
+                if join {
+                    try!(f.write_char('/'))
+                }
+                try!(regs[s].fmt(f));
+                if n > s + 1 {
+                    try!(f.write_char('-'));
+                    try!(regs[n - 1].fmt(f));
+                }
+                start = None;
+                join  = true;
+            },
+            _ => { /*nop*/ }
+        }
+
+        if n == 8 { break }
+        n += 1;
+        bit = bit.wrapping_shl(1);
+    }
+
+    Ok(join)
 }
 
 // Control Registers
@@ -165,6 +237,7 @@ pub enum Mode {
     Data        (DataReg),
     Addr        (AddrReg),
     Ctrl        (CtrlReg),
+    Regs        (RegSet),
 
     // Indirect
     AddrInd     (AddrReg),
@@ -176,7 +249,7 @@ pub enum Mode {
     PcDispIdx   (         Const, Index),
 
     // Special
-    Regs(u8, u8), PC, SR, CCR, BC,
+    PC, SR, CCR, BC,
 }
 use self::Mode::*;
 
@@ -232,7 +305,7 @@ impl Display for Mode {
             Data        (ref r)               => r.fmt(f),
             Addr        (ref r)               => r.fmt(f),
             Ctrl        (ref r)               => r.fmt(f),
-            Regs        (d, a)                => fmt_regs(d, a, f),
+            Regs        (ref r)               => r.fmt(f),
             AddrInd     (ref r)               => write!(f, "({})",  r),
             AddrIndInc  (ref r)               => write!(f, "({})+", r),
             AddrIndDec  (ref r)               => write!(f, "-({})", r),
@@ -246,51 +319,6 @@ impl Display for Mode {
             BC                                => f.write_str("bc"),
         }
     }
-}
-
-fn fmt_regs(data: u8, addr: u8, f: &mut Formatter) -> fmt::Result {
-    let join =
-    try!(fmt_list(data, &DATA_REGS, false, f));
-    try!(fmt_list(addr, &ADDR_REGS, join,  f));
-    Ok(())
-}
-
-fn fmt_list<R>(bits: u8, regs: &[R; 8], mut join: bool, f: &mut Formatter)
-    -> Result<bool, fmt::Error>
-    where R: Display
-{
-    let mut n     = 0;      // register number
-    let mut bit   = 1;      // bit for register in bitmask
-    let mut start = None;   // register number starting current range
-
-    loop {
-        let has = n < 8 && (bits & bit) != 0;
-
-        match (has, start) {
-            (true, None) => {
-                start = Some(n)
-            },
-            (false, Some(s)) => {
-                if join {
-                    try!(f.write_char('/'))
-                }
-                try!(regs[s].fmt(f));
-                if n > s + 1 {
-                    try!(f.write_char('-'));
-                    try!(regs[n - 1].fmt(f));
-                }
-                start = None;
-                join  = true;
-            },
-            _ => { /*nop*/ }
-        }
-
-        if n == 8 { break }
-        n += 1;
-        bit = bit.wrapping_shl(1);
-    }
-
-    Ok(join)
 }
 
 // Code Generator
@@ -340,6 +368,8 @@ fn require_types_equal(a: &Operand, b: &Operand)
 mod tests {
     use super::*;
     use super::Mode::*;
+    use super::DataReg::*;
+    use super::AddrReg::*;
 
     use std::io;
 
@@ -357,9 +387,9 @@ mod tests {
 
     #[test]
     fn fmt_regs() {
-        let s = format!("{}", Regs(0xE3, 0x3E));
+        let s = format!("{}", Regs(D0 | D3 | D6 | D7 | A1 | A2 | A3));
 
-        assert_eq!(s, "%d0-%d1/%d5-%d7/%a1-%a5");
+        assert_eq!(s, "%d0/%d3/%d6-%d7/%a1-%a3");
     }
 }
 
