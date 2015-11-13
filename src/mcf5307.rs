@@ -25,43 +25,6 @@ use std::io::{self, Write};
 use types::*;
 use util::*;
 
-// Addressing Mode Id
-
-// NOTE: Required because stable Rust does not provide an API to read enum
-// discriminator values.
-
-// NOTE: Cannot use newtype pattern here, as Rust does not have "generalized
-// newtype deriving" like Haskell.  We would want ModeId to derive BitOr.
-
-type ModeId = u32;
-const M_Imm:         ModeId = 1 <<  0;
-const M_Abs16:       ModeId = 1 <<  1;
-const M_Abs32:       ModeId = 1 <<  2;
-const M_Data:        ModeId = 1 <<  3;
-const M_Addr:        ModeId = 1 <<  4;
-const M_Ctrl:        ModeId = 1 <<  5;
-const M_Regs:        ModeId = 1 <<  6;
-const M_AddrInd:     ModeId = 1 <<  7;
-const M_AddrIndInc:  ModeId = 1 <<  8;
-const M_AddrIndDec:  ModeId = 1 <<  9;
-const M_AddrDisp:    ModeId = 1 << 10;
-const M_AddrDispIdx: ModeId = 1 << 11;
-const M_PcDisp:      ModeId = 1 << 12;
-const M_PcDispIdx:   ModeId = 1 << 13;
-const M_PC:          ModeId = 1 << 14;
-const M_SR:          ModeId = 1 << 15;
-const M_CCR:         ModeId = 1 << 16;
-const M_BC:          ModeId = 1 << 17;
-
-const M_Reg: ModeId
-    = M_Data | M_Addr;
-
-const M_Dst: ModeId
-    = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
-
-const M_Src: ModeId
-    = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
-
 // Constants (defined in types.rs)
 
 impl Display for Const {
@@ -154,7 +117,42 @@ impl Display for Index {
     }
 }
 
-// Operands
+// Addressing Modes
+
+// NOTE: Required because stable Rust does not provide an API to read enum
+// discriminator values.
+
+// NOTE: Cannot use newtype pattern here, as Rust does not have "generalized
+// newtype deriving" like Haskell.  We would want ModeId to derive BitOr.
+
+type ModeId = u32;
+const M_Imm:         ModeId = 1 <<  0;
+const M_Abs16:       ModeId = 1 <<  1;
+const M_Abs32:       ModeId = 1 <<  2;
+const M_Data:        ModeId = 1 <<  3;
+const M_Addr:        ModeId = 1 <<  4;
+const M_Ctrl:        ModeId = 1 <<  5;
+const M_Regs:        ModeId = 1 <<  6;
+const M_AddrInd:     ModeId = 1 <<  7;
+const M_AddrIndInc:  ModeId = 1 <<  8;
+const M_AddrIndDec:  ModeId = 1 <<  9;
+const M_AddrDisp:    ModeId = 1 << 10;
+const M_AddrDispIdx: ModeId = 1 << 11;
+const M_PcDisp:      ModeId = 1 << 12;
+const M_PcDispIdx:   ModeId = 1 << 13;
+const M_PC:          ModeId = 1 << 14;
+const M_SR:          ModeId = 1 << 15;
+const M_CCR:         ModeId = 1 << 16;
+const M_BC:          ModeId = 1 << 17;
+
+const M_Reg: ModeId
+    = M_Data | M_Addr;
+
+const M_Dst: ModeId
+    = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
+
+const M_Src: ModeId
+    = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Mode {
