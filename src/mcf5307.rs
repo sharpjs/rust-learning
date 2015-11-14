@@ -23,6 +23,7 @@ use std::fmt::{self, Display, Formatter, Write};
 use std::ops::BitOr;
 use std::io;
 
+use ast::{self, Expr};
 use types::*;
 use util::*;
 
@@ -334,6 +335,26 @@ impl<W> CodeGen<W> where W: io::Write {
         CodeGen { out: out }
     }
 
+    // This is all WIP, just idea exploration.
+
+    pub fn visit_expr<'a>(&mut self, e: &Expr) -> Box<Operand<'a>> {
+        match *e {
+            Expr::Add(ref src, ref dst, sel) => {
+                let src = self.visit_expr(src);
+                let dst = self.visit_expr(dst);
+                // TODO: interpret sel
+                self.add_g(src, dst)
+            },
+            Expr::Int(n) => {
+                // TODO: This needs to be of an "indeterminate integer" type
+                Box::new(Operand { pos: Pos::bof(), ty: U64, mode: Imm(Const::Num(n)) })
+            }
+            _ => {
+                panic!("not supported yet");
+            }
+        }
+    }
+
     pub fn add_g<'s, 'd, S, D>(&mut self, src: S, dst: D) -> D
         where S: Borrow<Operand<'s>>,
               D: Borrow<Operand<'d>>
@@ -345,10 +366,10 @@ impl<W> CodeGen<W> where W: io::Write {
 
             let s = &s.mode;
             let d = &d.mode;
-            match (s, d) {
-                (&Data(_), _) if d.is(M_Dst) => self.write_insn_2("add", s, d),
-                (_, &Data(_)) if s.is(M_Src) => self.write_insn_2("add", s, d),
-                _                           => panic!("X")
+            match (s.id(), d.id()) {
+                (M_Data, _) if d.is(M_Dst) => self.write_insn_2("add", s, d),
+                (_, M_Data) if s.is(M_Src) => self.write_insn_2("add", s, d),
+                _                          => panic!("X")
             }
         }
         dst
@@ -390,7 +411,6 @@ mod tests {
     #[test]
     fn fmt_regs() {
         let s = format!("{}", Regs(D0 | D3 | D6 | D7 | A1 | A2 | A3));
-
         assert_eq!(s, "%d0/%d3/%d6-%d7/%a1-%a3");
     }
 }
