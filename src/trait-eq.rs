@@ -49,6 +49,8 @@ impl<'a> PartialEq for Animal + 'a {
     }
 }
 
+impl<'a> Eq for Animal + 'a {}
+
 // Animals
 
 #[derive(Clone, Eq, PartialEq, Debug)]
