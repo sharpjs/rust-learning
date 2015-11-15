@@ -20,19 +20,35 @@ use std::rc::Rc;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type {
-    Int     { value_width: u8, store_width: u8, signed: bool },
-    Array   { elem_type: Box<Type>, length: Option<u64> },
-    Ptr     { addr_type: Box<Type>, val_type: Box<Type> },
-    Struct  { members: Vec<Member> },
-    Union   { members: Vec<Member> },
-    Func    { params: Vec<Member>, returns: Vec<Member> },
+    Int     { value_width: Option<u8>
+            , store_width: Option<u8>
+            , signed:      Option<bool>
+            },
+
+    Array   { elem_type: Box<Type>
+            , length:    Option<u64>
+            },
+
+    Ptr     { addr_type: Box<Type>
+            , val_type:  Box<Type>
+            },
+
+    Struct  { members: Vec<Member>
+            },
+
+    Union   { members: Vec<Member>
+            },
+
+    Func    { params:  Vec<Member>
+            , returns: Vec<Member>
+            },
 }
 use self::Type::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Member {
-    name:   Rc<String>,
-    type_:  Box<Type>,
+    name: Rc<String>,
+    ty:   Box<Type>,
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -41,15 +57,22 @@ pub enum Const {
     Num(u64),
 }
 
-pub const U8:  &'static Type = &Int { value_width:  8, store_width:  8, signed: false };
-pub const U16: &'static Type = &Int { value_width: 16, store_width: 16, signed: false };
-pub const U32: &'static Type = &Int { value_width: 32, store_width: 32, signed: false };
-pub const U64: &'static Type = &Int { value_width: 64, store_width: 64, signed: false };
+pub const U8:  &'static Type = &Int { value_width: Some( 8), store_width: Some( 8), signed: Some(false) };
+pub const U16: &'static Type = &Int { value_width: Some(16), store_width: Some(16), signed: Some(false) };
+pub const U32: &'static Type = &Int { value_width: Some(32), store_width: Some(32), signed: Some(false) };
+pub const U64: &'static Type = &Int { value_width: Some(64), store_width: Some(64), signed: Some(false) };
 
-pub const I8:  &'static Type = &Int { value_width:  8, store_width:  8, signed: true };
-pub const I16: &'static Type = &Int { value_width: 16, store_width: 16, signed: true };
-pub const I32: &'static Type = &Int { value_width: 32, store_width: 32, signed: true };
-pub const I64: &'static Type = &Int { value_width: 64, store_width: 64, signed: true };
+pub const I8:  &'static Type = &Int { value_width: Some( 8), store_width: Some( 8), signed: Some(true) };
+pub const I16: &'static Type = &Int { value_width: Some(16), store_width: Some(16), signed: Some(true) };
+pub const I32: &'static Type = &Int { value_width: Some(32), store_width: Some(32), signed: Some(true) };
+pub const I64: &'static Type = &Int { value_width: Some(64), store_width: Some(64), signed: Some(true) };
+
+// Abstract integer
+pub const INT: &'static Type = &Int {
+    value_width: None,
+    store_width: None,
+    signed:      None,
+};
 
 impl Type {
     pub fn is_scalar(&self) -> bool {
@@ -58,14 +81,14 @@ impl Type {
 
     pub fn value_width(&self) -> Option<u8> {
         match *self {
-            Int { value_width, .. } => Some(value_width),
+            Int { value_width, .. } => value_width,
             _                       => None
         }
     }
 
     pub fn store_width(&self) -> Option<u8> {
         match *self {
-            Int { store_width, .. } => Some(store_width),
+            Int { store_width, .. } => store_width,
             _                       => None
         }
     }

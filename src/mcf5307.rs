@@ -23,7 +23,7 @@ use std::fmt::{self, Display, Formatter, Write};
 use std::ops::BitOr;
 use std::io;
 
-use ast::{self, Expr};
+use ast::Expr;
 use types::*;
 use util::*;
 
