@@ -16,10 +16,15 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// -----------------------------------------------------------------------------
-// Pos - a position within a character stream
+#[macro_use]
+pub mod dynamic_eq;
 
 use std::fmt;
+
+pub use self::dynamic_eq::*;
+
+// -----------------------------------------------------------------------------
+// Pos - a position within a character stream
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub struct Pos {

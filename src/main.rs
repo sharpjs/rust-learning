@@ -36,13 +36,15 @@ macro_rules! is {
     };
 }
 
+#[macro_use]
+mod util;
+
 mod ast;
 mod interner;
 mod lexer;
 mod message;
 mod parser;
 mod types;
-mod util;
 
 mod mcf5307;
 
