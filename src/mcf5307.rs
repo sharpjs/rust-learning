@@ -409,7 +409,7 @@ impl<W> CodeGen<W> where W: io::Write {
         let sm = src.mode();
         let dm = dst.mode();
         match (sm, dm) {
-            (M_Imm, M_Imm) => { src.as_any().downcast_ref::<Imm_>(); },
+            (M_Imm, M_Imm) => { src.downcast_ref::<Imm_>(); },
             _ => {}
         }
     }

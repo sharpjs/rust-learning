@@ -21,11 +21,13 @@ use std::any::Any;
 // AsAny - upcast from &T to &Any
 
 pub trait AsAny {
-    fn as_any(&self) -> &Any;
+    fn as_any    (&    self) -> &    Any;
+    fn as_any_mut(&mut self) -> &mut Any;
 }
 
 impl<T: Any> AsAny for T {
-    fn as_any(&self) -> &Any { self }
+    fn as_any    (&    self) -> &    Any { self }
+    fn as_any_mut(&mut self) -> &mut Any { self }
 }
 
 // Derive a dynamic Eq for a trait, implemented via Any
@@ -55,6 +57,16 @@ macro_rules! derive_dynamic_eq {
         }
 
         impl<'a> Eq for $ty + 'a {}
+
+        impl<'a> $ty + 'a {
+            fn downcast_ref<T: Any + $ty>(&self) -> Option<&T> {
+                self.as_any().downcast_ref::<T>()
+            }
+
+            fn downcast_mut<T: Any + $ty>(&mut self) -> Option<&mut T> {
+                self.as_any_mut().downcast_mut::<T>()
+            }
+        }
     }
 }
 
