@@ -27,6 +27,15 @@ use ast::Expr;
 use types::*;
 use util::*;
 
+// Locations - place where data can be read or written
+
+trait Loc : LocEq + Display {
+    fn mode(&self) -> ModeId;
+    fn is_q(&self) -> bool { false }
+}
+
+derive_dynamic_eq!(Loc : LocEq);
+
 // Constants (defined in types.rs)
 
 impl Display for Const {
@@ -36,6 +45,27 @@ impl Display for Const {
             Const::Num(    v) if v < 10 => write!(f, "{}",    v),
             Const::Num(    v)           => write!(f, "{:#X}", v),
         }
+    }
+}
+
+// Immediate
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Imm_ (Const);
+
+impl Loc for Imm_ {
+    fn mode(&self) -> ModeId { M_Imm }
+    fn is_q(&self) -> bool {
+        match self.0 {
+            Const::Num(i) => 1 <= i && i <= 8,
+            _             => false
+        }
+    }
+}
+
+impl Display for Imm_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "#{}", &self.0)
     }
 }
 
@@ -373,6 +403,15 @@ impl<W> CodeGen<W> where W: io::Write {
             }
         }
         dst
+    }
+
+    fn add_test(&mut self, src: &Loc, dst: &Loc) {
+        let sm = src.mode();
+        let dm = dst.mode();
+        match (sm, dm) {
+            (M_Imm, M_Imm) => { src.as_any().downcast_ref::<Imm_>(); },
+            _ => {}
+        }
     }
 
     fn write_insn_2(&mut self, op: &str, src: &Mode, dst: &Mode) {
