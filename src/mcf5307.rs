@@ -76,15 +76,24 @@ impl Display for Imm_ {
 pub enum DataReg { D0, D1, D2, D3, D4, D5, D6, D7 }
 use self::DataReg::*;
 
-pub static DATA_REGS: [DataReg; 8] = [D0, D1, D2, D3, D4, D5, D6, D7];
+static DATA_REGS: [DataReg; 8] = [D0, D1, D2, D3, D4, D5, D6, D7];
 
 impl DataReg {
-    fn num(self) -> u8 { self as u8 }
+    fn with_num(n: u8) -> Self {
+        DATA_REGS[n as usize]
+    }
+    fn num(self) -> u8 {
+        self as u8
+    }
+}
+
+impl Loc for DataReg {
+    fn mode(&self) -> ModeId { M_Data }
 }
 
 impl Display for DataReg {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "%d{}", *self as u8)
+        write!(f, "%d{}", self.num())
     }
 }
 
@@ -95,15 +104,24 @@ impl Display for DataReg {
 pub enum AddrReg { A0, A1, A2, A3, A4, A5, A6, A7 }
 use self::AddrReg::*;
 
-pub static ADDR_REGS: [AddrReg; 8] = [A0, A1, A2, A3, A4, A5, A6, A7];
+static ADDR_REGS: [AddrReg; 8] = [A0, A1, A2, A3, A4, A5, A6, A7];
 
 impl AddrReg {
-    fn num(self) -> u8 { self as u8 }
+    fn with_num(n: u8) -> Self {
+        ADDR_REGS[n as usize]
+    }
+    fn num(self) -> u8 {
+        self as u8
+    }
+}
+
+impl Loc for AddrReg {
+    fn mode(&self) -> ModeId { M_Addr }
 }
 
 impl Display for AddrReg {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "%a{}", *self as u8)
+        write!(f, "%a{}", self.num())
     }
 }
 
@@ -137,6 +155,10 @@ impl<R: Into<RegSet>> BitOr<R> for AddrReg {
 impl<R: Into<RegSet>> BitOr<R> for RegSet {
     type Output = RegSet;
     fn bitor(self, r: R) -> RegSet { RegSet(self.0 | r.into().0) }
+}
+
+impl Loc for RegSet {
+    fn mode(&self) -> ModeId { M_Regs }
 }
 
 impl Display for RegSet {
@@ -191,6 +213,10 @@ fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool, f: &mut Formatter)
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
 
+impl Loc for CtrlReg {
+    fn mode(&self) -> ModeId { M_Ctrl }
+}
+
 impl Display for CtrlReg {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let s = match *self {
@@ -202,6 +228,51 @@ impl Display for CtrlReg {
             CtrlReg::RAMBAR => "%rambar",
         };
         f.write_str(s)
+    }
+}
+
+// Status Register
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct SR_;
+
+impl Loc for SR_ {
+    fn mode(&self) -> ModeId { M_SR }
+}
+
+impl Display for SR_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str("%sr")
+    }
+}
+
+// Condition Code Register
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct CCR_;
+
+impl Loc for CCR_ {
+    fn mode(&self) -> ModeId { M_CCR }
+}
+
+impl Display for CCR_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str("%ccr")
+    }
+}
+
+// Both Caches Specifier
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct BC_;
+
+impl Loc for BC_ {
+    fn mode(&self) -> ModeId { M_BC }
+}
+
+impl Display for BC_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str("bc")
     }
 }
 
@@ -409,12 +480,29 @@ impl<W> CodeGen<W> where W: io::Write {
         let sm = src.mode();
         let dm = dst.mode();
         match (sm, dm) {
-            (M_Imm, M_Imm) => { src.downcast_ref::<Imm_>(); },
+            (M_Imm, M_Imm) => self.add_const(src, dst),
             _ => {}
         }
     }
 
+    fn add_const(&mut self, src: &Loc, dst: &Loc) {
+        let src = src.downcast_ref::<Imm_>().unwrap();
+        let dst = dst.downcast_ref::<Imm_>().unwrap();
+        match (&src.0, &dst.0) {
+            (&Const::Num(a), &Const::Num(b)) => {
+                write!(self.out, "{}", a + b);
+            },
+            (a, b) => {
+                write!(self.out, "({} + {})", a, b);
+            }
+        }
+    }
+
     fn write_insn_2(&mut self, op: &str, src: &Mode, dst: &Mode) {
+        writeln!(self.out, "    {} {}, {}", op, src, dst).unwrap();
+    }
+
+    fn write_insn_2l(&mut self, op: &str, src: &Loc, dst: &Loc) {
         writeln!(self.out, "    {} {}, {}", op, src, dst).unwrap();
     }
 }
