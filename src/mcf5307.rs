@@ -69,6 +69,24 @@ impl Display for Imm_ {
     }
 }
 
+// Absolute
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Abs {
+    addr: Const,
+    // width?
+}
+
+impl Loc for Abs {
+    fn mode(&self) -> ModeId { M_Abs32 }
+}
+
+impl Display for Abs {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}:l", &self.addr)
+    }
+}
+
 // Data Registers
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -290,6 +308,131 @@ impl Display for Index {
             Index::Data(ref r) => r.fmt(f),
             Index::Addr(ref r) => r.fmt(f),
         }
+    }
+}
+
+// Address Register Indirect
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct AddrInd_ {
+    reg: AddrReg
+}
+
+impl Loc for AddrInd_ {
+    fn mode(&self) -> ModeId { M_AddrInd }
+}
+
+impl Display for AddrInd_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "({})", &self.reg)
+    }
+}
+
+// Address Register Indirect With Pre-Decrement
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct AddrIndDec_ {
+    reg: AddrReg
+}
+
+impl Loc for AddrIndDec_ {
+    fn mode(&self) -> ModeId { M_AddrIndDec }
+}
+
+impl Display for AddrIndDec_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "-({})", &self.reg)
+    }
+}
+
+// Address Register Indirect With Post-Increment
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct AddrIndInc_ {
+    reg: AddrReg
+}
+
+impl Loc for AddrIndInc_ {
+    fn mode(&self) -> ModeId { M_AddrIndInc }
+}
+
+impl Display for AddrIndInc_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "({})+", &self.reg)
+    }
+}
+
+// Address Register Base + Displacement
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct AddrDisp_ {
+    base: AddrReg,
+    disp: Const
+}
+
+impl Loc for AddrDisp_ {
+    fn mode(&self) -> ModeId { M_AddrDisp }
+}
+
+impl Display for AddrDisp_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "({}, {})", &self.base, &self.disp)
+    }
+}
+
+// Address Register Base + Displacement + Index
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct AddrDispIdx_ {
+    base:  AddrReg,
+    disp:  Const,
+    index: Index,
+    scale: Const
+}
+
+impl Loc for AddrDispIdx_ {
+    fn mode(&self) -> ModeId { M_AddrDispIdx }
+}
+
+impl Display for AddrDispIdx_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "({}, {}, {}*{})", &self.base, &self.disp, &self.index, &self.scale)
+    }
+}
+
+// Program Counter + Displacement
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct PcDisp_ {
+    disp: Const
+}
+
+impl Loc for PcDisp_ {
+    fn mode(&self) -> ModeId { M_PcDisp }
+}
+
+impl Display for PcDisp_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "(%pc, {})", &self.disp)
+    }
+}
+
+// Program Counter + Displacement + Index
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct PcDispIdx_ {
+    disp:  Const,
+    index: Index,
+    scale: Const
+}
+
+impl Loc for PcDispIdx_ {
+    fn mode(&self) -> ModeId { M_PcDispIdx }
+}
+
+impl Display for PcDispIdx_ {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "(%pc, {}, {}*{})", &self.disp, &self.index, &self.scale)
     }
 }
 
