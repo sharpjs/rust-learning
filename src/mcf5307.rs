@@ -18,10 +18,11 @@
 
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Borrow;
-use std::fmt::{self, Display, Formatter, Write};
+use std::borrow::Cow;
+use std::fmt::{self, Display, Debug, Formatter, Write};
 use std::ops::BitOr;
 use std::io;
+use std::rc::Rc;
 
 use ast::Expr;
 use types::*;
@@ -29,9 +30,20 @@ use util::*;
 
 // Locations - place where data can be read or written
 
-trait Loc : LocEq + Display {
+pub trait Loc : LocEq + Display + Debug {
     fn mode(&self) -> ModeId;
     fn is_q(&self) -> bool { false }
+}
+
+impl ToOwned for Loc {
+    type Owned = Box<Loc>;
+    fn to_owned(&self) -> Self::Owned { panic!("fix this") }
+}
+
+impl<'a> Loc + 'a {
+    fn is(&self, modes: ModeId) -> bool {
+        self.mode() & modes != 0
+    }
 }
 
 derive_dynamic_eq!(Loc : LocEq);
@@ -41,7 +53,7 @@ derive_dynamic_eq!(Loc : LocEq);
 impl Display for Const {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Const::Sym(ref s)           => s.fmt(f),
+            Const::Sym(ref s)           => f.write_str(s),
             Const::Num(    v) if v < 10 => write!(f, "{}",    v),
             Const::Num(    v)           => write!(f, "{:#X}", v),
         }
@@ -51,9 +63,9 @@ impl Display for Const {
 // Immediate
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Imm_ (Const);
+pub struct Imm (Const);
 
-impl Loc for Imm_ {
+impl Loc for Imm {
     fn mode(&self) -> ModeId { M_Imm }
     fn is_q(&self) -> bool {
         match self.0 {
@@ -63,7 +75,7 @@ impl Loc for Imm_ {
     }
 }
 
-impl Display for Imm_ {
+impl Display for Imm {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "#{}", &self.0)
     }
@@ -252,13 +264,13 @@ impl Display for CtrlReg {
 // Status Register
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct SR_;
+pub struct SR;
 
-impl Loc for SR_ {
+impl Loc for SR {
     fn mode(&self) -> ModeId { M_SR }
 }
 
-impl Display for SR_ {
+impl Display for SR {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.write_str("%sr")
     }
@@ -267,13 +279,13 @@ impl Display for SR_ {
 // Condition Code Register
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct CCR_;
+pub struct CCR;
 
-impl Loc for CCR_ {
+impl Loc for CCR {
     fn mode(&self) -> ModeId { M_CCR }
 }
 
-impl Display for CCR_ {
+impl Display for CCR {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.write_str("%ccr")
     }
@@ -282,13 +294,13 @@ impl Display for CCR_ {
 // Both Caches Specifier
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct BC_;
+pub struct BC;
 
-impl Loc for BC_ {
+impl Loc for BC {
     fn mode(&self) -> ModeId { M_BC }
 }
 
-impl Display for BC_ {
+impl Display for BC {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.write_str("bc")
     }
@@ -305,8 +317,8 @@ enum Index {
 impl Display for Index {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Index::Data(ref r) => r.fmt(f),
-            Index::Addr(ref r) => r.fmt(f),
+            Index::Data(ref r) => <Display>::fmt(r, f),
+            Index::Addr(ref r) => <Display>::fmt(r, f),
         }
     }
 }
@@ -314,15 +326,15 @@ impl Display for Index {
 // Address Register Indirect
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct AddrInd_ {
+pub struct AddrInd {
     reg: AddrReg
 }
 
-impl Loc for AddrInd_ {
+impl Loc for AddrInd {
     fn mode(&self) -> ModeId { M_AddrInd }
 }
 
-impl Display for AddrInd_ {
+impl Display for AddrInd {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "({})", &self.reg)
     }
@@ -331,15 +343,15 @@ impl Display for AddrInd_ {
 // Address Register Indirect With Pre-Decrement
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct AddrIndDec_ {
+pub struct AddrIndDec {
     reg: AddrReg
 }
 
-impl Loc for AddrIndDec_ {
+impl Loc for AddrIndDec {
     fn mode(&self) -> ModeId { M_AddrIndDec }
 }
 
-impl Display for AddrIndDec_ {
+impl Display for AddrIndDec {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "-({})", &self.reg)
     }
@@ -348,15 +360,15 @@ impl Display for AddrIndDec_ {
 // Address Register Indirect With Post-Increment
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct AddrIndInc_ {
+pub struct AddrIndInc {
     reg: AddrReg
 }
 
-impl Loc for AddrIndInc_ {
+impl Loc for AddrIndInc {
     fn mode(&self) -> ModeId { M_AddrIndInc }
 }
 
-impl Display for AddrIndInc_ {
+impl Display for AddrIndInc {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "({})+", &self.reg)
     }
@@ -365,16 +377,16 @@ impl Display for AddrIndInc_ {
 // Address Register Base + Displacement
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct AddrDisp_ {
+pub struct AddrDisp {
     base: AddrReg,
     disp: Const
 }
 
-impl Loc for AddrDisp_ {
+impl Loc for AddrDisp {
     fn mode(&self) -> ModeId { M_AddrDisp }
 }
 
-impl Display for AddrDisp_ {
+impl Display for AddrDisp {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "({}, {})", &self.base, &self.disp)
     }
@@ -383,18 +395,18 @@ impl Display for AddrDisp_ {
 // Address Register Base + Displacement + Index
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct AddrDispIdx_ {
+pub struct AddrDispIdx {
     base:  AddrReg,
     disp:  Const,
     index: Index,
     scale: Const
 }
 
-impl Loc for AddrDispIdx_ {
+impl Loc for AddrDispIdx {
     fn mode(&self) -> ModeId { M_AddrDispIdx }
 }
 
-impl Display for AddrDispIdx_ {
+impl Display for AddrDispIdx {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "({}, {}, {}*{})", &self.base, &self.disp, &self.index, &self.scale)
     }
@@ -403,15 +415,15 @@ impl Display for AddrDispIdx_ {
 // Program Counter + Displacement
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PcDisp_ {
+pub struct PcDisp {
     disp: Const
 }
 
-impl Loc for PcDisp_ {
+impl Loc for PcDisp {
     fn mode(&self) -> ModeId { M_PcDisp }
 }
 
-impl Display for PcDisp_ {
+impl Display for PcDisp {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "(%pc, {})", &self.disp)
     }
@@ -420,17 +432,17 @@ impl Display for PcDisp_ {
 // Program Counter + Displacement + Index
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct PcDispIdx_ {
+pub struct PcDispIdx {
     disp:  Const,
     index: Index,
     scale: Const
 }
 
-impl Loc for PcDispIdx_ {
+impl Loc for PcDispIdx {
     fn mode(&self) -> ModeId { M_PcDispIdx }
 }
 
-impl Display for PcDispIdx_ {
+impl Display for PcDispIdx {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "(%pc, {}, {}*{})", &self.disp, &self.index, &self.scale)
     }
@@ -473,99 +485,13 @@ const M_Dst: ModeId
 const M_Src: ModeId
     = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Mode {
-    // Immediate/Absolute
-    Imm         (Const),
-    Abs16       (Const),
-    Abs32       (Const),
-
-    // Direct
-    Data        (DataReg),
-    Addr        (AddrReg),
-    Ctrl        (CtrlReg),
-    Regs        (RegSet),
-
-    // Indirect
-    AddrInd     (AddrReg),
-    AddrIndInc  (AddrReg),
-    AddrIndDec  (AddrReg),
-    AddrDisp    (AddrReg, Const),
-    AddrDispIdx (AddrReg, Const, Index),
-    PcDisp      (         Const),
-    PcDispIdx   (         Const, Index),
-
-    // Special
-    PC, SR, CCR, BC,
-}
-use self::Mode::*;
+// Operand = a machine location with its analyzed type and source position
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Operand<'a> {
-    pos:    Pos,
-    ty:     &'a Type,
-    mode:   Mode
-}
-
-impl Mode {
-    fn id(&self) -> ModeId {
-        match *self {
-            Imm         (..) => M_Imm,
-            Abs16       (..) => M_Abs16,
-            Abs32       (..) => M_Abs32,
-            Data        (..) => M_Data,
-            Addr        (..) => M_Addr,
-            Ctrl        (..) => M_Ctrl,
-            AddrInd     (..) => M_AddrInd,
-            AddrIndInc  (..) => M_AddrIndInc,
-            AddrIndDec  (..) => M_AddrIndDec,
-            AddrDisp    (..) => M_AddrDisp,
-            AddrDispIdx (..) => M_AddrDispIdx,
-            PcDisp      (..) => M_PcDisp,
-            PcDispIdx   (..) => M_PcDispIdx,
-            Regs        (..) => M_Regs,
-            PC               => M_PC,
-            SR               => M_SR,
-            CCR              => M_CCR,
-            BC               => M_BC,
-        }
-    }
-
-    fn is(&self, modes: ModeId) -> bool {
-        self.id() & modes != 0
-    }
-
-    fn is_q(&self) -> bool {
-        match *self {
-            Imm(Const::Num(i)) => 1 <= i && i <= 8,
-            _ => false
-        }
-    }
-}
-
-impl Display for Mode {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match *self {
-            Imm         (ref v)               => write!(f, "#{}",  v),
-            Abs16       (ref v)               => write!(f, "{}:w", v),
-            Abs32       (ref v)               => write!(f, "{}:l", v),
-            Data        (ref r)               => r.fmt(f),
-            Addr        (ref r)               => r.fmt(f),
-            Ctrl        (ref r)               => r.fmt(f),
-            Regs        (ref r)               => r.fmt(f),
-            AddrInd     (ref r)               => write!(f, "({})",  r),
-            AddrIndInc  (ref r)               => write!(f, "({})+", r),
-            AddrIndDec  (ref r)               => write!(f, "-({})", r),
-            AddrDisp    (ref b, ref d)        => write!(f, "({},{})",       b, d),
-            AddrDispIdx (ref b, ref d, ref i) => write!(f, "({},{},{}*{})", b, d, i, 1),
-            PcDisp      (       ref d)        => write!(f, "(%pc,{})",       d),
-            PcDispIdx   (       ref d, ref i) => write!(f, "(%pc,{},{}*{})", d, i, 1),
-            PC                                => f.write_str("%pc"),
-            SR                                => f.write_str("%sr"),
-            CCR                               => f.write_str("%ccr"),
-            BC                                => f.write_str("bc"),
-        }
-    }
+pub struct Operand {
+    pub loc: Cow<'static, Loc>,
+    pub ty:  Rc<Type>,
+    pub pos: Pos,
 }
 
 // Code Generator
@@ -581,7 +507,7 @@ impl<W> CodeGen<W> where W: io::Write {
 
     // This is all WIP, just idea exploration.
 
-    pub fn visit_expr<'a>(&mut self, e: &Expr) -> Box<Operand<'a>> {
+    pub fn visit_expr(&mut self, e: &Expr) -> Operand {
         match *e {
             Expr::Add(ref src, ref dst, sel) => {
                 let src = self.visit_expr(src);
@@ -590,8 +516,11 @@ impl<W> CodeGen<W> where W: io::Write {
                 self.add_g(src, dst)
             },
             Expr::Int(n) => {
-                // TODO: This needs to be of an "indeterminate integer" type
-                Box::new(Operand { pos: Pos::bof(), ty: U64, mode: Imm(Const::Num(n)) })
+                Operand {
+                    loc: Cow::Owned(Box::new(Imm(Const::Num(n))) as Box<Loc>),
+                    ty:  Rc::new(U64.clone()),
+                    pos: Pos::bof(),
+                }
             }
             _ => {
                 panic!("not supported yet");
@@ -599,18 +528,13 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn add_g<'s, 'd, S, D>(&mut self, src: S, dst: D) -> D
-        where S: Borrow<Operand<'s>>,
-              D: Borrow<Operand<'d>>
+    pub fn add_g(&mut self, src: Operand, dst: Operand) -> Operand
     {
+        require_types_equal(&src, &dst);
         {
-            let s = src.borrow();
-            let d = dst.borrow();
-            require_types_equal(s, d);
-
-            let s = &s.mode;
-            let d = &d.mode;
-            match (s.id(), d.id()) {
+            let s = &*src.loc;
+            let d = &*dst.loc;
+            match (s.mode(), d.mode()) {
                 (M_Data, _) if d.is(M_Dst) => self.write_insn_2("add", s, d),
                 (_, M_Data) if s.is(M_Src) => self.write_insn_2("add", s, d),
                 _                          => panic!("X")
@@ -619,18 +543,10 @@ impl<W> CodeGen<W> where W: io::Write {
         dst
     }
 
-    fn add_test(&mut self, src: &Loc, dst: &Loc) {
-        let sm = src.mode();
-        let dm = dst.mode();
-        match (sm, dm) {
-            (M_Imm, M_Imm) => self.add_const(src, dst),
-            _ => {}
-        }
-    }
-
+    #[allow(unused_must_use)]
     fn add_const(&mut self, src: &Loc, dst: &Loc) {
-        let src = src.downcast_ref::<Imm_>().unwrap();
-        let dst = dst.downcast_ref::<Imm_>().unwrap();
+        let src = src.downcast_ref::<Imm>().unwrap();
+        let dst = dst.downcast_ref::<Imm>().unwrap();
         match (&src.0, &dst.0) {
             (&Const::Num(a), &Const::Num(b)) => {
                 write!(self.out, "{}", a + b);
@@ -641,11 +557,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    fn write_insn_2(&mut self, op: &str, src: &Mode, dst: &Mode) {
-        writeln!(self.out, "    {} {}, {}", op, src, dst).unwrap();
-    }
-
-    fn write_insn_2l(&mut self, op: &str, src: &Loc, dst: &Loc) {
+    fn write_insn_2(&mut self, op: &str, src: &Loc, dst: &Loc) {
         writeln!(self.out, "    {} {}, {}", op, src, dst).unwrap();
     }
 }
@@ -659,28 +571,33 @@ fn require_types_equal(a: &Operand, b: &Operand)
 
 #[cfg(test)]
 mod tests {
+    use std::borrow::Cow::*;
+    use std::io;
+    use std::rc::Rc;
+
     use super::*;
-    use super::Mode::*;
     use super::DataReg::*;
     use super::AddrReg::*;
-
-    use std::io;
-
     use types::*;
     use util::*;
 
     #[test]
     fn foo() {
-        let src = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Imm(Const::Num(4)) });
-        let dst = Box::new(Operand { pos: Pos::bof(), ty: U8, mode: Data(D0) });
+        let src: Box<Loc> = Box::new(Imm(Const::Num(4)));
+        let dst: Box<Loc> = Box::new(D0);
+        let exp: Box<Loc> = Box::new(D0);
+        let ty = Rc::new(U8.clone());
+        let src = Operand { pos: Pos::bof(), ty: ty.clone(), loc: Owned(src) };
+        let dst = Operand { pos: Pos::bof(), ty: ty.clone(), loc: Owned(dst) };
+        let exp = Operand { pos: Pos::bof(), ty: ty.clone(), loc: Owned(exp) };
         let mut gen = CodeGen::new(io::stdout());
-        let res = gen.add_g(src, dst.clone());
-        assert_eq!(dst, res);
+        let res = gen.add_g(src, dst);
+        assert_eq!(exp, res);
     }
 
     #[test]
     fn fmt_regs() {
-        let s = format!("{}", Regs(D0 | D3 | D6 | D7 | A1 | A2 | A3));
+        let s = format!("{}", D0 | D3 | D6 | D7 | A1 | A2 | A3);
         assert_eq!(s, "%d0/%d3/%d6-%d7/%a1-%a3");
     }
 }
