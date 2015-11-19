@@ -44,7 +44,7 @@ pub enum MessageId {
     // Parser Messages
     // ...
     // Semantic Analysis Messages
-    // ...
+    Sem_TypeMismatch,
 }
 use self::MessageId::*;
 
@@ -130,14 +130,14 @@ impl Messages {
 
     pub fn err_unterm_esc(&mut self, p: Pos) {
         self.add(p, Error, Lex_UntermEsc,
-            "Unterminated escape sequence.",
+            "Unterminated escape sequence."
         );
     }
 
     pub fn err_length_char(&mut self, p: Pos) {
         self.add(p, Error, Lex_CharLength,
             "Invalid character literal length. \
-             Character literals must contain exactly one character.",
+             Character literals must contain exactly one character."
         );
     }
 
@@ -150,7 +150,13 @@ impl Messages {
     pub fn err_overflow_esc(&mut self, p: Pos) {
         self.add(p, Error, Lex_OverflowEsc,
             "Overflow in Unicode escape sequence. \
-             The maximum permitted is \\u{10FFFF}.",
+             The maximum permitted is \\u{10FFFF}."
+        );
+    }
+
+    pub fn err_type_mismatch(&mut self, p: Pos) {
+        self.add(p, Error, Sem_TypeMismatch,
+            "Type mismatch."
         );
     }
 }
