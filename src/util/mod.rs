@@ -18,6 +18,7 @@
 
 #[macro_use]
 pub mod dynamic_eq;
+pub mod shared;
 
 use std::fmt;
 
