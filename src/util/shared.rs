@@ -21,10 +21,25 @@ use std::ops::Deref;
 use std::rc::Rc;
 use self::Shared::*;
 
-#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Shared<'a, T: 'a + ?Sized> {
     Borrowed(&'a T),
     Owned(Rc<T>)
+}
+
+impl<'a, T: 'a + ?Sized> From<&'a T> for Shared<'a, T> {
+    #[inline(always)]
+    fn from(t: &'a T) -> Self { Borrowed(t) }
+}
+
+impl<'a, T: 'a + ?Sized> From<Rc<T>> for Shared<'a, T> {
+    #[inline(always)]
+    fn from(t: Rc<T>) -> Self { Owned(t) }
+}
+
+impl<'a, T: 'a> From<T> for Shared<'a, T> {
+    #[inline(always)]
+    fn from(t: T) -> Self { Owned(Rc::new(t)) }
 }
 
 impl<'a, T: 'a + ?Sized> Deref for Shared<'a, T> {
@@ -33,8 +48,18 @@ impl<'a, T: 'a + ?Sized> Deref for Shared<'a, T> {
     #[inline(always)]
     fn deref(&self) -> &T {
         match self {
-            &Borrowed (    t) =>   t,
-            &Owned    (ref t) => &*t,
+            &Borrowed (    t) => t,
+            &Owned    (ref t) => t.deref(),
+        }
+    }
+}
+
+impl<'a, T: 'a + ?Sized> Clone for Shared<'a, T> {
+    #[inline(always)]
+    fn clone(&self) -> Self {
+        match self {
+            &Borrowed (    t) => Borrowed(t),
+            &Owned    (ref t) => Owned(t.clone()),
         }
     }
 }
