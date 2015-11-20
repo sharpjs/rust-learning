@@ -18,7 +18,6 @@
 
 #![allow(non_upper_case_globals)]
 
-use std::borrow::Cow;
 use std::fmt::{self, Display, Debug, Formatter, Write};
 use std::ops::BitOr;
 use std::io;
@@ -27,17 +26,13 @@ use std::rc::Rc;
 use ast::Expr;
 use types::*;
 use util::*;
+use util::shared::*;
 
 // Locations - place where data can be read or written
 
 pub trait Loc : LocEq + Display + Debug {
     fn mode(&self) -> ModeId;
     fn is_q(&self) -> bool { false }
-}
-
-impl ToOwned for Loc {
-    type Owned = Box<Loc>;
-    fn to_owned(&self) -> Self::Owned { panic!("fix this") }
 }
 
 impl<'a> Loc + 'a {
@@ -489,8 +484,8 @@ const M_Src: ModeId
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Operand {
-    pub loc: Cow<'static, Loc>,
-    pub ty:  Rc<Type>,
+    pub loc: Shared<'static, Loc>,
+    pub ty:  Shared<'static, Type>,
     pub pos: Pos,
 }
 
@@ -517,8 +512,8 @@ impl<W> CodeGen<W> where W: io::Write {
             },
             Expr::Int(n) => {
                 Operand {
-                    loc: Cow::Owned(Box::new(Imm(Const::Num(n))) as Box<Loc>),
-                    ty:  Rc::new(U64.clone()),
+                    loc: <Shared<Loc>>::from(Rc::new(Imm(Const::Num(n))) as Rc<Loc>),
+                    ty:  INT.into(),
                     pos: Pos::bof(),
                 }
             }
@@ -571,7 +566,6 @@ fn require_types_equal(a: &Operand, b: &Operand)
 
 #[cfg(test)]
 mod tests {
-    use std::borrow::Cow::*;
     use std::io;
     use std::rc::Rc;
 
@@ -580,16 +574,17 @@ mod tests {
     use super::AddrReg::*;
     use types::*;
     use util::*;
+    use util::shared::*;
 
     #[test]
     fn foo() {
-        let src: Box<Loc> = Box::new(Imm(Const::Num(4)));
-        let dst: Box<Loc> = Box::new(D0);
-        let exp: Box<Loc> = Box::new(D0);
-        let ty = Rc::new(U8.clone());
-        let src = Operand { pos: Pos::bof(), ty: ty.clone(), loc: Owned(src) };
-        let dst = Operand { pos: Pos::bof(), ty: ty.clone(), loc: Owned(dst) };
-        let exp = Operand { pos: Pos::bof(), ty: ty.clone(), loc: Owned(exp) };
+        let src = <Shared<Loc> >::from(Rc::new(Imm(Const::Num(4))) as Rc<Loc>);
+        let dst = <Shared<Loc> >::from(Rc::new(D0) as Rc<Loc>);
+        let exp = <Shared<Loc> >::from(Rc::new(D0) as Rc<Loc>);
+        let ty  = <Shared<Type>>::from(U8);
+        let src = Operand { pos: Pos::bof(), ty: ty.clone(), loc: src };
+        let dst = Operand { pos: Pos::bof(), ty: ty.clone(), loc: dst };
+        let exp = Operand { pos: Pos::bof(), ty: ty.clone(), loc: exp };
         let mut gen = CodeGen::new(io::stdout());
         let res = gen.add_g(src, dst);
         assert_eq!(exp, res);
