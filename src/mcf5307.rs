@@ -36,9 +36,15 @@ pub trait Loc : LocEq + Display + Debug {
 }
 
 impl<'a> Loc + 'a {
+    #[inline(always)]
     fn is(&self, modes: ModeId) -> bool {
         self.mode() & modes != 0
     }
+}
+
+impl<'a, T: 'a + Loc> From<T> for Shared<'a, Loc> {
+    #[inline(always)]
+    fn from(t: T) -> Self { Shared::from(Rc::new(t) as Rc<Loc>) }
 }
 
 derive_dynamic_eq!(Loc : LocEq);
@@ -489,6 +495,15 @@ pub struct Operand {
     pub pos: Pos,
 }
 
+impl Operand {
+    pub fn new<L, T>(loc: L, ty: T, pos: Pos) -> Self
+        where L: Into<Shared<'static, Loc>>,
+              T: Into<Shared<'static, Type>>
+    {
+        Operand { loc: loc.into(), ty: ty.into(), pos: pos }
+    }
+}
+
 // Code Generator
 
 pub struct CodeGen<W: io::Write> {
@@ -511,11 +526,7 @@ impl<W> CodeGen<W> where W: io::Write {
                 self.add_g(src, dst)
             },
             Expr::Int(n) => {
-                Operand {
-                    loc: <Shared<Loc>>::from(Rc::new(Imm(Const::Num(n))) as Rc<Loc>),
-                    ty:  INT.into(),
-                    pos: Pos::bof(),
-                }
+                Operand::new(Imm(Const::Num(n)), INT, Pos::bof())
             }
             _ => {
                 panic!("not supported yet");
@@ -567,27 +578,22 @@ fn require_types_equal(a: &Operand, b: &Operand)
 #[cfg(test)]
 mod tests {
     use std::io;
-    use std::rc::Rc;
 
     use super::*;
     use super::DataReg::*;
     use super::AddrReg::*;
     use types::*;
     use util::*;
-    use util::shared::*;
 
     #[test]
     fn foo() {
-        let src = <Shared<Loc> >::from(Rc::new(Imm(Const::Num(4))) as Rc<Loc>);
-        let dst = <Shared<Loc> >::from(Rc::new(D0) as Rc<Loc>);
-        let exp = <Shared<Loc> >::from(Rc::new(D0) as Rc<Loc>);
-        let ty  = <Shared<Type>>::from(U8);
-        let src = Operand { pos: Pos::bof(), ty: ty.clone(), loc: src };
-        let dst = Operand { pos: Pos::bof(), ty: ty.clone(), loc: dst };
-        let exp = Operand { pos: Pos::bof(), ty: ty.clone(), loc: exp };
+        let src = Operand::new(Imm(Const::Num(4)), U8, Pos::bof());
+        let dst = Operand::new(D0,                 U8, Pos::bof());
+
         let mut gen = CodeGen::new(io::stdout());
-        let res = gen.add_g(src, dst);
-        assert_eq!(exp, res);
+        let res = gen.add_g(src, dst.clone());
+
+        assert_eq!(dst, res);
     }
 
     #[test]
