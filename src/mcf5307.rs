@@ -28,16 +28,55 @@ use types::*;
 use util::*;
 use util::shared::*;
 
+// -----------------------------------------------------------------------------
+// Addressing Modes
+
+// NOTE: Required because stable Rust does not provide an API to read enum
+// discriminator values.
+
+// NOTE: Cannot use newtype pattern here, as Rust does not have "generalized
+// newtype deriving" like Haskell.  We would want Mode to derive BitOr.
+
+type Mode = u32;
+const M_Imm:         Mode = 1 <<  0;
+const M_Abs16:       Mode = 1 <<  1;
+const M_Abs32:       Mode = 1 <<  2;
+const M_Data:        Mode = 1 <<  3;
+const M_Addr:        Mode = 1 <<  4;
+const M_Ctrl:        Mode = 1 <<  5;
+const M_Regs:        Mode = 1 <<  6;
+const M_AddrInd:     Mode = 1 <<  7;
+const M_AddrIndInc:  Mode = 1 <<  8;
+const M_AddrIndDec:  Mode = 1 <<  9;
+const M_AddrDisp:    Mode = 1 << 10;
+const M_AddrDispIdx: Mode = 1 << 11;
+const M_PcDisp:      Mode = 1 << 12;
+const M_PcDispIdx:   Mode = 1 << 13;
+const M_PC:          Mode = 1 << 14;
+const M_SR:          Mode = 1 << 15;
+const M_CCR:         Mode = 1 << 16;
+const M_BC:          Mode = 1 << 17;
+
+const M_Reg: Mode
+    = M_Data | M_Addr;
+
+const M_Dst: Mode
+    = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
+
+const M_Src: Mode
+    = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
+
+// -----------------------------------------------------------------------------
 // Locations - place where data can be read or written
 
 pub trait Loc : LocEq + Display + Debug {
-    fn mode(&self) -> ModeId;
+    fn mode(&self) -> Mode;
     fn is_q(&self) -> bool { false }
 }
 
 impl<'a> Loc + 'a {
     #[inline(always)]
-    fn is(&self, modes: ModeId) -> bool {
+    fn is(&self, modes: Mode) -> bool {
         self.mode() & modes != 0
     }
 }
@@ -67,7 +106,7 @@ impl Display for Const {
 pub struct Imm (Const);
 
 impl Loc for Imm {
-    fn mode(&self) -> ModeId { M_Imm }
+    fn mode(&self) -> Mode { M_Imm }
     fn is_q(&self) -> bool {
         match self.0 {
             Const::Num(i) => 1 <= i && i <= 8,
@@ -82,21 +121,30 @@ impl Display for Imm {
     }
 }
 
+// Distance - for absolute addressing and branches
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Distance { Near, Far }
+use self::Distance::*;
+
 // Absolute
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Abs {
     addr: Const,
-    // width?
+    dist: Distance
 }
 
 impl Loc for Abs {
-    fn mode(&self) -> ModeId { M_Abs32 }
+    fn mode(&self) -> Mode {
+        match self.dist { Near => M_Abs16, Far => M_Abs32 }
+    }
 }
 
 impl Display for Abs {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}:l", &self.addr)
+        let s = match self.dist { Near => "w", Far => "l" };
+        write!(f, "{}:{}", &self.addr, s)
     }
 }
 
@@ -119,7 +167,7 @@ impl DataReg {
 }
 
 impl Loc for DataReg {
-    fn mode(&self) -> ModeId { M_Data }
+    fn mode(&self) -> Mode { M_Data }
 }
 
 impl Display for DataReg {
@@ -147,7 +195,7 @@ impl AddrReg {
 }
 
 impl Loc for AddrReg {
-    fn mode(&self) -> ModeId { M_Addr }
+    fn mode(&self) -> Mode { M_Addr }
 }
 
 impl Display for AddrReg {
@@ -189,7 +237,7 @@ impl<R: Into<RegSet>> BitOr<R> for RegSet {
 }
 
 impl Loc for RegSet {
-    fn mode(&self) -> ModeId { M_Regs }
+    fn mode(&self) -> Mode { M_Regs }
 }
 
 impl Display for RegSet {
@@ -245,7 +293,7 @@ fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool, f: &mut Formatter)
 pub enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
 
 impl Loc for CtrlReg {
-    fn mode(&self) -> ModeId { M_Ctrl }
+    fn mode(&self) -> Mode { M_Ctrl }
 }
 
 impl Display for CtrlReg {
@@ -268,7 +316,7 @@ impl Display for CtrlReg {
 pub struct SR;
 
 impl Loc for SR {
-    fn mode(&self) -> ModeId { M_SR }
+    fn mode(&self) -> Mode { M_SR }
 }
 
 impl Display for SR {
@@ -283,7 +331,7 @@ impl Display for SR {
 pub struct CCR;
 
 impl Loc for CCR {
-    fn mode(&self) -> ModeId { M_CCR }
+    fn mode(&self) -> Mode { M_CCR }
 }
 
 impl Display for CCR {
@@ -298,7 +346,7 @@ impl Display for CCR {
 pub struct BC;
 
 impl Loc for BC {
-    fn mode(&self) -> ModeId { M_BC }
+    fn mode(&self) -> Mode { M_BC }
 }
 
 impl Display for BC {
@@ -332,7 +380,7 @@ pub struct AddrInd {
 }
 
 impl Loc for AddrInd {
-    fn mode(&self) -> ModeId { M_AddrInd }
+    fn mode(&self) -> Mode { M_AddrInd }
 }
 
 impl Display for AddrInd {
@@ -349,7 +397,7 @@ pub struct AddrIndDec {
 }
 
 impl Loc for AddrIndDec {
-    fn mode(&self) -> ModeId { M_AddrIndDec }
+    fn mode(&self) -> Mode { M_AddrIndDec }
 }
 
 impl Display for AddrIndDec {
@@ -366,7 +414,7 @@ pub struct AddrIndInc {
 }
 
 impl Loc for AddrIndInc {
-    fn mode(&self) -> ModeId { M_AddrIndInc }
+    fn mode(&self) -> Mode { M_AddrIndInc }
 }
 
 impl Display for AddrIndInc {
@@ -384,7 +432,7 @@ pub struct AddrDisp {
 }
 
 impl Loc for AddrDisp {
-    fn mode(&self) -> ModeId { M_AddrDisp }
+    fn mode(&self) -> Mode { M_AddrDisp }
 }
 
 impl Display for AddrDisp {
@@ -404,7 +452,7 @@ pub struct AddrDispIdx {
 }
 
 impl Loc for AddrDispIdx {
-    fn mode(&self) -> ModeId { M_AddrDispIdx }
+    fn mode(&self) -> Mode { M_AddrDispIdx }
 }
 
 impl Display for AddrDispIdx {
@@ -421,7 +469,7 @@ pub struct PcDisp {
 }
 
 impl Loc for PcDisp {
-    fn mode(&self) -> ModeId { M_PcDisp }
+    fn mode(&self) -> Mode { M_PcDisp }
 }
 
 impl Display for PcDisp {
@@ -440,7 +488,7 @@ pub struct PcDispIdx {
 }
 
 impl Loc for PcDispIdx {
-    fn mode(&self) -> ModeId { M_PcDispIdx }
+    fn mode(&self) -> Mode { M_PcDispIdx }
 }
 
 impl Display for PcDispIdx {
@@ -449,43 +497,7 @@ impl Display for PcDispIdx {
     }
 }
 
-// Addressing Modes
-
-// NOTE: Required because stable Rust does not provide an API to read enum
-// discriminator values.
-
-// NOTE: Cannot use newtype pattern here, as Rust does not have "generalized
-// newtype deriving" like Haskell.  We would want ModeId to derive BitOr.
-
-type ModeId = u32;
-const M_Imm:         ModeId = 1 <<  0;
-const M_Abs16:       ModeId = 1 <<  1;
-const M_Abs32:       ModeId = 1 <<  2;
-const M_Data:        ModeId = 1 <<  3;
-const M_Addr:        ModeId = 1 <<  4;
-const M_Ctrl:        ModeId = 1 <<  5;
-const M_Regs:        ModeId = 1 <<  6;
-const M_AddrInd:     ModeId = 1 <<  7;
-const M_AddrIndInc:  ModeId = 1 <<  8;
-const M_AddrIndDec:  ModeId = 1 <<  9;
-const M_AddrDisp:    ModeId = 1 << 10;
-const M_AddrDispIdx: ModeId = 1 << 11;
-const M_PcDisp:      ModeId = 1 << 12;
-const M_PcDispIdx:   ModeId = 1 << 13;
-const M_PC:          ModeId = 1 << 14;
-const M_SR:          ModeId = 1 << 15;
-const M_CCR:         ModeId = 1 << 16;
-const M_BC:          ModeId = 1 << 17;
-
-const M_Reg: ModeId
-    = M_Data | M_Addr;
-
-const M_Dst: ModeId
-    = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
-
-const M_Src: ModeId
-    = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
-
+// -----------------------------------------------------------------------------
 // Operand = a machine location with its analyzed type and source position
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -504,6 +516,7 @@ impl Operand {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Code Generator
 
 pub struct CodeGen<W: io::Write> {
