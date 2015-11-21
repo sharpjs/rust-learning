@@ -111,6 +111,39 @@ impl Display for Expr {
     }
 }
 
+fn fmt_str(s: &str, f: &mut Formatter) -> fmt::Result {
+    try!(f.write_char('"'));
+    for c in s.chars() {
+        match c {
+            '\x08'          => try!(f.write_str("\\b")),
+            '\x09'          => try!(f.write_str("\\t")),
+            '\x0A'          => try!(f.write_str("\\n")),
+            '\x0C'          => try!(f.write_str("\\f")),
+            '\x0D'          => try!(f.write_str("\\r")),
+            '\"'            => try!(f.write_str("\\\"")),
+            '\\'            => try!(f.write_str("\\\\")),
+            '\x20'...'\x7E' => try!(f.write_char(c)),
+            _               => try!(fmt_char_utf8(c, f))
+        }
+    }
+    try!(f.write_char('"'));
+    Ok(())
+}
+
+fn fmt_char_utf8(c: char, f: &mut Formatter) -> fmt::Result {
+    use std::io::{Cursor, Write};
+    let mut buf = [0u8; 4];
+    let len = {
+        let mut cur = Cursor::new(&mut buf[..]);
+        write!(cur, "{}", c).unwrap();
+        cur.position() as usize
+    };
+    for b in &buf[0..len] {
+        try!(write!(f, "\\{:03o}", b));
+    }
+    Ok(())
+}
+
 // Immediate
 
 #[derive(Clone, Eq, PartialEq, Debug)]
