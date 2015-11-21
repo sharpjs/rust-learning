@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::rc::Rc;
+use num::BigInt;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt {
@@ -53,7 +54,7 @@ pub struct Member (Rc<String>, Box<Type>);
 pub enum Expr {
     Ident      (Rc<String>),
     Str        (Rc<String>),
-    Int        (u64),
+    Int        (BigInt),
 
     MemberOf   (Box<Expr>, Rc<String>),
     Increment  (Box<Expr>, Option<Rc<String>>),

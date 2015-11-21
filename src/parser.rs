@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::rc::Rc;
+use num::bigint::ToBigInt;
 
 use ast::*;
 use ast::Stmt::*;
@@ -134,7 +135,7 @@ impl<I: Iterator<Item=char>> Parser<I> {
             // INT
             Token::Int(x) => {
                 self.advance();
-                Ok(Box::new(Int(x)))
+                Ok(Box::new(int(x)))
             },
             // '(' expr ')'
             Token::ParenL => {
@@ -155,6 +156,11 @@ fn eval(e: Expr) -> Box<Stmt> {
     Box::new(Eval(Box::new(e)))
 }
 
+#[inline]
+fn int(n: u64) -> Expr {
+    Int(n.to_bigint().unwrap())
+}
+
 // -----------------------------------------------------------------------------
 // Tests
 
@@ -162,8 +168,9 @@ fn eval(e: Expr) -> Box<Stmt> {
 mod tests {
     use super::*;
     use super::eval;
+    use super::int;
   //use ast::*;
-    use ast::Expr::*;
+  //use ast::Expr::*;
 
     macro_rules! assert_parse {
         ( $i:expr, $( $s:expr ),* ) => {{
@@ -177,16 +184,16 @@ mod tests {
     // Statements
     #[test] fn empty()         { assert_parse!( "",                                 ); }
     #[test] fn eos()           { assert_parse!( ";",                                ); }
-    #[test] fn stmt()          { assert_parse!(  "4",    eval(Int(4))               ); }
-    #[test] fn eos_stmt()      { assert_parse!( ";4",    eval(Int(4))               ); }
-    #[test] fn stmt_eos()      { assert_parse!(  "4;",   eval(Int(4))               ); }
-    #[test] fn eos_stmt_eos()  { assert_parse!( ";4;",   eval(Int(4))               ); }
-    #[test] fn stmts()         { assert_parse!(  "4;2",  eval(Int(4)), eval(Int(2)) ); }
-    #[test] fn eos_stmts()     { assert_parse!( ";4;2",  eval(Int(4)), eval(Int(2)) ); }
-    #[test] fn stmts_eos()     { assert_parse!(  "4;2;", eval(Int(4)), eval(Int(2)) ); }
-    #[test] fn eos_stmts_eos() { assert_parse!( ";4;2;", eval(Int(4)), eval(Int(2)) ); }
+    #[test] fn stmt()          { assert_parse!(  "4",    eval(int(4))               ); }
+    #[test] fn eos_stmt()      { assert_parse!( ";4",    eval(int(4))               ); }
+    #[test] fn stmt_eos()      { assert_parse!(  "4;",   eval(int(4))               ); }
+    #[test] fn eos_stmt_eos()  { assert_parse!( ";4;",   eval(int(4))               ); }
+    #[test] fn stmts()         { assert_parse!(  "4;2",  eval(int(4)), eval(int(2)) ); }
+    #[test] fn eos_stmts()     { assert_parse!( ";4;2",  eval(int(4)), eval(int(2)) ); }
+    #[test] fn stmts_eos()     { assert_parse!(  "4;2;", eval(int(4)), eval(int(2)) ); }
+    #[test] fn eos_stmts_eos() { assert_parse!( ";4;2;", eval(int(4)), eval(int(2)) ); }
 
     // Atomic Expressions
-    #[test] fn parens() { assert_parse!( "(4)", eval(Int(4)) ); }
+    #[test] fn parens() { assert_parse!( "(4)", eval(int(4)) ); }
 }
 

@@ -92,9 +92,8 @@ impl Display for Expr {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
             &Expr::Ident (ref s)                 => f.write_str(&*s),
-            &Expr::Str   (ref s)                 => write!(f, "\"{}\"", s),
-            &Expr::Int   (v) if v < 10           => write!(f, "{}",    v),
-            &Expr::Int   (v)                     => write!(f, "{:#X}", v),
+            &Expr::Str   (ref s)                 => fmt_str(&*s, f),
+            &Expr::Int   (ref i)                 => fmt_int(i, f),
             &Expr::Negate     (ref e, None)      => write!(f, "-{}", e),
             &Expr::Complement (ref e, None)      => write!(f, "~{}", e),
             &Expr::Multiply (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
@@ -160,10 +159,12 @@ pub struct Imm (Expr);
 impl Loc for Imm {
     fn mode(&self) -> Mode { M_Imm }
     fn is_q(&self) -> bool {
-        match self.0 {
-            Expr::Int(i) => 1 <= i && i <= 8,
-            _            => false
+        if let Expr::Int(ref i) = self.0 {
+            if let Some(n) = i.to_u8() {
+                return 1 <= n && n <= 8
+            }
         }
+        false
     }
 }
 
@@ -590,7 +591,7 @@ impl<W> CodeGen<W> where W: io::Write {
                 // TODO: interpret sel
                 self.add_g(src, dst)
             },
-            Expr::Int(n) => {
+            Expr::Int(_) => {
                 Operand::new(Imm(e.clone()), INT, Pos::bof())
             }
             _ => {
@@ -619,7 +620,7 @@ impl<W> CodeGen<W> where W: io::Write {
         let src = src.downcast_ref::<Imm>().unwrap();
         let dst = dst.downcast_ref::<Imm>().unwrap();
         match (&src.0, &dst.0) {
-            (&Expr::Int(a), &Expr::Int(b)) => {
+            (&Expr::Int(ref a), &Expr::Int(ref b)) => {
                 write!(self.out, "{}", a + b);
             },
             (a, b) => {
@@ -643,6 +644,7 @@ fn require_types_equal(a: &Operand, b: &Operand)
 #[cfg(test)]
 mod tests {
     use std::io;
+    use num::bigint::ToBigInt;
 
     use super::*;
     use super::DataReg::*;
@@ -653,7 +655,8 @@ mod tests {
 
     #[test]
     fn foo() {
-        let src = Operand::new(Imm(Expr::Int(4)), U8, Pos::bof());
+        let n   = 4u8.to_bigint().unwrap();
+        let src = Operand::new(Imm(Expr::Int(n)), U8, Pos::bof());
         let dst = Operand::new(D3,                U8, Pos::bof());
 
         let mut gen = CodeGen::new(io::stdout());
