@@ -90,11 +90,23 @@ derive_dynamic_eq!(Loc : LocEq);
 impl Display for Expr {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            &Expr::Ident(ref s)         => f.write_str(&*s),
-            &Expr::Str(ref s)           => write!(f, "\"{}\"", s),
-            &Expr::Int(v) if v < 10 => write!(f, "{}",    v),
-            &Expr::Int(v)           => write!(f, "{:#X}", v),
-            _ => Ok(())
+            &Expr::Ident (ref s)                 => f.write_str(&*s),
+            &Expr::Str   (ref s)                 => write!(f, "\"{}\"", s),
+            &Expr::Int   (v) if v < 10           => write!(f, "{}",    v),
+            &Expr::Int   (v)                     => write!(f, "{:#X}", v),
+            &Expr::Negate     (ref e, None)      => write!(f, "-{}", e),
+            &Expr::Complement (ref e, None)      => write!(f, "~{}", e),
+            &Expr::Multiply (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
+            &Expr::Divide   (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
+            &Expr::Modulo   (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
+            &Expr::Add      (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
+            &Expr::Subtract (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
+            &Expr::ShiftL   (ref l, ref r, None) => write!(f, "({} << {})", l, r),
+            &Expr::ShiftR   (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
+            &Expr::BitAnd   (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
+            &Expr::BitXor   (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
+            &Expr::BitOr    (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
+            _                                    => f.write_str("**ERROR**")
         }
     }
 }
