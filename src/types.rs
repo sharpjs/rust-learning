@@ -51,12 +51,6 @@ pub struct Member {
     ty:   Box<Type>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Const {
-    Sym(Rc<String>),
-    Num(u64),
-}
-
 pub const U8:  &'static Type = &Int { value_width: Some( 8), store_width: Some( 8), signed: Some(false) };
 pub const U16: &'static Type = &Int { value_width: Some(16), store_width: Some(16), signed: Some(false) };
 pub const U32: &'static Type = &Int { value_width: Some(32), store_width: Some(32), signed: Some(false) };

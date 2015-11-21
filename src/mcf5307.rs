@@ -34,9 +34,6 @@ use util::shared::*;
 // NOTE: Required because stable Rust does not provide an API to read enum
 // discriminator values.
 
-// NOTE: Cannot use newtype pattern here, as Rust does not have "generalized
-// newtype deriving" like Haskell.  We would want Mode to derive BitOr.
-
 type Mode = u32;
 const M_Imm:         Mode = 1 <<  0;
 const M_Abs16:       Mode = 1 <<  1;
@@ -67,7 +64,7 @@ const M_Src: Mode
     = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
 
 // -----------------------------------------------------------------------------
-// Locations - place where data can be read or written
+// Locations - places where data can be read or written
 
 pub trait Loc : LocEq + Display + Debug {
     fn mode(&self) -> Mode;
@@ -88,14 +85,16 @@ impl<'a, T: 'a + Loc> From<T> for Shared<'a, Loc> {
 
 derive_dynamic_eq!(Loc : LocEq);
 
-// Constants (defined in types.rs)
+// Constant Expressions (defined in types.rs)
 
-impl Display for Const {
+impl Display for Expr {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match *self {
-            Const::Sym(ref s)           => f.write_str(s),
-            Const::Num(    v) if v < 10 => write!(f, "{}",    v),
-            Const::Num(    v)           => write!(f, "{:#X}", v),
+        match self {
+            &Expr::Ident(ref s)         => f.write_str(&*s),
+            &Expr::Str(ref s)           => write!(f, "\"{}\"", s),
+            &Expr::Int(v) if v < 10 => write!(f, "{}",    v),
+            &Expr::Int(v)           => write!(f, "{:#X}", v),
+            _ => Ok(())
         }
     }
 }
@@ -103,14 +102,14 @@ impl Display for Const {
 // Immediate
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Imm (Const);
+pub struct Imm (Expr);
 
 impl Loc for Imm {
     fn mode(&self) -> Mode { M_Imm }
     fn is_q(&self) -> bool {
         match self.0 {
-            Const::Num(i) => 1 <= i && i <= 8,
-            _             => false
+            Expr::Int(i) => 1 <= i && i <= 8,
+            _            => false
         }
     }
 }
@@ -131,7 +130,7 @@ use self::Distance::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Abs {
-    addr: Const,
+    addr: Expr,
     dist: Distance
 }
 
@@ -428,7 +427,7 @@ impl Display for AddrIndInc {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct AddrDisp {
     base: AddrReg,
-    disp: Const
+    disp: Expr
 }
 
 impl Loc for AddrDisp {
@@ -446,9 +445,9 @@ impl Display for AddrDisp {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct AddrDispIdx {
     base:  AddrReg,
-    disp:  Const,
+    disp:  Expr,
     index: Index,
-    scale: Const
+    scale: Expr
 }
 
 impl Loc for AddrDispIdx {
@@ -465,7 +464,7 @@ impl Display for AddrDispIdx {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PcDisp {
-    disp: Const
+    disp: Expr
 }
 
 impl Loc for PcDisp {
@@ -482,9 +481,9 @@ impl Display for PcDisp {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct PcDispIdx {
-    disp:  Const,
+    disp:  Expr,
     index: Index,
-    scale: Const
+    scale: Expr
 }
 
 impl Loc for PcDispIdx {
@@ -532,14 +531,14 @@ impl<W> CodeGen<W> where W: io::Write {
 
     pub fn visit_expr(&mut self, e: &Expr) -> Operand {
         match *e {
-            Expr::Add(ref src, ref dst, sel) => {
+            Expr::Add(ref src, ref dst, ref sel) => {
                 let src = self.visit_expr(src);
                 let dst = self.visit_expr(dst);
                 // TODO: interpret sel
                 self.add_g(src, dst)
             },
             Expr::Int(n) => {
-                Operand::new(Imm(Const::Num(n)), INT, Pos::bof())
+                Operand::new(Imm(e.clone()), INT, Pos::bof())
             }
             _ => {
                 panic!("not supported yet");
@@ -567,7 +566,7 @@ impl<W> CodeGen<W> where W: io::Write {
         let src = src.downcast_ref::<Imm>().unwrap();
         let dst = dst.downcast_ref::<Imm>().unwrap();
         match (&src.0, &dst.0) {
-            (&Const::Num(a), &Const::Num(b)) => {
+            (&Expr::Int(a), &Expr::Int(b)) => {
                 write!(self.out, "{}", a + b);
             },
             (a, b) => {
@@ -595,13 +594,14 @@ mod tests {
     use super::*;
     use super::DataReg::*;
     use super::AddrReg::*;
+    use ast::Expr;
     use types::*;
     use util::*;
 
     #[test]
     fn foo() {
-        let src = Operand::new(Imm(Const::Num(4)), U8, Pos::bof());
-        let dst = Operand::new(D0,                 U8, Pos::bof());
+        let src = Operand::new(Imm(Expr::Int(4)), U8, Pos::bof());
+        let dst = Operand::new(D3,                U8, Pos::bof());
 
         let mut gen = CodeGen::new(io::stdout());
         let res = gen.add_g(src, dst.clone());
