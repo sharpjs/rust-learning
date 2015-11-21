@@ -16,20 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use interner::StrId;
+use std::rc::Rc;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt {
     // Meta
     Block   (Vec<Stmt>),
-    // Declarational
-    TypeDef (StrId, Box<Type>),
-    Label   (StrId),
-    Bss     (StrId, Box<Type>),
-    Data    (StrId, Box<Type>, Box<Expr>),
-    Alias   (StrId, Box<Type>, Box<Expr>),
-    Func    (StrId, Box<Type>, Box<Stmt>),
-    // Executable
+    // Declaration
+    TypeDef (Rc<String>, Box<Type>),
+    Label   (Rc<String>),
+    Bss     (Rc<String>, Box<Type>),
+    Data    (Rc<String>, Box<Type>, Box<Expr>),
+    Alias   (Rc<String>, Box<Type>, Box<Expr>),
+    Func    (Rc<String>, Box<Type>, Box<Stmt>),
+    // Execution
     Eval    (Box<Expr>),
     Loop    (Box<Stmt>),
     If      (Cond, Box<Stmt>, Option<Box<Stmt>>),
@@ -38,7 +38,7 @@ pub enum Stmt {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type {
-    TypeRef (StrId),
+    TypeRef (Rc<String>),
     Array   (Box<Type>, Option<u64>),
     Ptr     (Box<Type>, Box<Type>),
     Struct  (Vec<Member>),
@@ -47,47 +47,47 @@ pub enum Type {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Member (StrId, Box<Type>);
+pub struct Member (Rc<String>, Box<Type>);
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Expr {
-    Ident      (StrId),
-    Str        (StrId),
+    Ident      (Rc<String>),
+    Str        (Rc<String>),
     Int        (u64),
 
-    MemberOf   (Box<Expr>, StrId),
-    Increment  (Box<Expr>, Option<StrId>),
-    Decrement  (Box<Expr>, Option<StrId>),
+    MemberOf   (Box<Expr>, Rc<String>),
+    Increment  (Box<Expr>, Option<Rc<String>>),
+    Decrement  (Box<Expr>, Option<Rc<String>>),
 
-    Clear      (Box<Expr>, Option<StrId>),
-    Negate     (Box<Expr>, Option<StrId>),
-    Complement (Box<Expr>, Option<StrId>),
+    Clear      (Box<Expr>, Option<Rc<String>>),
+    Negate     (Box<Expr>, Option<Rc<String>>),
+    Complement (Box<Expr>, Option<Rc<String>>),
 
-    Multiply   (Box<Expr>, Box<Expr>, Option<StrId>),
-    Divide     (Box<Expr>, Box<Expr>, Option<StrId>),
-    Modulo     (Box<Expr>, Box<Expr>, Option<StrId>),
+    Multiply   (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    Divide     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    Modulo     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
 
-    Add        (Box<Expr>, Box<Expr>, Option<StrId>),
-    Subtract   (Box<Expr>, Box<Expr>, Option<StrId>),
+    Add        (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    Subtract   (Box<Expr>, Box<Expr>, Option<Rc<String>>),
 
-    ShiftL     (Box<Expr>, Box<Expr>, Option<StrId>),
-    ShiftR     (Box<Expr>, Box<Expr>, Option<StrId>),
+    ShiftL     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    ShiftR     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
 
-    BitAnd     (Box<Expr>, Box<Expr>, Option<StrId>),
-    BitXor     (Box<Expr>, Box<Expr>, Option<StrId>),
-    BitOr      (Box<Expr>, Box<Expr>, Option<StrId>),
+    BitAnd     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    BitXor     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    BitOr      (Box<Expr>, Box<Expr>, Option<Rc<String>>),
 
-    BitChange  (Box<Expr>, Box<Expr>, Option<StrId>),
-    BitClear   (Box<Expr>, Box<Expr>, Option<StrId>),
-    BitSet     (Box<Expr>, Box<Expr>, Option<StrId>),
-    BitTest    (Box<Expr>, Box<Expr>, Option<StrId>),
+    BitChange  (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    BitClear   (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    BitSet     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    BitTest    (Box<Expr>, Box<Expr>, Option<Rc<String>>),
 
-    Compare    (Box<Expr>, Box<Expr>, Option<StrId>),
+    Compare    (Box<Expr>, Box<Expr>, Option<Rc<String>>),
 
-    Set        (Box<Expr>, Box<Expr>, Option<StrId>),
-    SetCond    (Box<Expr>, Box<Cond>, Option<StrId>),
+    Set        (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    SetCond    (Box<Expr>, Box<Cond>, Option<Rc<String>>),
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Cond (pub StrId, pub Option<Box<Expr>>);
+pub struct Cond (pub Rc<String>, pub Option<Box<Expr>>);
 
