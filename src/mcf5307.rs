@@ -22,6 +22,7 @@ use std::fmt::{self, Display, Debug, Formatter, Write};
 use std::ops::BitOr;
 use std::io;
 use std::rc::Rc;
+use num::{BigInt, ToPrimitive};
 
 use ast::Expr;
 use types::*;
@@ -142,6 +143,13 @@ fn fmt_char_utf8(c: char, f: &mut Formatter) -> fmt::Result {
         try!(write!(f, "\\{:03o}", b));
     }
     Ok(())
+}
+
+fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
+    match i.to_u64() {
+        Some(n) if n > 9 => write!(f, "{:#X}", n),
+        _                => write!(f, "{}",    i),
+    }
 }
 
 // Immediate
