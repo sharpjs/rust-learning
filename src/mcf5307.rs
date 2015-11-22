@@ -608,6 +608,7 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 
     pub fn add(&mut self, expr: &Expr, src: Operand, dst: Operand, sel: &str) -> Operand {
+        require_types_equal(&src, &dst);
         let modes = (src.loc.mode(), dst.loc.mode(), sel);
         match modes {
             (M_Imm,  M_Imm,  _  )                      => self.add_const(expr, src, dst),
@@ -621,16 +622,7 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 
     pub fn add_data(&mut self, src: Operand, dst: Operand) -> Operand {
-        require_types_equal(&src, &dst);
-        {
-            let s = &*src.loc;
-            let d = &*dst.loc;
-            match (s.mode(), d.mode()) {
-                (M_Data, _) if d.is(M_Dst) => self.write_insn_2("add", s, d),
-                (_, M_Data) if s.is(M_Src) => self.write_insn_2("add", s, d),
-                _                          => panic!("X")
-            }
-        }
+        self.write_ins_s2("add", U8, &src, &dst);
         dst
     }
 
@@ -644,8 +636,18 @@ impl<W> CodeGen<W> where W: io::Write {
         Operand::new(loc, INT, src.pos)
     }
 
-    fn write_insn_2(&mut self, op: &str, src: &Loc, dst: &Loc) {
-        writeln!(self.out, "    {} {}, {}", op, src, dst).unwrap();
+    fn write_ins_s2<A: Display, B: Display>(&mut self, op: &str, ty: &Type, a: &A, b: &B) {
+        let suf = Self::size_suffix(ty);
+        writeln!(self.out, "    {}{} {}, {}", op, suf, a, b).unwrap();
+    }
+
+    fn size_suffix(ty: &Type) -> &'static str {
+        match ty.store_width() {
+            Some(8)  => ".b",
+            Some(16) => ".w",
+            Some(32) => ".l",
+            _        => ""
+        }
     }
 }
 
