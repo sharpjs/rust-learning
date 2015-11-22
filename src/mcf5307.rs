@@ -589,7 +589,7 @@ impl<W> CodeGen<W> where W: io::Write {
                 let src = self.visit_expr(src);
                 let dst = self.visit_expr(dst);
                 // TODO: interpret sel
-                self.add_g(src, dst)
+                self.add_data(src, dst)
             },
             Expr::Int(_) => {
                 Operand::new(Imm(e.clone()), INT, Pos::bof())
@@ -600,8 +600,20 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn add_g(&mut self, src: Operand, dst: Operand) -> Operand
-    {
+    pub fn add(&mut self, expr: &Expr, src: Operand, dst: Operand, sel: &str) -> Operand {
+        let modes = (src.loc.mode(), dst.loc.mode(), sel);
+        match modes {
+            (M_Imm,  M_Imm,  _  )                      => self.add_const(expr, src, dst),
+            (M_Data, _,      "g") if dst.loc.is(M_Dst) => self.add_data(src, dst),
+            (_,      M_Data, "g") if src.loc.is(M_Src) => self.add_data(src, dst),
+            // ...others...
+            (M_Data, _,      _  ) if dst.loc.is(M_Dst) => self.add_data(src, dst),
+            (_,      M_Data, _  ) if src.loc.is(M_Src) => self.add_data(src, dst),
+            _                                          => dst
+        }
+    }
+
+    pub fn add_data(&mut self, src: Operand, dst: Operand) -> Operand {
         require_types_equal(&src, &dst);
         {
             let s = &*src.loc;
@@ -615,18 +627,14 @@ impl<W> CodeGen<W> where W: io::Write {
         dst
     }
 
-    #[allow(unused_must_use)]
-    fn add_const(&mut self, src: &Loc, dst: &Loc) {
-        let src = src.downcast_ref::<Imm>().unwrap();
-        let dst = dst.downcast_ref::<Imm>().unwrap();
-        match (&src.0, &dst.0) {
-            (&Expr::Int(ref a), &Expr::Int(ref b)) => {
-                write!(self.out, "{}", a + b);
-            },
-            (a, b) => {
-                write!(self.out, "({} + {})", a, b);
-            }
-        }
+    fn add_const(&mut self, expr: &Expr, src: Operand, dst: Operand) -> Operand {
+        let a   = src.loc.downcast_ref::<Imm>().unwrap();
+        let b   = dst.loc.downcast_ref::<Imm>().unwrap();
+        let loc = match (&a.0, &b.0) {
+            (&Expr::Int(ref a), &Expr::Int(ref b)) => Imm(Expr::Int(a + b)),
+            _                                      => Imm(expr.clone())
+        };
+        Operand::new(loc, INT, src.pos)
     }
 
     fn write_insn_2(&mut self, op: &str, src: &Loc, dst: &Loc) {
@@ -660,7 +668,7 @@ mod tests {
         let dst = Operand::new(D3,                U8, Pos::bof());
 
         let mut gen = CodeGen::new(io::stdout());
-        let res = gen.add_g(src, dst.clone());
+        let res = gen.add_data(src, dst.clone());
 
         assert_eq!(dst, res);
     }
