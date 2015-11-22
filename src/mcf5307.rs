@@ -608,7 +608,7 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 
     pub fn add(&mut self, expr: &Expr, src: Operand, dst: Operand, sel: &str) -> Operand {
-        require_types_equal(&src, &dst);
+        require_types_eq_scalar(&src, &dst);
         let modes = (src.loc.mode(), dst.loc.mode(), sel);
         match modes {
             (M_Imm,  M_Imm,  _  )                      => self.add_const(expr, src, dst),
@@ -651,11 +651,26 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 }
 
-fn require_types_equal(a: &Operand, b: &Operand)
-{
-    if &a.ty != &b.ty {
-        panic!("Type mismatch."); // TODO: Error
+fn require_types_eq_scalar(a: &Operand, b: &Operand) -> Rc<Type> {
+    let a = &*a.ty;
+    let b = &*b.ty;
+
+    match (a, b) {
+        (&Type::Int { value_width: va, store_width: wa, signed: sa },
+         &Type::Int { value_width: vb, store_width: wb, signed: sb }) => {
+            let vc = agree(va, vb).unwrap();
+            let wc = agree(wa, wb).unwrap();
+            let sc = agree(sa, sb).unwrap();
+            Rc::new(Type::Int { value_width:vc, store_width:wc, signed:sc })
+        },
+        _ => { panic!("Type mismatch."); } // TODO: Error
     }
+}
+
+fn agree<T: Eq>(a: Option<T>, b: Option<T>) -> Result<Option<T>, ()> {
+    if a == b || a.is_none() { Ok(b) }
+    else if      b.is_none() { Ok(a) }
+    else                     { Err(()) }
 }
 
 #[cfg(test)]
