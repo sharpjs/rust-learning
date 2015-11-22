@@ -86,27 +86,27 @@ impl<'a, T: 'a + Loc> From<T> for Shared<'a, Loc> {
 
 derive_dynamic_eq!(Loc : LocEq);
 
-// Constant Expressions (defined in types.rs)
+// Constant Expressions (defined in ast.rs)
 
 impl Display for Expr {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            &Expr::Ident (ref s)                 => f.write_str(&*s),
-            &Expr::Str   (ref s)                 => fmt_str(&*s, f),
-            &Expr::Int   (ref i)                 => fmt_int(i, f),
-            &Expr::Negate     (ref e, None)      => write!(f, "-{}", e),
-            &Expr::Complement (ref e, None)      => write!(f, "~{}", e),
-            &Expr::Multiply (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
-            &Expr::Divide   (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
-            &Expr::Modulo   (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
-            &Expr::Add      (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
-            &Expr::Subtract (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
-            &Expr::ShiftL   (ref l, ref r, None) => write!(f, "({} << {})", l, r),
-            &Expr::ShiftR   (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
-            &Expr::BitAnd   (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
-            &Expr::BitXor   (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
-            &Expr::BitOr    (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
-            _                                    => f.write_str("**ERROR**")
+        match *self {
+            Expr::Ident      (ref s)              => f.write_str(&*s),
+            Expr::Str        (ref s)              => fmt_str(&*s, f),
+            Expr::Int        (ref i)              => fmt_int(  i, f),
+            Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
+            Expr::Complement (ref e, None)        => write!(f, "~{}", e),
+            Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
+            Expr::Divide     (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
+            Expr::Modulo     (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
+            Expr::Add        (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
+            Expr::Subtract   (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
+            Expr::ShiftL     (ref l, ref r, None) => write!(f, "({} << {})", l, r),
+            Expr::ShiftR     (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
+            Expr::BitAnd     (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
+            Expr::BitXor     (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
+            Expr::BitOr      (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
+            _                                     => f.write_str("**ERROR**")
         }
     }
 }
@@ -123,14 +123,14 @@ fn fmt_str(s: &str, f: &mut Formatter) -> fmt::Result {
             '\"'            => try!(f.write_str("\\\"")),
             '\\'            => try!(f.write_str("\\\\")),
             '\x20'...'\x7E' => try!(f.write_char(c)),
-            _               => try!(fmt_char_utf8(c, f))
+            _               => try!(fmt_esc_utf8(c, f))
         }
     }
     try!(f.write_char('"'));
     Ok(())
 }
 
-fn fmt_char_utf8(c: char, f: &mut Formatter) -> fmt::Result {
+fn fmt_esc_utf8(c: char, f: &mut Formatter) -> fmt::Result {
     use std::io::{Cursor, Write};
     let mut buf = [0u8; 4];
     let len = {
