@@ -651,26 +651,15 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 }
 
-fn require_types_eq_scalar(a: &Operand, b: &Operand) -> Rc<Type> {
-    let a = &*a.ty;
-    let b = &*b.ty;
-
-    match (a, b) {
-        (&Type::Int { value_width: va, store_width: wa, signed: sa },
-         &Type::Int { value_width: vb, store_width: wb, signed: sb }) => {
-            let vc = agree(va, vb).unwrap();
-            let wc = agree(wa, wb).unwrap();
-            let sc = agree(sa, sb).unwrap();
-            Rc::new(Type::Int { value_width:vc, store_width:wc, signed:sc })
+fn require_types_eq_scalar(a: &Operand, b: &Operand) -> Shared<'static, Type> {
+    match (&*a.ty, &*b.ty) {
+        (&Type::Int(a_), &Type::Int(b_)) => {
+            if a_ == b_ || a_.is_none() { return a.ty.clone() }
+            else if        b_.is_none() { return b.ty.clone() }
         },
-        _ => { panic!("Type mismatch."); } // TODO: Error
+        _ => ()
     }
-}
-
-fn agree<T: Eq>(a: Option<T>, b: Option<T>) -> Result<Option<T>, ()> {
-    if a == b || a.is_none() { Ok(b) }
-    else if      b.is_none() { Ok(a) }
-    else                     { Err(()) }
+    panic!("Type mismatch."); // TODO: Error
 }
 
 #[cfg(test)]
