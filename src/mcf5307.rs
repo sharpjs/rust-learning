@@ -569,6 +569,13 @@ impl Operand {
     }
 }
 
+impl Display for Operand {
+    #[inline(always)]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(&*self.loc, f)
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Code Generator
 
