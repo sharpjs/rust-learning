@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::borrow::Borrow;
 use std::fmt::{self, Display, Pointer, Formatter};
 use std::ops::Deref;
 use std::rc::Rc;
@@ -40,6 +41,12 @@ impl<'a, T: 'a + ?Sized> From<Rc<T>> for Shared<'a, T> {
 impl<'a, T: 'a> From<T> for Shared<'a, T> {
     #[inline(always)]
     fn from(t: T) -> Self { Owned(Rc::new(t)) }
+}
+
+impl<'a, T: 'a + ?Sized + ToOwned> Borrow<T> for Shared<'a, T::Owned> {
+    fn borrow(&self) -> &T {
+        self.deref().borrow()
+    }
 }
 
 impl<'a, T: 'a + ?Sized> Deref for Shared<'a, T> {
