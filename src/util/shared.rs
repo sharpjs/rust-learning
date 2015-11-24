@@ -17,78 +17,168 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::borrow::Borrow;
+use std::cmp::Ordering;
 use std::fmt::{self, Display, Pointer, Formatter};
+use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::rc::Rc;
 use self::Shared::*;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-pub enum Shared<'a, T: 'a + ?Sized> {
-    Borrowed(&'a T),
-    Owned(Rc<T>)
+#[derive(Debug)]
+pub enum Shared<'a,
+    B: 'a + ?Sized,
+    O: 'a + ?Sized + Borrow<B> = B
+> {
+    Borrowed(&'a B),
+    Owned(Rc<O>)
 }
 
-impl<'a, T: 'a + ?Sized> From<&'a T> for Shared<'a, T> {
+impl<'a,
+    B: 'a + ?Sized,
+    O: 'a +  Sized + Borrow<B> + Default
+>
+Default for Shared<'a, B, O> {
     #[inline(always)]
-    fn from(t: &'a T) -> Self { Borrowed(t) }
-}
-
-impl<'a, T: 'a + ?Sized> From<Rc<T>> for Shared<'a, T> {
-    #[inline(always)]
-    fn from(t: Rc<T>) -> Self { Owned(t) }
-}
-
-impl<'a, T: 'a> From<T> for Shared<'a, T> {
-    #[inline(always)]
-    fn from(t: T) -> Self { Owned(Rc::new(t)) }
-}
-
-impl<'a, T: 'a + ?Sized + ToOwned> Borrow<T> for Shared<'a, T::Owned> {
-    fn borrow(&self) -> &T {
-        self.deref().borrow()
-    }
-}
-
-impl<'a, T: 'a + ?Sized> Deref for Shared<'a, T> {
-    type Target = T;
-
-    #[inline(always)]
-    fn deref(&self) -> &T {
-        match self {
-            &Borrowed (    t) => t,
-            &Owned    (ref t) => t.deref(),
-        }
-    }
-}
-
-impl<'a, T: 'a + ?Sized> Clone for Shared<'a, T> {
-    #[inline(always)]
-    fn clone(&self) -> Self {
-        match self {
-            &Borrowed (    t) => Borrowed(t),
-            &Owned    (ref t) => Owned(t.clone()),
-        }
-    }
-}
-
-impl<'a, T: 'a + Default> Default for Shared<'a, T> {
-    #[inline]
     fn default() -> Self {
         Owned(Default::default())
     }
 }
 
-impl<'a, T: 'a + ?Sized + Display> Display for Shared<'a, T> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&**self, f)
+impl<'a,
+    B: 'a + ?Sized,
+    O: 'a + ?Sized + Borrow<B>
+>
+From<&'a B> for Shared<'a, B, O> {
+    #[inline(always)]
+    fn from(x: &'a B) -> Self { Borrowed(x) }
+}
+
+impl<'a,
+    B: 'a + ?Sized,
+    O: 'a + ?Sized + Borrow<B>
+>
+From<Rc<O>> for Shared<'a, B, O> {
+    #[inline(always)]
+    fn from(x: Rc<O>) -> Self { Owned(x) }
+}
+
+impl<'a,
+    B: 'a + ?Sized,
+    O: 'a + ?Sized + Borrow<B>
+>
+Clone for Shared<'a, B, O> {
+    #[inline(always)]
+    fn clone(&self) -> Self {
+        match self {
+            &Borrowed (    x) => Borrowed(x),
+            &Owned    (ref x) => Owned(x.clone()),
+        }
     }
 }
 
-impl<'a, T: 'a> Pointer for Shared<'a, T> {
+impl<'a,
+    B: 'a + ?Sized,
+    O: 'a + ?Sized + Borrow<B>
+>
+Deref for Shared<'a, B, O> {
+    type Target = B;
+
+    #[inline]
+    fn deref(&self) -> &B {
+        match self {
+            &Borrowed (    x) => x,
+            &Owned    (ref x) => x.deref().borrow(),
+        }
+    }
+}
+
+impl<'a,
+    B: 'a + ?Sized,
+    O: 'a + ?Sized + Borrow<B>
+>
+Borrow<B> for Shared<'a, B, O> {
+    #[inline(always)]
+    fn borrow(&self) -> &B { self.deref() }
+}
+
+impl<'a,
+    B: 'a + ?Sized,
+    O: 'a + ?Sized + Borrow<B>
+>
+AsRef<B> for Shared<'a, B, O> {
+    #[inline(always)]
+    fn as_ref(&self) -> &B { self.deref() }
+}
+
+impl<'a,
+    B: 'a + ?Sized + PartialEq,
+    O: 'a + ?Sized + Borrow<B>,
+    T: 'a + ?Sized + Borrow<B>
+>
+PartialEq<T> for Shared<'a, B, O> {
+    #[inline]
+    fn eq(&self, other: &T) -> bool {
+        self.deref().eq(other.borrow())
+    }
+}
+
+impl<'a,
+    B: 'a + ?Sized + Eq,
+    O: 'a + ?Sized + Borrow<B>
+>
+Eq for Shared<'a, B, O> {}
+
+impl<'a,
+    B: 'a + ?Sized + PartialOrd,
+    O: 'a + ?Sized + Borrow<B>,
+    T: 'a + ?Sized + Borrow<B>
+>
+PartialOrd<T> for Shared<'a, B, O> {
+    #[inline]
+    fn partial_cmp(&self, other: &T) -> Option<Ordering> {
+        self.deref().partial_cmp(other.borrow())
+    }
+}
+
+impl<'a,
+    B: 'a + ?Sized + Ord,
+    O: 'a + ?Sized + Borrow<B>
+>
+Ord for Shared<'a, B, O> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.deref().cmp(other.deref())
+    }
+}
+
+impl<'a,
+    B: 'a + ?Sized + Hash,
+    O: 'a + ?Sized + Borrow<B>
+>
+Hash for Shared<'a, B, O> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.deref().hash(state)
+    }
+}
+
+impl<'a,
+    B: 'a + ?Sized + Display,
+    O: 'a + ?Sized + Borrow<B>
+>
+Display for Shared<'a, B, O> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        Display::fmt(self.deref(), f)
+    }
+}
+
+impl<'a,
+    B: 'a,
+    O: 'a + Borrow<B>
+>
+Pointer for Shared<'a, B, O> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {
-            &Borrowed (ref t) => Pointer::fmt(t, f),
-            &Owned    (ref t) => Pointer::fmt(t, f),
+            &Borrowed (ref x) => Pointer::fmt(x, f),
+            &Owned    (ref x) => Pointer::fmt(x, f),
         }
     }
 }
