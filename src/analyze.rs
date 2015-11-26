@@ -16,4 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use ast::*;
+use scope::*;
+
+fn analyze_decls<'a>(ast: Vec<Stmt>) -> Scope<'a> {
+    Scope::new_root()
+}
 
