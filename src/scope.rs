@@ -24,15 +24,16 @@ use util::shared::*;
 
 pub type SharedSymbol = Rc<Symbol>;
 
+#[derive(Clone, Debug)]
 pub struct Symbol {
-    name: SharedStr,
-    ty:   SharedType,
+    pub name: SharedStr,
+    pub ty:   SharedType,
 }
 
 pub struct Scope<'p> {
     parent:  Option<&'p Scope<'p>>,
-    symbols: HashMap<SharedStr, Rc<Symbol>>,
-    types:   HashMap<SharedStr, Rc<Type>>,
+    symbols: HashMap<SharedStr, SharedSymbol>,
+    types:   HashMap<SharedStr, SharedType>,
 }
 
 impl<'p> Scope<'p> {
@@ -52,27 +53,30 @@ impl<'p> Scope<'p> {
         Self::new(Some(self))
     }
 
-    pub fn define_symbol(&mut self, sym: Symbol) -> Result<(), Rc<Symbol>> {
-        let prior = self.symbols.insert(sym.name.clone(), Rc::new(sym));
+    pub fn define_symbol(&mut self, sym: SharedSymbol)
+                         -> Result<(), SharedSymbol> {
+        let name  = sym.name.clone();
+        let prior = self.symbols.insert(name, sym);
         match prior {
             None    => Ok(()),
             Some(s) => Err(s)
         }
     }
 
-    pub fn lookup_symbol(&self, name: &str) -> Option<Rc<Symbol>> {
+    pub fn lookup_symbol(&self, name: &str) -> Option<SharedSymbol> {
         self.symbols.get(name).cloned()
     }
 
-    pub fn define_type(&mut self, name: SharedStr, ty: Type) -> Result<(), Rc<Type>> {
-        let prior = self.types.insert(name, Rc::new(ty));
+    pub fn define_type(&mut self, name: SharedStr, ty: SharedType)
+                       -> Result<(), SharedType> {
+        let prior = self.types.insert(name, ty);
         match prior {
             None    => Ok(()),
             Some(t) => Err(t)
         }
     }
 
-    pub fn lookup_type(&self, name: &str) -> Option<Rc<Type>> {
+    pub fn lookup_type(&self, name: &str) -> Option<SharedType> {
         self.types.get(name).cloned()
     }
 }

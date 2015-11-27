@@ -31,7 +31,7 @@ pub struct IntSpec {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type {
     Int     (Option<IntSpec>),
-    Array   (Box<Type>, Option<u64>),
+    Array   (SharedType, Option<u64>),
     Ptr     (Box<Type>, Box<Type>),
     Struct  (Vec<Member>),
     Union   (Vec<Member>),

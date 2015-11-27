@@ -16,10 +16,138 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use ast::*;
-use scope::*;
+use std::collections::{HashMap, HashSet};
+use std::iter::FromIterator;
+use std::rc::Rc;
 
-fn analyze_decls<'a>(ast: Vec<Stmt>) -> Scope<'a> {
-    Scope::new_root()
+use ast::{Stmt, Type as TypeSpec};
+use scope::*;
+use types::*;
+use util::shared::*;
+
+#[derive(Default)]
+struct TypeTodo<'a> {
+    spec:      Option<&'a TypeSpec>,
+    needs:     HashSet<SharedStr>,
+    needed_by: HashSet<SharedStr>,
+}
+
+impl<'a> TypeTodo<'a> {
+    fn with_needed_by(needed_by: SharedStr) -> Self {
+        TypeTodo {
+            needed_by: HashSet::from_iter(Some(needed_by)),
+            .. Default::default()
+        }
+    }
+
+    fn with_needs(spec: &'a TypeSpec, needs: Vec<SharedStr>) -> Self {
+        TypeTodo {
+            spec:  Some(spec),
+            needs: HashSet::from_iter(needs),
+            .. Default::default()
+        }
+    }
+}
+
+pub struct DeclAnalyzer<'a> {
+    type_todos: HashMap<SharedStr, TypeTodo<'a>>,
+}
+
+impl<'a> DeclAnalyzer<'a> {
+    pub fn new() -> Self {
+        DeclAnalyzer {
+            type_todos: HashMap::new()
+        }
+    }
+
+    pub fn analyze_decls(&mut self, stmts: &'a Vec<Stmt>, scope: &mut Scope) {
+        // ordering & cycle detection
+        // a. enable decls to be a "partial" decl (rejected: ugly)
+        // b. sort decls into dependency order, then iterate
+        // c. track undef'd decls, remove as defined <-- I like this
+
+        let mut labels = vec![];
+
+        for stmt in stmts {
+            match stmt {
+                &Stmt::Block(..) => {
+                    // TODO: recurse into subscope
+                },
+                &Stmt::TypeDef(ref name, ref spec) => { 
+                    let name: SharedStr = name.clone().into();
+
+                    match analyze_type(spec, scope) {
+                        Ok(ty) => {
+                            // Type is fully definable now
+                            scope.define_type(name, ty).unwrap()
+                        },
+                        Err(needs) => {
+                            // Type prerequisites are not defined (yet)
+                            self.add_todo_type(name, spec, needs)
+                        }
+                    }
+                },
+                &Stmt::Label(ref name) => {
+                    // Label applies to next non-label statement
+                    labels.push(name.clone())
+                },
+                //&Stmt::Bss(ref name, ref ty) => {
+                //    let ty = analyze_type(ty);
+                //    let sym = Symbol {
+                //        name: name.clone().into(),
+                //        ty:   Rc::new(ty).into()
+                //    };
+                //    scope.define_symbol(sym).unwrap();
+                //},
+                _ => {}
+            }
+        }
+
+        // TODO: Any labels here are pointers to position at EOF
+    }
+
+    fn add_todo_type(&mut self,
+                     name:  SharedStr,
+                     spec:  &'a TypeSpec,
+                     needs: Vec<SharedStr>) {
+        let todos = &mut self.type_todos;
+
+        // Mark each need as needed by this type
+        for need in &needs {
+            // Already encountered decl? Update its todo item.
+            if let Some(todo) = todos.get_mut(need) {
+                todo.needed_by.insert(name.clone());
+                continue;
+            }
+            // Did not encounter decl ye†; add new todo item.
+            let todo = TypeTodo::with_needed_by(name.clone());
+            todos.insert(need.clone(), todo);
+        }
+
+        // Make a todo item for this type
+        let todo = TypeTodo::with_needs(spec, needs);
+        todos.insert(name, todo);
+    }
+}
+
+fn analyze_type(spec: &TypeSpec, scope: &Scope)
+    -> Result<
+        SharedType,     // Ok:  The specified type
+        Vec<SharedStr>  // Err: Prerequisite types still undefined
+    >
+{
+    match spec {
+        &TypeSpec::TypeRef(ref name) => {
+            match scope.lookup_type(&**name) {
+                Some(ty) => Ok(ty.into()),
+                None     => Err(vec![name.clone().into()])
+            }
+        },
+        &TypeSpec::Array(ref item_t, length) => {
+            let item_t = try!(analyze_type(item_t, scope));
+            Ok(Rc::new(Type::Array(item_t, length)).into())
+        },
+        _ => panic!("not implemented yet")
+    }
 }
 
