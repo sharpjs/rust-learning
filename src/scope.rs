@@ -22,8 +22,7 @@ use std::rc::Rc;
 use types::*;
 use util::shared::*;
 
-pub type SharedType = Shared<'static, Type>;
-pub type SharedStr  = Shared<'static, str, String>;
+pub type SharedSymbol = Rc<Symbol>;
 
 pub struct Symbol {
     name: SharedStr,

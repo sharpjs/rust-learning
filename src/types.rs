@@ -17,6 +17,9 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::rc::Rc;
+use util::shared::Shared;
+
+pub type SharedType = Shared<'static, Type>;
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct IntSpec {
@@ -64,7 +67,6 @@ ints! {
     I32: 32, 32, true;
     I64: 64, 64, true;
 }
-
 
 impl Type {
     pub fn is_scalar(&self) -> bool {

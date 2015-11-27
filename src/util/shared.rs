@@ -24,6 +24,8 @@ use std::ops::Deref;
 use std::rc::Rc;
 use self::Shared::*;
 
+pub type SharedStr = Shared<'static, str, String>;
+
 #[derive(Debug)]
 pub enum Shared<'a,
     B: 'a + ?Sized,
