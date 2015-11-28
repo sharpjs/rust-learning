@@ -16,8 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::rc::Rc;
-use util::shared::Shared;
+use util::shared::*;
 
 pub type SharedType = Shared<'static, Type>;
 
@@ -32,7 +31,7 @@ pub struct IntSpec {
 pub enum Type {
     Int     (Option<IntSpec>),
     Array   (SharedType, Option<u64>),
-    Ptr     (Box<Type>, Box<Type>),
+    Ptr     (SharedType, SharedType),
     Struct  (Vec<Member>),
     Union   (Vec<Member>),
     Func    (Vec<Member>, Vec<Member>),
@@ -41,8 +40,8 @@ use self::Type::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Member {
-    name: Rc<String>,
-    ty:   Box<Type>,
+    name: SharedStr,
+    ty:   SharedType,
 }
 
 // Abstract Integer
