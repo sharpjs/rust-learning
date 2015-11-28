@@ -18,6 +18,7 @@
 
 use std::rc::Rc;
 use num::BigInt;
+pub use types::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt {
@@ -36,19 +37,6 @@ pub enum Stmt {
     If      (Cond, Box<Stmt>, Option<Box<Stmt>>),
     While   (Cond, Box<Stmt>),
 }
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Type {
-    TypeRef (Rc<String>),
-    Array   (Box<Type>, Option<u64>),
-    Ptr     (Box<Type>, Box<Type>),
-    Struct  (Vec<Member>),
-    Union   (Vec<Member>),
-    Func    (Vec<Member>, Vec<Member>),
-}
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Member (Rc<String>, Box<Type>);
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Expr {

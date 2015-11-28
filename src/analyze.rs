@@ -20,14 +20,14 @@ use std::collections::{HashMap, HashSet};
 use std::iter::FromIterator;
 use std::rc::Rc;
 
-use ast::{Stmt, Type as TypeSpec};
+use ast::Stmt;
 use scope::*;
 use types::*;
 use util::shared::*;
 
 #[derive(Default)]
 struct TypeTodo<'a> {
-    spec:      Option<&'a TypeSpec>,
+    spec:      Option<&'a Type>,
     needs:     HashSet<SharedStr>,
     needed_by: HashSet<SharedStr>,
 }
@@ -40,7 +40,7 @@ impl<'a> TypeTodo<'a> {
         }
     }
 
-    fn with_needs(spec: &'a TypeSpec, needs: Vec<SharedStr>) -> Self {
+    fn with_needs(spec: &'a Type, needs: Vec<SharedStr>) -> Self {
         TypeTodo {
             spec:  Some(spec),
             needs: HashSet::from_iter(needs),
@@ -62,8 +62,8 @@ impl<'a> DeclAnalyzer<'a> {
 
     pub fn analyze_decls(&mut self, stmts: &'a Vec<Stmt>, scope: &mut Scope) {
         // ordering & cycle detection
-        // a. enable decls to be a "partial" decl (rejected: ugly)
-        // b. sort decls into dependency order, then iterate
+        // a. enable type to be a "partial" type (rejected: ugly)
+        // b. sort decls into dependency order, then iterate <-- not possible w/anonymous types
         // c. track undef'd decls, remove as defined <-- I like this
 
         let mut labels = vec![];
@@ -76,14 +76,14 @@ impl<'a> DeclAnalyzer<'a> {
                 &Stmt::TypeDef(ref name, ref spec) => { 
                     let name: SharedStr = name.clone().into();
 
-                    match self.analyze_type(spec, scope) {
+                    match self.resolve_type(spec, scope) {
                         Ok(ty) => {
                             // Type is fully definable now
                             scope.define_type(name, ty).unwrap()
                         },
                         Err(needs) => {
                             // Type prerequisites are not defined (yet)
-                            self.add_todo_type(name, spec, needs)
+                            //self.add_todo_type(name, spec, needs)
                         }
                     }
                 },
@@ -92,7 +92,7 @@ impl<'a> DeclAnalyzer<'a> {
                     labels.push(name.clone())
                 },
                 //&Stmt::Bss(ref name, ref ty) => {
-                //    let ty = analyze_type(ty);
+                //    let ty = resolve_type(ty);
                 //    let sym = Symbol {
                 //        name: name.clone().into(),
                 //        ty:   Rc::new(ty).into()
@@ -106,9 +106,30 @@ impl<'a> DeclAnalyzer<'a> {
         // TODO: Any labels here are pointers to position at EOF
     }
 
+    fn resolve_type(&mut self, spec: &Type, scope: &Scope)
+        -> Result<
+            SharedType,     // Ok:  The specified type
+            Vec<SharedStr>  // Err: Prerequisite types still undefined
+        >
+    {
+        match spec {
+            &Type::Ref(ref name) => {
+                match scope.lookup_type(&**name) {
+                    Some(ty) => Ok(ty.into()),
+                    None     => Err(vec![name.clone().into()])
+                }
+            },
+            &Type::Array(ref item_t, length) => {
+                let item_t = try!(self.resolve_type(item_t, scope));
+                Ok(Rc::new(Type::Array(item_t, length)).into())
+            },
+            _ => panic!("not implemented yet")
+        }
+    }
+
     fn add_todo_type(&mut self,
                      name:  SharedStr,
-                     spec:  &'a TypeSpec,
+                     spec:  &'a Type,
                      needs: Vec<SharedStr>) {
         let todos = &mut self.type_todos;
 
@@ -147,30 +168,9 @@ impl<'a> DeclAnalyzer<'a> {
 
             // Process that decl if its needs are all met now
             if let Some(spec) = spec {
-                let ty = self.analyze_type(spec, scope).unwrap();
+                let ty = self.resolve_type(spec, scope).unwrap();
                 scope.define_type(name.clone() /* wrong name */, ty).unwrap();
             }
-        }
-    }
-
-    fn analyze_type(&mut self, spec: &TypeSpec, scope: &Scope)
-        -> Result<
-            SharedType,     // Ok:  The specified type
-            Vec<SharedStr>  // Err: Prerequisite types still undefined
-        >
-    {
-        match spec {
-            &TypeSpec::TypeRef(ref name) => {
-                match scope.lookup_type(&**name) {
-                    Some(ty) => Ok(ty.into()),
-                    None     => Err(vec![name.clone().into()])
-                }
-            },
-            &TypeSpec::Array(ref item_t, length) => {
-                let item_t = try!(self.analyze_type(item_t, scope));
-                Ok(Rc::new(Type::Array(item_t, length)).into())
-            },
-            _ => panic!("not implemented yet")
         }
     }
 }

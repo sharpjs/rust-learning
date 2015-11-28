@@ -29,6 +29,7 @@ pub struct IntSpec {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type {
+    Ref     (SharedStr),
     Int     (Option<IntSpec>),
     Array   (SharedType, Option<u64>),
     Ptr     (SharedType, SharedType),
