@@ -76,7 +76,7 @@ impl<'a> DeclAnalyzer<'a> {
                 &Stmt::TypeDef(ref name, ref spec) => { 
                     let name: SharedStr = name.clone().into();
 
-                    match analyze_type(spec, scope) {
+                    match self.analyze_type(spec, scope) {
                         Ok(ty) => {
                             // Type is fully definable now
                             scope.define_type(name, ty).unwrap()
@@ -128,26 +128,50 @@ impl<'a> DeclAnalyzer<'a> {
         let todo = TypeTodo::with_needs(spec, needs);
         todos.insert(name, todo);
     }
-}
 
-fn analyze_type(spec: &TypeSpec, scope: &Scope)
-    -> Result<
-        SharedType,     // Ok:  The specified type
-        Vec<SharedStr>  // Err: Prerequisite types still undefined
-    >
-{
-    match spec {
-        &TypeSpec::TypeRef(ref name) => {
-            match scope.lookup_type(&**name) {
-                Some(ty) => Ok(ty.into()),
-                None     => Err(vec![name.clone().into()])
+    fn remove_todo_type(&mut self, name: SharedStr, scope: &mut Scope) {
+        // Remove todo item for this type
+        let todo  = match self.type_todos.remove(&name) {
+            Some(todo) => todo,
+            None       => return
+        };
+
+        // Visit all types needing this one
+        for needed_by in &todo.needed_by {
+            // That type no longer needs this one
+            let spec = {
+                let their = &mut self.type_todos.get_mut(needed_by).unwrap();
+                their.needs.remove(&name);
+                if their.needs.is_empty() { their.spec } else { None }
+            };
+
+            // Process that decl if its needs are all met now
+            if let Some(spec) = spec {
+                let ty = self.analyze_type(spec, scope).unwrap();
+                scope.define_type(name.clone() /* wrong name */, ty).unwrap();
             }
-        },
-        &TypeSpec::Array(ref item_t, length) => {
-            let item_t = try!(analyze_type(item_t, scope));
-            Ok(Rc::new(Type::Array(item_t, length)).into())
-        },
-        _ => panic!("not implemented yet")
+        }
+    }
+
+    fn analyze_type(&mut self, spec: &TypeSpec, scope: &Scope)
+        -> Result<
+            SharedType,     // Ok:  The specified type
+            Vec<SharedStr>  // Err: Prerequisite types still undefined
+        >
+    {
+        match spec {
+            &TypeSpec::TypeRef(ref name) => {
+                match scope.lookup_type(&**name) {
+                    Some(ty) => Ok(ty.into()),
+                    None     => Err(vec![name.clone().into()])
+                }
+            },
+            &TypeSpec::Array(ref item_t, length) => {
+                let item_t = try!(self.analyze_type(item_t, scope));
+                Ok(Rc::new(Type::Array(item_t, length)).into())
+            },
+            _ => panic!("not implemented yet")
+        }
     }
 }
 
