@@ -16,9 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::shared::*;
-
-pub type SharedType = Shared<'static, Type>;
+use self::Type::*;
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct IntSpec {
@@ -28,30 +26,29 @@ pub struct IntSpec {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Type {
-    Ref     (SharedStr),
+pub enum Type<'a> {
+    Ref     (&'a str),
     Int     (Option<IntSpec>),
-    Array   (SharedType, Option<u64>),
-    Ptr     (SharedType, SharedType),
-    Struct  (Vec<Member>),
-    Union   (Vec<Member>),
-    Func    (Vec<Member>, Vec<Member>),
+    Array   (&'a Type<'a>, Option<u64>),
+    Ptr     (&'a Type<'a>, &'a Type<'a>),
+    Struct  (Vec<Member<'a>>),
+    Union   (Vec<Member<'a>>),
+    Func    (Vec<Member<'a>>, Vec<Member<'a>>),
 }
-use self::Type::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Member {
-    name: SharedStr,
-    ty:   SharedType,
+pub struct Member<'a> {
+    name: &'a str,
+    ty:   &'a Type<'a>,
 }
 
 // Abstract Integer
-pub const INT: &'static Type = &Int(None);
+pub const INT: &'static Type<'static> = &Int(None);
 
 // Concrete Integers
 macro_rules! ints {
     ($($name:ident: $vw:expr, $sw:expr, $sg:expr;)*) => {$(
-        pub const $name: &'static Type = &Int(Some(IntSpec {
+        pub const $name: &'static Type<'static> = &Int(Some(IntSpec {
             value_width: $vw, store_width: $sw, signed: $sg
         }));
     )*}
@@ -68,7 +65,7 @@ ints! {
     I64: 64, 64, true;
 }
 
-impl Type {
+impl<'a> Type<'a> {
     pub fn is_scalar(&self) -> bool {
         is!(*self => Int(_))
     }

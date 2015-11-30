@@ -46,7 +46,7 @@ mod ast;
 mod interner;
 mod lexer;
 mod message;
-mod parser;
+//mod parser;
 mod scope;
 mod types;
 

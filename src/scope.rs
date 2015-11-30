@@ -17,27 +17,23 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::collections::HashMap;
-use std::rc::Rc;
 
 use types::*;
-use util::shared::*;
-
-pub type SharedSymbol = Rc<Symbol>;
 
 #[derive(Clone, Debug)]
-pub struct Symbol {
-    pub name: SharedStr,
-    pub ty:   SharedType,
+pub struct Symbol<'a> {
+    pub name: &'a str,
+    pub ty:   &'a Type<'a>,
 }
 
-pub struct Scope<'p> {
-    parent:  Option<&'p Scope<'p>>,
-    symbols: HashMap<SharedStr, SharedSymbol>,
-    types:   HashMap<SharedStr, SharedType>,
+pub struct Scope<'a> {
+    parent:  Option<&'a Scope<'a>>,
+    symbols: HashMap<&'a str, Symbol<'a>>,
+    types:   HashMap<&'a str, Type<'a>>,
 }
 
-impl<'p> Scope<'p> {
-    fn new(parent: Option<&'p Self>) -> Self {
+impl<'a> Scope<'a> {
+    fn new(parent: Option<&'a Self>) -> Self {
         Scope {
             parent:  parent,
             symbols: HashMap::new(),
@@ -49,35 +45,30 @@ impl<'p> Scope<'p> {
         Self::new(None)
     }
 
-    pub fn new_subscope<'s>(&'s self) -> Scope<'s> {
+    pub fn new_subscope(&'a self) -> Self {
         Self::new(Some(self))
     }
 
-    pub fn define_symbol(&mut self, sym: SharedSymbol)
-                         -> Result<(), SharedSymbol> {
-        let name  = sym.name.clone();
-        let prior = self.symbols.insert(name, sym);
-        match prior {
+    pub fn define_symbol(&mut self, sym: Symbol<'a>) -> Result<(), Symbol<'a>> {
+        match self.symbols.insert(sym.name, sym) {
             None    => Ok(()),
             Some(s) => Err(s)
         }
     }
 
-    pub fn lookup_symbol(&self, name: &str) -> Option<SharedSymbol> {
-        self.symbols.get(name).cloned()
+    pub fn lookup_symbol(&'a self, name: &str) -> Option<&'a Symbol<'a>> {
+        self.symbols.get(name)
     }
 
-    pub fn define_type(&mut self, name: SharedStr, ty: SharedType)
-                       -> Result<(), SharedType> {
-        let prior = self.types.insert(name, ty);
-        match prior {
+    pub fn define_type(&mut self, name: &'a str, ty: Type<'a>) -> Result<(), Type<'a>> {
+        match self.types.insert(name, ty) {
             None    => Ok(()),
             Some(t) => Err(t)
         }
     }
 
-    pub fn lookup_type(&self, name: &str) -> Option<SharedType> {
-        self.types.get(name).cloned()
+    pub fn lookup_type(&'a self, name: &str) -> Option<&'a Type<'a>> {
+        self.types.get(name)
     }
 }
 

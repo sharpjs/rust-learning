@@ -556,16 +556,15 @@ impl Display for PcDispIdx {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Operand {
     pub loc: Shared<'static, Loc>,
-    pub ty:  Shared<'static, Type>,
+    pub ty:  &'static Type<'static>,
     pub pos: Pos,
 }
 
 impl Operand {
-    pub fn new<L, T>(loc: L, ty: T, pos: Pos) -> Self
-        where L: Into<Shared<'static, Loc>>,
-              T: Into<Shared<'static, Type>>
+    pub fn new<L>(loc: L, ty: &'static Type<'static>, pos: Pos) -> Self
+        where L: Into<Shared<'static, Loc>>
     {
-        Operand { loc: loc.into(), ty: ty.into(), pos: pos }
+        Operand { loc: loc.into(), ty: ty, pos: pos }
     }
 }
 
@@ -651,11 +650,11 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 }
 
-fn require_types_eq_scalar(a: &Operand, b: &Operand) -> Shared<'static, Type> {
+fn require_types_eq_scalar<'b>(a: &Operand, b: &'b Operand) -> &'b Type<'b> {
     match (&*a.ty, &*b.ty) {
         (&Type::Int(a_), &Type::Int(b_)) => {
-            if a_ == b_ || a_.is_none() { return a.ty.clone() }
-            else if        b_.is_none() { return b.ty.clone() }
+            if a_ == b_ || a_.is_none() { return a.ty }
+            else if        b_.is_none() { return b.ty }
         },
         _ => ()
     }

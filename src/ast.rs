@@ -18,24 +18,24 @@
 
 use std::rc::Rc;
 use num::BigInt;
-pub use types::*;
+pub use types::Type;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Stmt {
+pub enum Stmt<'a> {
     // Meta
-    Block   (Vec<Stmt>),
+    Block   (Vec<Stmt<'a>>),
     // Declaration
-    TypeDef (Rc<String>, Box<Type>),
+    TypeDef (Rc<String>, Box<Type<'a>>),
     Label   (Rc<String>),
-    Bss     (Rc<String>, Box<Type>),
-    Data    (Rc<String>, Box<Type>, Box<Expr>),
-    Alias   (Rc<String>, Box<Type>, Box<Expr>),
-    Func    (Rc<String>, Box<Type>, Box<Stmt>),
+    Bss     (Rc<String>, Box<Type<'a>>),
+    Data    (Rc<String>, Box<Type<'a>>, Box<Expr>),
+    Alias   (Rc<String>, Box<Type<'a>>, Box<Expr>),
+    Func    (Rc<String>, Box<Type<'a>>, Box<Stmt<'a>>),
     // Execution
     Eval    (Box<Expr>),
-    Loop    (Box<Stmt>),
-    If      (Cond, Box<Stmt>, Option<Box<Stmt>>),
-    While   (Cond, Box<Stmt>),
+    Loop    (Box<Stmt<'a>>),
+    If      (Cond, Box<Stmt<'a>>, Option<Box<Stmt<'a>>>),
+    While   (Cond, Box<Stmt<'a>>),
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
