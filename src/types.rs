@@ -27,13 +27,13 @@ pub struct IntSpec {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
-    Ref     (&'a str),
-    Int     (Option<IntSpec>),
-    Array   (&'a Type<'a>, Option<u64>),
-    Ptr     (&'a Type<'a>, &'a Type<'a>),
-    Struct  (Vec<Member<'a>>),
-    Union   (Vec<Member<'a>>),
-    Func    (Vec<Member<'a>>, Vec<Member<'a>>),
+    Ref    (&'a str),
+    Int    (Option<IntSpec>),
+    Array  (&'a Type<'a>, Option<u64>),
+    Ptr    (&'a Type<'a>, &'a Type<'a>),
+    Struct (Vec<Member<'a>>),
+    Union  (Vec<Member<'a>>),
+    Func   (Vec<Member<'a>>, Vec<Member<'a>>),
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
