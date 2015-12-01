@@ -116,6 +116,26 @@ impl Interner {
     }
 }
 
+// WIP towards a non-Rc-based interner
+
+pub struct Pool<'a, T: 'a + ?Sized + Borrow<B>, B: 'a + ?Sized = T> {
+    map: RefCell<HashMap<&'a B, usize>>,
+    vec: RefCell<Vec<Box<T>>>,
+
+    //vek: RefCell<Vec<Vec<Box<T>>>> Here's a way forward
+}
+
+use std::ops::Deref;
+use std::mem;
+
+impl<'a, T: 'a + ?Sized + Borrow<B>, B: 'a + ?Sized = T> Pool<'a, T, B> {
+    pub fn get(&'a self, id: usize) -> &'a B {
+        let v = self.vec.borrow();
+        let b = v[id].deref().borrow();
+        unsafe { &*(b as *const B) } // Won't work, because Vec reallocates its contents on growth
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Tests
 
