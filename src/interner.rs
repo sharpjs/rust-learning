@@ -116,23 +116,27 @@ impl Interner {
     }
 }
 
-// WIP towards a non-Rc-based interner
+// WIP towards an arena-based interner
+use std::hash::Hash;
+use arena::*;
 
-pub struct Pool<'a, T: 'a + ?Sized + Borrow<B>, B: 'a + ?Sized = T> {
-    map: RefCell<HashMap<&'a B, usize>>,
-    vec: RefCell<Vec<Box<T>>>,
-
-    //vek: RefCell<Vec<Vec<Box<T>>>> Here's a way forward
+pub struct Interner2<'a, T, B=T> where T: Borrow<B>, B: 'a + Hash + Eq {
+    map:   RefCell<HashMap<&'a B, &'a B>>,
+    arena: Arena<T>,
 }
 
-use std::ops::Deref;
-use std::mem;
+impl<'a, T, B> Interner2<'a, T, B> where T: Borrow<B>, B: 'a + Hash + Eq {
+    pub fn intern(&'a self, object: T) -> &'a B {
+        let mut map = self.map.borrow_mut();
 
-impl<'a, T: 'a + ?Sized + Borrow<B>, B: 'a + ?Sized = T> Pool<'a, T, B> {
-    pub fn get(&'a self, id: usize) -> &'a B {
-        let v = self.vec.borrow();
-        let b = v[id].deref().borrow();
-        unsafe { &*(b as *const B) } // Won't work, because Vec reallocates its contents on growth
+        if let Some(&object) = map.get(&object.borrow()) {
+            return object;
+        }
+
+        let object = self.arena.alloc(object) as &T;
+        let object = object.borrow();
+        map.insert(object, object);
+        object
     }
 }
 
