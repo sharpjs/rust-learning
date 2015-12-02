@@ -42,6 +42,7 @@ extern crate num;
 mod util;
 
 mod analyze;
+mod arena;
 mod ast;
 mod interner;
 mod lexer;
