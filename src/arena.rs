@@ -20,7 +20,6 @@
 // https://github.com/SimonSapin/rust-typed-arena
 // https://github.com/rust-lang/rust/blob/1.4.0/src/libarena/lib.rs
 
-use std::cell::Cell;
 use std::cell::RefCell;
 use std::mem::{replace, transmute};
 
@@ -50,15 +49,16 @@ impl<T> Arena<T> {
     pub fn alloc(&self, object: T) -> &mut T {
         let mut chunks = self.chunks.borrow_mut();
 
-        // Grow by another chunk if current one is full
+        // Start a new chunk if current one is full
         if chunks.current.is_full() {
-            let prior = replace(&mut chunks.current, Chunk::new());
-            chunks.filled.push(prior);
+            let full = replace(&mut chunks.current, Chunk::new());
+            chunks.filled.push(full);
         }
 
-        // Add to current chunk
+        // Move object into current chunk, and obtain a ref to its new home
         let object = chunks.current.alloc(object);
 
+        // Promote ref lifetime to that of arena
         unsafe { transmute::<&mut T, &mut T>(object) }
     }
 }
@@ -73,9 +73,10 @@ impl<T> Chunk<T> {
     }
 
     fn alloc(&mut self, object: T) -> &mut T {
-        let index = self.0.len();
-        self.0.push(object);
-        &mut self.0[index]
+        let vec   = &mut self.0;
+        let index = vec.len();
+        vec.push(object);
+        &mut vec[index]
     }
 }
 
