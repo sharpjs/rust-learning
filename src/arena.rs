@@ -16,9 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// Ideas taken from:
-// https://github.com/SimonSapin/rust-typed-arena
-// https://github.com/rust-lang/rust/blob/1.4.0/src/libarena/lib.rs
+// Inspiration from:
+// - https://github.com/SimonSapin/rust-typed-arena
+// - https://github.com/rust-lang/rust/blob/1.4.0/src/libarena/lib.rs
 
 use std::cell::RefCell;
 use std::mem::{replace, transmute};
@@ -77,6 +77,23 @@ impl<T> Chunk<T> {
         let index = vec.len();
         vec.push(object);
         &mut vec[index]
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Tests
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct Foo(usize);
+
+    #[test]
+    fn test() {
+        let arena = Arena::<Foo>::new();
+
+        // TODO
     }
 }
 

@@ -80,7 +80,6 @@ mod tests {
 
     #[test]
     fn intern() {
-
         let a_str = "Hello".to_string();
         let b_str = "Hello".to_string();
         let c_str = "olleH".to_string();
