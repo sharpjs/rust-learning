@@ -41,17 +41,17 @@ extern crate num;
 #[macro_use]
 mod util;
 
-mod analyze;
+//mod analyze;
 mod arena;
-mod ast;
+//mod ast;
 mod interner;
-mod lexer;
-mod message;
+//mod lexer;
+//mod message;
 //mod parser;
-mod scope;
-mod types;
-
-mod mcf5307;
+//mod scope;
+//mod types;
+//
+//mod mcf5307;
 
 fn main() {}
 
