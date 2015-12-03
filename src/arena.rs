@@ -85,15 +85,49 @@ impl<T> Chunk<T> {
 
 #[cfg(test)]
 mod tests {
+    use std::cell::RefCell;
+    use std::char;
+    use std::collections::HashSet;
     use super::*;
+    use super::CHUNK_SIZE;
 
-    struct Foo(usize);
+    struct Foo<'a> (
+        char,                       // id
+        &'a RefCell<HashSet<char>>, // ids of dropped Foos
+    );
+
+    impl<'a> Drop for Foo<'a> {
+        fn drop(&mut self) {
+            self.1.borrow_mut().insert(self.0);
+        }
+    }
 
     #[test]
     fn test() {
-        let arena = Arena::<Foo>::new();
+        let dropped = RefCell::new(HashSet::new());
 
-        // TODO
+        {
+            let arena = Arena::new();
+            let a = arena.alloc(Foo('a', &dropped));
+            let b = arena.alloc(Foo('b', &dropped));
+
+            // Ensure arena has to grow a new chunk
+            for n in 0..CHUNK_SIZE {
+                let c = char::from_u32('c' as u32 + n as u32).unwrap();
+                arena.alloc(Foo(c, &dropped));
+            }
+
+            assert!(a.0 == 'a');
+            assert!(b.0 == 'b');
+            assert!(dropped.borrow().len() == 0);
+
+            // arena is dropped here
+        }
+
+        let dropped = dropped.into_inner();
+        assert!(dropped.len() == CHUNK_SIZE + 2);
+        assert!(dropped.contains(&'a'));
+        assert!(dropped.contains(&'b'));
     }
 }
 
