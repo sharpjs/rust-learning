@@ -1,4 +1,4 @@
-// String Interner
+// Interner
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -19,113 +19,33 @@
 use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fmt;
-use std::rc::Rc;
-
-// -----------------------------------------------------------------------------
-// Handle for Interned Object
-
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct StrId(usize);
-
-impl From<usize> for StrId {
-    #[inline]
-    fn from(n: usize) -> Self { StrId(n) }
-}
-
-impl Into<usize> for StrId {
-    #[inline]
-    fn into(self) -> usize { self.0 }
-}
-
-impl fmt::Debug for StrId {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "#{}", self.0)
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Interned Object
-
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-struct Interned<T> (Rc<T>);
-
-impl<T> Interned<T> {
-    #[inline]
-    fn new<S: Into<T>>(s: S) -> Self {
-        Interned(Rc::new(s.into()))
-    }
-}
-
-// Necessary to enable &str to probe HashMap keyed by Rc<string>
-impl Borrow<str> for Interned<String> {
-    #[inline]
-    fn borrow(&self) -> &str {
-        &self.0[..]
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Interner
-
-#[derive(Clone)]
-pub struct Interner {
-    map: RefCell<HashMap<Interned<String>, usize>>,
-    vec: RefCell<Vec    <Interned<String>       >>,
-}
-
-impl Interner {
-    pub fn new() -> Self {
-        Interner {
-            map: RefCell::new(HashMap::new()),
-            vec: RefCell::new(Vec    ::new()),
-        }
-    }
-
-    pub fn intern<S: AsRef<str>>(&self, val: S) -> StrId {
-        // If an interned copy exists, return it
-        let mut map = self.map.borrow_mut();
-        let     val = val.as_ref();
-
-        if let Some(&idx) = map.get(val) {
-            return idx.into();
-        }
-
-        // Else, intern a copy
-        let mut vec = self.vec.borrow_mut();
-        let     idx = vec.len();
-        let     val = Interned::new(val);
-
-        vec.push(val.clone());
-        map.insert(val, idx);
-        idx.into()
-    }
-
-    pub fn add<S: AsRef<str>>(&self, val: S) -> StrId {
-        let mut vec = self.vec.borrow_mut();
-        let     idx = vec.len();
-        let     val = Interned::new(val.as_ref());
-
-        vec.push(val);
-        idx.into()
-    }
-
-    #[inline]
-    pub fn get(&self, id: StrId) -> Rc<String> {
-        self.vec.borrow()[id.0].0.clone()
-    }
-}
-
-// WIP towards an arena-based interner
 use std::hash::Hash;
 use arena::*;
 
-pub struct Interner2<'a, T, B=T> where T: Borrow<B>, B: 'a + Hash + Eq {
-    map:   RefCell<HashMap<&'a B, &'a B>>,
+pub type StringInterner<'a> = Interner<'a, String, str>;
+
+pub struct Interner<'a, T, B: ?Sized = T>
+where T: Borrow<B>,
+      B: 'a + Hash + Eq {
+
+    // Map from object to its interned object
+    map: RefCell<HashMap<&'a B, &'a B>>,
+
+    // The objects owned by this interner
     arena: Arena<T>,
 }
 
-impl<'a, T, B> Interner2<'a, T, B> where T: Borrow<B>, B: 'a + Hash + Eq {
+impl<'a, T, B: ?Sized> Interner<'a, T, B>
+where T: Borrow<B>,
+      B: 'a + Hash + Eq {
+
+    pub fn new() -> Self {
+        Interner {
+            map:   RefCell::new(HashMap::new()),
+            arena: Arena::new(),
+        }
+    }
+
     pub fn intern(&'a self, object: T) -> &'a B {
         let mut map = self.map.borrow_mut();
 
@@ -135,6 +55,17 @@ impl<'a, T, B> Interner2<'a, T, B> where T: Borrow<B>, B: 'a + Hash + Eq {
 
         let object = self.arena.alloc(object) as &T;
         let object = object.borrow();
+        map.insert(object, object);
+        object
+    }
+
+    pub fn intern_ref(&'a self, object: &'a B) -> &'a B {
+        let mut map = self.map.borrow_mut();
+
+        if let Some(&object) = map.get(&object) {
+            return object;
+        }
+
         map.insert(object, object);
         object
     }
@@ -149,25 +80,44 @@ mod tests {
 
     #[test]
     fn intern() {
-        let t = Interner::new();
 
-        let a = t.intern("Hello");
-        let b = t.intern(&"Hello".to_string());
+        let a_str = "Hello".to_string();
+        let b_str = "Hello".to_string();
+        let c_str = "olleH".to_string();
 
-        assert!   (a == b);
-        assert_eq!("Hello", *t.get(a));
+        assert!(&a_str as *const String != &b_str as *const String);
+
+        let interner = StringInterner::new();
+        let a_intern = interner.intern(a_str);
+        let b_intern = interner.intern(b_str);
+        let c_intern = interner.intern(c_str);
+
+        assert!(a_intern as *const str == b_intern as *const str);
+        assert!(a_intern as *const str != c_intern as *const str);
+        assert!(b_intern == "Hello");
+        assert!(c_intern == "olleH");
     }
 
     #[test]
-    fn add() {
-        let t = Interner::new();
+    fn intern_ref() {
+        let a_str = "Hello".to_string();
+        let b_str = "Hello".to_string();
+        let c_str = "olleH".to_string();
 
-        let a = t.add("Hello");
-        let b = t.add(&"Hello".to_string());
+        let a_ref = a_str.as_ref();
+        let b_ref = b_str.as_ref();
+        let c_ref = c_str.as_ref();
 
-        assert!   (a != b);
-        assert_eq!("Hello", *t.get(a));
-        assert_eq!("Hello", *t.get(b));
+        assert!(a_ref as *const str != b_ref as *const str);
+
+        let interner = StringInterner::new();
+        let a_intern = interner.intern_ref(a_ref);
+        let b_intern = interner.intern_ref(b_ref);
+        let c_intern = interner.intern_ref(c_ref);
+
+        assert!(a_intern as *const str == a_ref as *const str);
+        assert!(b_intern as *const str == a_ref as *const str);
+        assert!(c_intern as *const str == c_ref as *const str);
     }
 }
 
