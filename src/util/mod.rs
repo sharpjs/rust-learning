@@ -27,17 +27,21 @@ pub use self::dynamic_eq::*;
 // -----------------------------------------------------------------------------
 // Pos - a position within a character stream
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub struct Pos {
     pub byte:   usize,  // 0-based byte offset
     pub line:   u32,    // 1-based line number
-    pub column: u32,    // 1-based column number
+    pub column: u16,    // 1-based column number
+    pub file:   FileId, // 0-based file number
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub struct FileId (pub u16);
 
 impl Pos {
     #[inline]
-    pub fn bof() -> Pos {
-        Pos { byte: 0, line: 1, column: 1 }
+    pub fn bof(file: FileId) -> Pos {
+        Pos { byte: 0, line: 1, column: 1, file: file }
     }
 
     #[inline]
@@ -68,25 +72,25 @@ mod tests {
 
         #[test]
         fn bof() {
-            let p = Pos::bof();
-            assert_eq!(p, Pos { byte: 0, line: 1, column: 1 });
+            let p = Pos::bof(FileId(42));
+            assert_eq!(p, Pos { byte: 0, line: 1, column: 1, file: FileId(42) });
         }
 
         #[test]
         fn advance() {
-            let mut p = Pos::bof();
+            let mut p = Pos::bof(FileId(42));
             p.advance('a');
-            assert_eq!(p, Pos { byte: 1, line: 1, column: 2 });
+            assert_eq!(p, Pos { byte: 1, line: 1, column: 2, file: FileId(42) });
             p.advance('\u{10ABCD}');
-            assert_eq!(p, Pos { byte: 5, line: 1, column: 3 });
+            assert_eq!(p, Pos { byte: 5, line: 1, column: 3, file: FileId(42) });
         }
 
         #[test]
         fn newline() {
-            let mut p = Pos::bof();
+            let mut p = Pos::bof(FileId(42));
             p.advance('\n');
             p.newline();
-            assert_eq!(p, Pos { byte: 1, line: 2, column: 1 });
+            assert_eq!(p, Pos { byte: 1, line: 2, column: 1, file: FileId(42) });
         }
     }
 }
