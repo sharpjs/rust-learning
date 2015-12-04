@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 
+use arena::*;
 use types::*;
 
 #[derive(Clone, Debug)]
@@ -30,6 +31,11 @@ pub struct Scope<'a> {
     parent:  Option<&'a Scope<'a>>,
     symbols: HashMap<&'a str, Symbol<'a>>,
     types:   HashMap<&'a str, Type<'a>>,
+}
+
+pub struct ScopeMap<'a, T: 'a> {
+    map:   HashMap<&'a str, &'a T>,
+    arena: Arena<T>,
 }
 
 impl<'a> Scope<'a> {
@@ -69,6 +75,36 @@ impl<'a> Scope<'a> {
 
     pub fn lookup_type(&'a self, name: &str) -> Option<&'a Type<'a>> {
         self.types.get(name)
+    }
+}
+
+impl<'a, T: 'a> ScopeMap<'a, T> {
+    fn new() -> Self {
+        ScopeMap { map: HashMap::new(), arena: Arena::new() }
+    }
+
+    fn add(&'a mut self, object: T) -> &'a T {
+        self.arena.alloc(object)
+    }
+
+    fn define(&'a mut self, name: &'a str, object: T) -> Result<(), &'a T> {
+        let object = self.arena.alloc(object);
+
+        match self.map.insert(name, object) {
+            None    => Ok(()),
+            Some(o) => Err(o)
+        }
+    }
+
+    fn define_ref(&'a mut self, name: &'a str, object: &'a T) -> Result<(), &'a T> {
+        match self.map.insert(name, object) {
+            None    => Ok(()),
+            Some(o) => Err(o)
+        }
+    }
+
+    fn lookup(&self, name: &str) -> Option<&T> {
+        self.map.get(&name).map(|x| *x)
     }
 }
 

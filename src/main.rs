@@ -48,7 +48,7 @@ mod interner;
 //mod lexer;
 //mod message;
 //mod parser;
-//mod scope;
+mod scope;
 mod types;
 
 //mod mcf5307;
