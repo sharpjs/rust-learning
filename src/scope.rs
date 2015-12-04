@@ -1,4 +1,4 @@
-// Identifier Scope
+// Scopes
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -22,29 +22,22 @@ use arena::*;
 use symbol::*;
 use types::*;
 
-#[derive(Clone, Debug)]
-pub struct Symbol<'a> {
-    pub name: &'a str,
-    pub ty:   &'a Type<'a>,
-}
-
 pub struct Scope<'a> {
-    parent:  Option<&'a Scope<'a>>,
-    symbols: HashMap<&'a str, Symbol<'a>>,
-    types:   HashMap<&'a str, Type<'a>>,
+    pub symbols: ScopeMap<'a, Symbol<'a>>,
+    pub types:   ScopeMap<'a, Type  <'a>>,
 }
 
 pub struct ScopeMap<'a, T: 'a> {
-    map:   HashMap<&'a str, &'a T>,
-    arena: Arena<T>,
+    map:    HashMap<&'a str, &'a T>,
+    arena:  Arena<T>,
+    parent: Option<&'a ScopeMap<'a, T>>,
 }
 
 impl<'a> Scope<'a> {
     fn new(parent: Option<&'a Self>) -> Self {
         Scope {
-            parent:  parent,
-            symbols: HashMap::new(),
-            types:   HashMap::new()
+            symbols: ScopeMap::new(parent.map(|p| &p.symbols)),
+            types:   ScopeMap::new(parent.map(|p| &p.types  )),
         }
     }
 
@@ -55,41 +48,25 @@ impl<'a> Scope<'a> {
     pub fn new_subscope(&'a self) -> Self {
         Self::new(Some(self))
     }
-
-    pub fn define_symbol(&mut self, sym: Symbol<'a>) -> Result<(), Symbol<'a>> {
-        match self.symbols.insert(sym.name, sym) {
-            None    => Ok(()),
-            Some(s) => Err(s)
-        }
-    }
-
-    pub fn lookup_symbol(&'a self, name: &str) -> Option<&'a Symbol<'a>> {
-        self.symbols.get(name)
-    }
-
-    pub fn define_type(&mut self, name: &'a str, ty: Type<'a>) -> Result<(), Type<'a>> {
-        match self.types.insert(name, ty) {
-            None    => Ok(()),
-            Some(t) => Err(t)
-        }
-    }
-
-    pub fn lookup_type(&'a self, name: &str) -> Option<&'a Type<'a>> {
-        self.types.get(name)
-    }
 }
 
 impl<'a, T: 'a> ScopeMap<'a, T> {
-    fn new() -> Self {
-        ScopeMap { map: HashMap::new(), arena: Arena::new() }
+    fn new(parent: Option<&'a ScopeMap<'a, T>>) -> Self {
+        ScopeMap {
+            map:    HashMap::new(),
+            arena:  Arena::new(),
+            parent: parent,
+        }
     }
 
-    fn add(&'a mut self, object: T) -> &'a T {
+    fn add(&mut self, object: T) -> &T {
         self.arena.alloc(object)
     }
 
-    fn define(&'a mut self, name: &'a str, object: T) -> Result<(), &'a T> {
-        let object = self.arena.alloc(object);
+    fn define(&mut self, name: &'a str, object: T) -> Result<(), &T> {
+        use std::mem;
+        let object = unsafe { mem::transmute(self.arena.alloc(object)) };
+        // TODO: Get rid of this unsafety
 
         match self.map.insert(name, object) {
             None    => Ok(()),
@@ -97,7 +74,7 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
-    fn define_ref(&'a mut self, name: &'a str, object: &'a T) -> Result<(), &'a T> {
+    fn define_ref(&mut self, name: &'a str, object: &'a T) -> Result<(), &'a T> {
         match self.map.insert(name, object) {
             None    => Ok(()),
             Some(o) => Err(o)
@@ -105,7 +82,93 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
     }
 
     fn lookup(&self, name: &str) -> Option<&T> {
-        self.map.get(&name).map(|x| *x)
+        // First, look in this map
+        if let Some(&object) = self.map.get(&name) {
+            return Some(object);
+        }
+
+        // Else look in parent map, if any
+        if let Some(parent) = self.parent {
+            return parent.lookup(name);
+        }
+
+        // Else fail
+        None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    mod scope {
+        use super::super::*;
+
+        #[test]
+        fn new() {
+            let parent = Scope::new_root();
+            let child  = parent.new_subscope();
+
+            assert_eq!(
+                child.types.parent.unwrap() as *const _,
+                &parent.types               as *const _
+            );
+            assert_eq!(
+                child.symbols.parent.unwrap() as *const _,
+                &parent.symbols               as *const _
+            );
+        }
+    }
+
+    mod scope_map {
+        use super::super::*;
+        use types::*;
+
+        #[test]
+        fn empty() {
+            let map = ScopeMap::<Type>::new(None);
+
+            assert_eq!( map.lookup("any"), None );
+            assert_eq!( map.lookup("any"), None );
+        }
+
+        #[test]
+        fn defined() {
+            let mut map = ScopeMap::new(None);
+
+            assert_eq!( map.define("t", U32.clone()), Ok  (( )) );
+            assert_eq!( map.lookup("t"),              Some(U32) );
+        }
+
+        #[test]
+        fn inherited() {
+            let mut parent = ScopeMap::new(None);
+
+            assert_eq!( parent.define("t", U32.clone()), Ok(()) );
+
+            let map = ScopeMap::new(Some(&parent));
+
+            assert_eq!( map.lookup("t"), Some(U32) );
+        }
+
+        #[test]
+        fn overridden() {
+            let mut parent = ScopeMap::new(None);
+
+            assert_eq!( parent.define("t", U16.clone()), Ok(()) );
+
+            let mut map = ScopeMap::new(Some(&parent));
+
+            assert_eq!( map.define("t", U32.clone()), Ok  (( )) );
+            assert_eq!( map.lookup("t"),              Some(U32) );
+        }
+
+        #[test]
+        fn duplicate() {
+            let mut map = ScopeMap::new(None);
+
+            assert_eq!( map.define("t", U16.clone()), Ok  (( )) );
+            assert_eq!( map.define("t", U32.clone()), Err (U16) );
+            assert_eq!( map.lookup("t"),              Some(U32) );
+        }
     }
 }
 
