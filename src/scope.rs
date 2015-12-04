@@ -19,6 +19,7 @@
 use std::collections::HashMap;
 
 use arena::*;
+use symbol::*;
 use types::*;
 
 #[derive(Clone, Debug)]
