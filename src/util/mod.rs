@@ -59,7 +59,7 @@ impl Pos {
 
 impl fmt::Debug for Pos {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "<{}|{}:{}>", self.byte, self.line, self.column)
+        write!(f, "#{}[{}={}:{}]", self.file.0, self.byte, self.line, self.column)
     }
 }
 
@@ -91,6 +91,12 @@ mod tests {
             p.advance('\n');
             p.newline();
             assert_eq!(p, Pos { byte: 1, line: 2, column: 1, file: FileId(42) });
+        }
+
+        #[test]
+        fn fmt_debug() {
+            let s = format!("{:?}", Pos::bof(FileId(42)));
+            assert_eq!(s, "#42[0=1:1]");
         }
     }
 }
