@@ -49,8 +49,8 @@ mod interner;
 //mod message;
 //mod parser;
 //mod scope;
-//mod types;
-//
+mod types;
+
 //mod mcf5307;
 
 fn main() {}

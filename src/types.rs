@@ -1,4 +1,4 @@
-// Type System
+// Types
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -83,8 +83,5 @@ impl<'a> Type<'a> {
             _                                      => None
         }
     }
-
-    //pub fn contains(&self, value: Value) -> bool {
-    //}
 }
 
