@@ -26,7 +26,7 @@ use std::mem::{replace, transmute};
 const CHUNK_SIZE: usize = 256;
 
 pub struct Arena<T> {
-    chunks: RefCell<Chunks<T>>
+    chunks: RefCell<Chunks<T>>,
 }
 
 struct Chunks<T> {
@@ -42,7 +42,7 @@ impl<T> Arena<T> {
             chunks: RefCell::new(Chunks {
                 current: Chunk::new(),
                 filled:  vec![]
-            })
+            }),
         }
     }
 
