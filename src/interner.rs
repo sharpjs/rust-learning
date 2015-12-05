@@ -25,7 +25,7 @@ use arena::*;
 pub type StringInterner<'a> = Interner<'a, String, str>;
 
 pub struct Interner<'a, T, B: ?Sized = T>
-where T: Borrow<B>,
+where T: 'a + Borrow<B>,
       B: 'a + Hash + Eq {
 
     // Map from object to its interned object
@@ -36,7 +36,7 @@ where T: Borrow<B>,
 }
 
 impl<'a, T, B: ?Sized> Interner<'a, T, B>
-where T: Borrow<B>,
+where T: 'a + Borrow<B>,
       B: 'a + Hash + Eq {
 
     pub fn new() -> Self {
@@ -46,20 +46,30 @@ where T: Borrow<B>,
         }
     }
 
-    pub fn intern(&'a self, object: T) -> &'a B {
+    pub fn intern(&self, object: T) -> &B {
+        use std::mem::transmute;
+
         let mut map = self.map.borrow_mut();
 
         if let Some(&object) = map.get(&object.borrow()) {
             return object;
         }
 
-        let object = self.arena.alloc(object) as &T;
-        let object = object.borrow();
+        // SAFETY: We move the object into the arena and receive a borrow to it.
+        //   We then must use transmute to promote the borrow's lifetime to that
+        //   required by `map`.  The new lifetime might exceed the arena's
+        //   lifetime.  That is OK, because the lifetime is reconstrained to
+        //   that of &self on return from this function, and the arena will not
+        //   drop the object within the lifetime of &self.
+        //   
+        let object: &   T = self.arena.alloc(object);
+        let object: &'a T = unsafe { transmute(object) };
+        let object: &'a B = object.borrow();
         map.insert(object, object);
         object
     }
 
-    pub fn intern_ref(&'a self, object: &'a B) -> &'a B {
+    pub fn intern_ref(&self, object: &'a B) -> &'a B {
         let mut map = self.map.borrow_mut();
 
         if let Some(&object) = map.get(&object) {

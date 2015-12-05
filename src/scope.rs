@@ -64,9 +64,17 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
     }
 
     fn define(&mut self, name: &'a str, object: T) -> Result<(), &T> {
-        use std::mem;
-        let object = unsafe { mem::transmute(self.arena.alloc(object)) };
-        // TODO: Get rid of this unsafety
+        use std::mem::transmute;
+
+        // SAFETY: We move the object into the arena and receive a borrow to it.
+        //   We then must use transmute to promote the borrow's lifetime to that
+        //   required by `map`.  The new lifetime might exceed the arena's
+        //   lifetime.  That is OK, because the lifetime is reconstrained to
+        //   that of &self on return from this function, and the arena will not
+        //   drop the object within the lifetime of &self.
+        //   
+        let object: &   T = self.arena.alloc(object);
+        let object: &'a T = unsafe { transmute(object) };
 
         match self.map.insert(name, object) {
             None    => Ok(()),
