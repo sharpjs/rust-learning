@@ -41,7 +41,7 @@ extern crate num;
 #[macro_use]
 mod util;
 
-//mod analyze;
+mod analyze;
 mod arena;
 mod ast;
 mod interner;

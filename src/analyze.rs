@@ -28,17 +28,14 @@ impl<'a> DeclScanner<'a> {
         DeclScanner { scope: scope }
     }
 
-    pub fn scan(&'a mut self, stmts: &'a Vec<Stmt>) {
+    pub fn scan(&mut self, stmts: &'a Vec<Stmt>) {
         for stmt in stmts {
             match *stmt {
                 Stmt::Block(..) => {
                     // TODO: recurse into subscope
                 },
                 Stmt::TypeDef(ref name, ref decl) => { 
-                    let name =  &**name;
-                    let ty   = (&**decl).clone(); // TODO: Shouldn't need clone
-
-                    if let Err(ty) = self.scope.define_type(name, ty) {
+                    if let Err(ty) = self.scope.types.define_ref(name, &*decl) {
                         panic!("type already defined: {:?}", &ty)
                     }
                 },
