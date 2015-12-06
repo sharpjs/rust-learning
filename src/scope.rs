@@ -59,11 +59,11 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
-    fn add(&mut self, object: T) -> &T {
+    pub fn add(&mut self, object: T) -> &T {
         self.arena.alloc(object)
     }
 
-    fn define(&mut self, name: &'a str, object: T) -> Result<(), &T> {
+    pub fn define(&mut self, name: &'a str, object: T) -> Result<(), &T> {
         use std::mem::transmute;
 
         // SAFETY: We move the object into the arena and receive a borrow to it.
@@ -82,14 +82,14 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
-    fn define_ref(&mut self, name: &'a str, object: &'a T) -> Result<(), &'a T> {
+    pub fn define_ref(&mut self, name: &'a str, object: &'a T) -> Result<(), &'a T> {
         match self.map.insert(name, object) {
             None    => Ok(()),
             Some(o) => Err(o)
         }
     }
 
-    fn lookup(&self, name: &str) -> Option<&T> {
+    pub fn lookup(&self, name: &str) -> Option<&T> {
         // First, look in this map
         if let Some(&object) = self.map.get(&name) {
             return Some(object);
