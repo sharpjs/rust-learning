@@ -16,67 +16,76 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::rc::Rc;
 use num::BigInt;
+use util::*;
 pub use types::Type;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Node<'a> {
+    Stmt (Stmt<'a>, Pos),
+    Expr (Expr<'a>, Pos),
+}
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt<'a> {
     // Meta
     Block   (Vec<Stmt<'a>>),
+
     // Declaration
-    TypeDef (Rc<String>, Box<Type<'a>>),
-    Label   (Rc<String>),
-    Bss     (Rc<String>, Box<Type<'a>>),
-    Data    (Rc<String>, Box<Type<'a>>, Box<Expr>),
-    Alias   (Rc<String>, Box<Type<'a>>, Box<Expr>),
-    Func    (Rc<String>, Box<Type<'a>>, Box<Stmt<'a>>),
+    TypeDef (&'a str, Box<Type<'a>>),
+    Label   (&'a str),
+    Bss     (&'a str, Box<Type<'a>>),
+    Data    (&'a str, Box<Type<'a>>, Box<Expr<'a>>),
+    Alias   (&'a str, Box<Type<'a>>, Box<Expr<'a>>),
+    Func    (&'a str, Box<Type<'a>>, Box<Stmt<'a>>),
+
     // Execution
-    Eval    (Box<Expr>),
+    Eval    (Box<Expr<'a>>),
     Loop    (Box<Stmt<'a>>),
-    If      (Cond, Box<Stmt<'a>>, Option<Box<Stmt<'a>>>),
-    While   (Cond, Box<Stmt<'a>>),
+    If      (Cond<'a>, Box<Stmt<'a>>, Option<Box<Stmt<'a>>>),
+    While   (Cond<'a>, Box<Stmt<'a>>),
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Expr {
-    Ident      (Rc<String>),
-    Str        (Rc<String>),
+pub enum Expr<'a> {
+    Ident      (&'a str),
+    Str        (&'a str),
     Int        (BigInt),
 
-    MemberOf   (Box<Expr>, Rc<String>),
-    Increment  (Box<Expr>, Option<Rc<String>>),
-    Decrement  (Box<Expr>, Option<Rc<String>>),
+    MemberOf   (Box<Expr<'a>>, &'a str),
 
-    Clear      (Box<Expr>, Option<Rc<String>>),
-    Negate     (Box<Expr>, Option<Rc<String>>),
-    Complement (Box<Expr>, Option<Rc<String>>),
+    Increment  (Box<Expr<'a>>, Option<&'a str>),
+    Decrement  (Box<Expr<'a>>, Option<&'a str>),
 
-    Multiply   (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    Divide     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    Modulo     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    Clear      (Box<Expr<'a>>, Option<&'a str>),
+    Negate     (Box<Expr<'a>>, Option<&'a str>),
+    Complement (Box<Expr<'a>>, Option<&'a str>),
 
-    Add        (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    Subtract   (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    Multiply   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    Divide     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    Modulo     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
-    ShiftL     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    ShiftR     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    Add        (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    Subtract   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
-    BitAnd     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    BitXor     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    BitOr      (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    ShiftL     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    ShiftR     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
-    BitChange  (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    BitClear   (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    BitSet     (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    BitTest    (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    BitAnd     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    BitXor     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    BitOr      (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
-    Compare    (Box<Expr>, Box<Expr>, Option<Rc<String>>),
+    BitChange  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    BitClear   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    BitSet     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    BitTest    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
-    Set        (Box<Expr>, Box<Expr>, Option<Rc<String>>),
-    SetCond    (Box<Expr>, Box<Cond>, Option<Rc<String>>),
+    Compare    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+
+    Move       (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    MoveCond   (Box<Expr<'a>>, Box<Cond<'a>>, Option<&'a str>),
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Cond (pub Rc<String>, pub Option<Box<Expr>>);
+pub struct Cond<'a> (pub &'a str, pub Option<Box<Expr<'a>>>);
 

@@ -43,7 +43,7 @@ mod util;
 
 //mod analyze;
 mod arena;
-//mod ast;
+mod ast;
 mod interner;
 //mod lexer;
 //mod message;
