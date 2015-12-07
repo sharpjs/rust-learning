@@ -22,7 +22,7 @@ use std::fmt::{self, Display, Formatter};
 use ast::*;
 use mcf5307::loc::*;
 use types::*;
-use util::{Pos, FileId};
+use util::Pos;
 
 // -----------------------------------------------------------------------------
 // Operand - a machine location with its analyzed type and source position
@@ -72,7 +72,7 @@ impl<W> CodeGen<W> where W: io::Write {
                 self.add_data(src, dst)
             },
             Expr::Int(_) => {
-                Operand::new(Loc::Imm(expr), INT, Pos::bof(FileId(0)))
+                Operand::new(Loc::Imm(expr), INT, Pos::bof(0))
             }
             _ => {
                 panic!("not supported yet");
@@ -152,8 +152,8 @@ mod tests {
     #[test]
     fn foo() {
         let n   = 4u8.to_bigint().unwrap();
-        let src = Operand::new(Loc::Imm(Expr::Int(n)), U8, Pos::bof(FileId(0)));
-        let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof(FileId(0)));
+        let src = Operand::new(Loc::Imm(Expr::Int(n)), U8, Pos::bof(0));
+        let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof(0));
 
         let mut gen = CodeGen::new(io::stdout());
         let res = gen.add_data(src, dst.clone());
