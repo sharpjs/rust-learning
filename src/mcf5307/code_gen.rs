@@ -69,8 +69,7 @@ impl<W> CodeGen<W> where W: io::Write {
                 let src = self.visit_expr(src);
                 let dst = self.visit_expr(dst);
                 // TODO: interpret sel
-                panic!("not supported yet");
-                //self.add_data(src, dst)
+                self.add_data(src, dst)
             },
             Expr::Int(_) => {
                 Operand::new(Loc::Imm(expr), INT, Pos::bof(FileId(0)))
