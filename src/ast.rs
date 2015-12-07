@@ -16,17 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use num::BigInt;
+use std::fmt::{self, Display, Formatter, Write};
+use num::{BigInt, ToPrimitive};
+use types::*;
 use util::*;
-pub use types::Type;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Node<'a> {
     Stmt (Stmt<'a>, Pos),
     Expr (Expr<'a>, Pos),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Stmt<'a> {
     // Meta
     Block   (Vec<Stmt<'a>>),
@@ -46,7 +47,7 @@ pub enum Stmt<'a> {
     While   (Cond<'a>, Box<Stmt<'a>>),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Expr<'a> {
     Ident      (&'a str),
     Str        (&'a str),
@@ -86,6 +87,69 @@ pub enum Expr<'a> {
     MoveCond   (Box<Expr<'a>>, Box<Cond<'a>>, Option<&'a str>),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Cond<'a> (pub &'a str, pub Option<Box<Expr<'a>>>);
+
+impl<'a> Display for Expr<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            Expr::Ident      (s)                  => f.write_str(s),
+            Expr::Str        (s)                  => fmt_str(s, f),
+            Expr::Int        (ref i)              => fmt_int(i, f),
+            Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
+            Expr::Complement (ref e, None)        => write!(f, "~{}", e),
+            Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
+            Expr::Divide     (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
+            Expr::Modulo     (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
+            Expr::Add        (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
+            Expr::Subtract   (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
+            Expr::ShiftL     (ref l, ref r, None) => write!(f, "({} << {})", l, r),
+            Expr::ShiftR     (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
+            Expr::BitAnd     (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
+            Expr::BitXor     (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
+            Expr::BitOr      (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
+            _                                     => Err(fmt::Error)
+        }
+    }
+}
+
+fn fmt_str(s: &str, f: &mut Formatter) -> fmt::Result {
+    try!(f.write_char('"'));
+    for c in s.chars() {
+        match c {
+            '\x08'          => try!(f.write_str("\\b")),
+            '\x09'          => try!(f.write_str("\\t")),
+            '\x0A'          => try!(f.write_str("\\n")),
+            '\x0C'          => try!(f.write_str("\\f")),
+            '\x0D'          => try!(f.write_str("\\r")),
+            '\"'            => try!(f.write_str("\\\"")),
+            '\\'            => try!(f.write_str("\\\\")),
+            '\x20'...'\x7E' => try!(f.write_char(c)),
+            _               => try!(fmt_esc_utf8(c, f))
+        }
+    }
+    try!(f.write_char('"'));
+    Ok(())
+}
+
+fn fmt_esc_utf8(c: char, f: &mut Formatter) -> fmt::Result {
+    use std::io::{Cursor, Write};
+    let mut buf = [0u8; 4];
+    let len = {
+        let mut cur = Cursor::new(&mut buf[..]);
+        write!(cur, "{}", c).unwrap();
+        cur.position() as usize
+    };
+    for b in &buf[0..len] {
+        try!(write!(f, "\\{:03o}", b));
+    }
+    Ok(())
+}
+
+fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
+    match i.to_u64() {
+        Some(n) if n > 9 => write!(f, "{:#X}", n),
+        _                => write!(f, "{}",    i),
+    }
+}
 

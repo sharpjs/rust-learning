@@ -16,30 +16,31 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use num::BigUint;
 use self::Type::*;
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub struct IntSpec {
     value_width: u8,    // count of value bits
     store_width: u8,    // count of value + padding bits
     signed:      bool,  // whether signed or unsigned
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
     Ref    (&'a str),
     Int    (Option<IntSpec>),
-    Array  (&'a Type<'a>, Option<u64>),
-    Ptr    (&'a Type<'a>, &'a Type<'a>),
+    Array  (Box<Type<'a>>, Option<BigUint>),
+    Ptr    (Box<Type<'a>>, Box<Type<'a>>),
     Struct (Vec<Member<'a>>),
     Union  (Vec<Member<'a>>),
     Func   (Vec<Member<'a>>, Vec<Member<'a>>),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Member<'a> {
     name: &'a str,
-    ty:   &'a Type<'a>,
+    ty:   Box<Type<'a>>,
 }
 
 // Abstract Integer
