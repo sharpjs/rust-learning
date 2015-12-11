@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(non_upper_case_globals)]
+
 use std::io;
 use std::fmt::{self, Display, Formatter};
 
@@ -68,8 +70,7 @@ impl<W> CodeGen<W> where W: io::Write {
             Expr::Add(src, dst, sel) => {
                 let src = self.visit_expr(src);
                 let dst = self.visit_expr(dst);
-                // TODO: interpret sel
-                self.add_data(src, dst)
+                self.add(src, dst, sel.unwrap_or(""))
             },
             Expr::Int(_) => {
                 Operand::new(Loc::Imm(expr), INT, Pos::bof(0))
@@ -80,34 +81,35 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-//    pub fn add(&mut self, expr: &Expr<'a>, src: Operand, dst: Operand, sel: &str) -> Operand {
-//        require_types_eq_scalar(&src, &dst);
-//        let modes = (src.loc.mode(), dst.loc.mode(), sel);
-//        match modes {
-//            (M_Imm,  M_Imm,  _  )                      => self.add_const(expr, src, dst),
-//            (M_Data, _,      "g") if dst.loc.is(M_Dst) => self.add_data(src, dst),
-//            (_,      M_Data, "g") if src.loc.is(M_Src) => self.add_data(src, dst),
-//            // ...others...
-//            (M_Data, _,      _  ) if dst.loc.is(M_Dst) => self.add_data(src, dst),
-//            (_,      M_Data, _  ) if src.loc.is(M_Src) => self.add_data(src, dst),
-//            _                                          => dst
-//        }
-//    }
+    pub fn add<'a>(&mut self, src: Operand<'a>, dst: Operand<'a>, sel: &str) -> Operand<'a> {
+        //require_types_eq_scalar(&src, &dst);
+        let modes = (src.loc.mode(), dst.loc.mode(), sel);
+        match modes {
+        //  (M_Imm,  M_Imm,  _  )                      => self.add_const(expr, src, dst),
+            (M_Data, _,      "g") if dst.loc.is(M_Dst) => self.add_data(src, dst),
+            (_,      M_Data, "g") if src.loc.is(M_Src) => self.add_data(src, dst),
+            // ...others...
+            (M_Data, _,      _  ) if dst.loc.is(M_Dst) => self.add_data(src, dst),
+            (_,      M_Data, _  ) if src.loc.is(M_Src) => self.add_data(src, dst),
+            _                                          => dst
+        }
+    }
 
     pub fn add_data<'a>(&mut self, src: Operand<'a>, dst: Operand<'a>) -> Operand<'a> {
         self.write_ins_s2("add", U8, &src, &dst);
         dst
     }
 
-//    fn add_const(&mut self, expr: &Expr<'a>, src: Operand, dst: Operand) -> Operand {
-//        let a   = src.loc.downcast_ref::<Imm>().unwrap();
-//        let b   = dst.loc.downcast_ref::<Imm>().unwrap();
-//        let loc = match (&a.0, &b.0) {
-//            (&Expr::Int(ref a), &Expr::Int(ref b)) => Imm(Expr::Int(a + b)),
-//            _                                      => Imm(expr.clone())
-//        };
-//        Operand::new(loc, INT, src.pos)
-//    }
+    fn add_const<'a>(&mut self, src: Operand<'a>, dst: Operand<'a>) -> Operand<'a> {
+        let a = match src.loc { Loc::Imm(e) => e, _ => panic!() };
+        let b = match dst.loc { Loc::Imm(e) => e, _ => panic!() };
+        let x = (a, b);
+        let e = match x {
+            (Expr::Int(a), Expr::Int(b)) => Expr::Int(a + b),
+            _ => Expr::Add(Box::new(x.0), Box::new(x.1), None)
+        };
+        Operand::new(Loc::Imm(e), INT, src.pos)
+    }
 
     fn write_ins_s2<A: Display, B: Display>
                    (&mut self, op: &str, ty: &Type, a: &A, b: &B) {
