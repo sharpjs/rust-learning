@@ -33,33 +33,33 @@ use self::DataReg::*;
 // NOTE: Required because Rust does not provide a stable API to read enum
 // discriminator values.
 
-type Mode = u32;
-const M_Imm:         Mode = 1 <<  0;
-const M_Abs16:       Mode = 1 <<  1;
-const M_Abs32:       Mode = 1 <<  2;
-const M_Data:        Mode = 1 <<  3;
-const M_Addr:        Mode = 1 <<  4;
-const M_Ctrl:        Mode = 1 <<  5;
-const M_Regs:        Mode = 1 <<  6;
-const M_AddrInd:     Mode = 1 <<  7;
-const M_AddrIndInc:  Mode = 1 <<  8;
-const M_AddrIndDec:  Mode = 1 <<  9;
-const M_AddrDisp:    Mode = 1 << 10;
-const M_AddrDispIdx: Mode = 1 << 11;
-const M_PcDisp:      Mode = 1 << 12;
-const M_PcDispIdx:   Mode = 1 << 13;
-const M_PC:          Mode = 1 << 14;
-const M_SR:          Mode = 1 << 15;
-const M_CCR:         Mode = 1 << 16;
-const M_BC:          Mode = 1 << 17;
+pub type Mode = u32;
+pub const M_Imm:         Mode = 1 <<  0;
+pub const M_Abs16:       Mode = 1 <<  1;
+pub const M_Abs32:       Mode = 1 <<  2;
+pub const M_Data:        Mode = 1 <<  3;
+pub const M_Addr:        Mode = 1 <<  4;
+pub const M_Ctrl:        Mode = 1 <<  5;
+pub const M_Regs:        Mode = 1 <<  6;
+pub const M_AddrInd:     Mode = 1 <<  7;
+pub const M_AddrIndInc:  Mode = 1 <<  8;
+pub const M_AddrIndDec:  Mode = 1 <<  9;
+pub const M_AddrDisp:    Mode = 1 << 10;
+pub const M_AddrDispIdx: Mode = 1 << 11;
+pub const M_PcDisp:      Mode = 1 << 12;
+pub const M_PcDispIdx:   Mode = 1 << 13;
+pub const M_PC:          Mode = 1 << 14;
+pub const M_SR:          Mode = 1 << 15;
+pub const M_CCR:         Mode = 1 << 16;
+pub const M_BC:          Mode = 1 << 17;
 
-const M_Reg: Mode
-    = M_Data | M_Addr;
+pub const M_Reg: Mode
+     = M_Data | M_Addr;
 
-const M_Dst: Mode
-    = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
+pub const M_Dst: Mode
+     = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
 
-const M_Src: Mode
+pub const M_Src: Mode
     = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
 
 // -----------------------------------------------------------------------------
@@ -88,7 +88,7 @@ pub enum Loc<'a> {
 }
 
 impl<'a> Loc<'a> {
-    fn mode(&self) -> Mode {
+    pub fn mode(&self) -> Mode {
         match *self {
             Loc::Imm         (..) => M_Imm,
             Loc::Abs16       (..) => M_Abs16,
@@ -111,11 +111,11 @@ impl<'a> Loc<'a> {
         }
     }
 
-    fn is(&self, modes: Mode) -> bool {
+    pub fn is(&self, modes: Mode) -> bool {
         self.mode() & modes != 0
     }
 
-    fn is_q(&self) -> bool {
+    pub fn is_q(&self) -> bool {
         match *self {
             Loc::Imm(Expr::Int(ref n)) => {
                 match n.to_u8() {
