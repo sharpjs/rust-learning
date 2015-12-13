@@ -100,15 +100,22 @@ impl<W> CodeGen<W> where W: io::Write {
         dst
     }
 
-    fn add_const<'a>(&mut self, src: Operand<'a>, dst: Operand<'a>) -> Operand<'a> {
-        let a = match src.loc { Loc::Imm(e) => e, _ => panic!() };
-        let b = match dst.loc { Loc::Imm(e) => e, _ => panic!() };
-        let x = (a, b);
-        let e = match x {
-            (Expr::Int(a), Expr::Int(b)) => Expr::Int(a + b),
-            _ => Expr::Add(Box::new(x.0), Box::new(x.1), None)
+    fn add_const<'a>(&mut self, x: Operand<'a>, y: Operand<'a>) -> Operand<'a> {
+        let args = (
+            x.loc.to_expr(),
+            y.loc.to_expr()
+        );
+        let e = match args {
+            (Expr::Int(x), Expr::Int(y)) => {
+                Expr::Int(x + y)
+            },
+            _ => {
+                let x = Box::new(args.0);
+                let y = Box::new(args.1);
+                Expr::Add(x, y, None)
+            }
         };
-        Operand::new(Loc::Imm(e), INT, src.pos)
+        Operand::new(Loc::Imm(e), INT, x.pos)
     }
 
     fn write_ins_s2<A: Display, B: Display>
