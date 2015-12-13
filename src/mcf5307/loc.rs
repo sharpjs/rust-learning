@@ -127,6 +127,15 @@ impl<'a> Loc<'a> {
             _ => false
         }
     }
+
+    pub fn to_expr(self) -> Expr<'a> {
+        match self {
+            Loc::Imm   (e) => e,
+            Loc::Abs16 (e) => e,
+            Loc::Abs32 (e) => e,
+            _ => panic!("Cannot unwrap to expression.")
+        }
+    }
 }
 
 impl<'a> Display for Loc<'a> {
