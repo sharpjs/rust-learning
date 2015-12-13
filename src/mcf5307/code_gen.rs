@@ -82,40 +82,41 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 
     pub fn add<'a>(&mut self, src: Operand<'a>, dst: Operand<'a>, sel: &str) -> Operand<'a> {
-        //require_types_eq_scalar(&src, &dst);
+        let ty = check_types_eq_scalar(&src.ty, &dst.ty).unwrap();
         let modes = (src.loc.mode(), dst.loc.mode(), sel);
         match modes {
-        //  (M_Imm,  M_Imm,  _  )                      => self.add_const(expr, src, dst),
-            (M_Data, _,      "g") if dst.loc.is(M_Dst) => self.add_data(src, dst),
-            (_,      M_Data, "g") if src.loc.is(M_Src) => self.add_data(src, dst),
+            (M_Imm,  M_Imm,  _  )                      => self.add_const(src, dst),
+            (M_Data, _,      "g") if dst.loc.is(M_Dst) => self.add_data(ty, src, dst),
+            (_,      M_Data, "g") if src.loc.is(M_Src) => self.add_data(ty, src, dst),
             // ...others...
-            (M_Data, _,      _  ) if dst.loc.is(M_Dst) => self.add_data(src, dst),
-            (_,      M_Data, _  ) if src.loc.is(M_Src) => self.add_data(src, dst),
+            (M_Data, _,      _  ) if dst.loc.is(M_Dst) => self.add_data(ty, src, dst),
+            (_,      M_Data, _  ) if src.loc.is(M_Src) => self.add_data(ty, src, dst),
             _                                          => dst
         }
     }
 
-    pub fn add_data<'a>(&mut self, src: Operand<'a>, dst: Operand<'a>) -> Operand<'a> {
-        self.write_ins_s2("add", U8, &src, &dst);
+    pub fn add_data<'a>(&mut self,
+                        ty:  &'a Type<'a>,
+                        src: Operand<'a>,
+                        dst: Operand<'a>)
+                       -> Operand<'a> {
+        self.write_ins_s2("add", ty, &src, &dst);
         dst
     }
 
     fn add_const<'a>(&mut self, x: Operand<'a>, y: Operand<'a>) -> Operand<'a> {
         let args = (
-            x.loc.to_expr(),
-            y.loc.to_expr()
+            x.loc.to_expr(), y.loc.to_expr()
         );
-        let e = match args {
+        let expr = match args {
             (Expr::Int(x), Expr::Int(y)) => {
                 Expr::Int(x + y)
             },
-            _ => {
-                let x = Box::new(args.0);
-                let y = Box::new(args.1);
-                Expr::Add(x, y, None)
+            (x, y) => {
+                Expr::Add(Box::new(x), Box::new(y), None)
             }
         };
-        Operand::new(Loc::Imm(e), INT, x.pos)
+        Operand::new(Loc::Imm(expr), INT, x.pos)
     }
 
     fn write_ins_s2<A: Display, B: Display>
@@ -134,16 +135,21 @@ impl<W> CodeGen<W> where W: io::Write {
     }
 }
 
-//fn require_types_eq_scalar<'b>(a: &Operand, b: &'b Operand) -> &'b Type<'b> {
-//    match (&*a.ty, &*b.ty) {
-//        (&Type::Int(a_), &Type::Int(b_)) => {
-//            if a_ == b_ || a_.is_none() { return a.ty }
-//            else if        b_.is_none() { return b.ty }
-//        },
-//        _ => ()
-//    }
-//    panic!("Type mismatch."); // TODO: Error
-//}
+fn check_types_eq_scalar<'a>
+                        (x: &'a Type<'a>,
+                         y: &'a Type<'a>)
+                        -> Option<&'a Type<'a>>
+{
+    match (x, y) {
+        (&Type::Int(xx), &Type::Int(yy)) => match (xx, yy) {
+            _ if xx == yy => Some(x),
+            (_, None)     => Some(x),
+            (None, _)     => Some(y),
+            _             => None
+        },
+        _ => None
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -165,7 +171,7 @@ mod tests {
         let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof(0));
 
         let mut gen = CodeGen::new(io::stdout());
-        let res = gen.add_data(src, dst.clone());
+        let res = gen.add_data(U8, src, dst.clone());
 
         assert_eq!(dst, res);
     }
