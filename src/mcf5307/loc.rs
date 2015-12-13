@@ -154,6 +154,7 @@ impl<'a> Display for Loc<'a> {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Data Registers
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -178,6 +179,7 @@ impl Display for DataReg {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Address Registers
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
@@ -202,6 +204,7 @@ impl Display for AddrReg {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Control Registers
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
@@ -221,6 +224,7 @@ impl Display for CtrlReg {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Register Set
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
@@ -300,6 +304,7 @@ fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool, f: &mut Formatter)
     Ok(join)
 }
 
+// -----------------------------------------------------------------------------
 // Index (for indexed addressing modes)
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
@@ -317,6 +322,7 @@ impl Display for Index {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Address Register Base + Displacement
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -331,6 +337,7 @@ impl<'a> Display for AddrDisp<'a> {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Address Register Base + Displacement + Index
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -347,6 +354,7 @@ impl<'a> Display for AddrDispIdx<'a> {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Program Counter + Displacement
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -360,6 +368,7 @@ impl<'a> Display for PcDisp<'a> {
     }
 }
 
+// -----------------------------------------------------------------------------
 // Program Counter + Displacement + Index
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
