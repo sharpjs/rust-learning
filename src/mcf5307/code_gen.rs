@@ -64,16 +64,15 @@ impl<W> CodeGen<W> where W: io::Write {
 
     // This is all WIP, just idea exploration.
 
-    pub fn visit_expr<'a>(&mut self, expr: Box<Expr<'a>>) -> Operand<'a> {
-        let expr = *expr; // https://github.com/rust-lang/rust/issues/16223
-        match expr {
-            Expr::Add(src, dst, sel) => {
+    pub fn visit_expr<'a>(&mut self, expr: &'a Expr<'a>) -> Operand<'a> {
+        match *expr {
+            Expr::Add(ref src, ref dst, sel) => {
                 let src = self.visit_expr(src);
                 let dst = self.visit_expr(dst);
                 self.add(src, dst, sel.unwrap_or(""))
             },
             Expr::Int(_) => {
-                Operand::new(Loc::Imm(expr), INT, Pos::bof(0))
+                Operand::new(Loc::Imm(expr.clone()), INT, Pos::bof(0))
             }
             _ => {
                 panic!("not supported yet");
