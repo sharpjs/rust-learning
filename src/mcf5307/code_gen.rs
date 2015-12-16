@@ -64,12 +64,12 @@ impl<W> CodeGen<W> where W: io::Write {
 
     // This is all WIP, just idea exploration.
 
-    pub fn visit_expr<'a>(&mut self, expr: &'a Expr<'a>) -> Operand<'a> {
+    pub fn visit_expr<'a>(&mut self, expr: &Expr<'a>) -> Operand<'a> {
         match *expr {
             Expr::Add(ref src, ref dst, sel) => {
                 let src = self.visit_expr(src);
                 let dst = self.visit_expr(dst);
-                self.add(src, dst, sel.unwrap_or(""))
+                self.add(&src, &dst, sel.unwrap_or(""))
             },
             Expr::Int(_) => {
                 Operand::new(Loc::Imm(expr.clone()), INT, Pos::bof(0))
@@ -80,42 +80,91 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn add<'a>(&mut self, src: Operand<'a>, dst: Operand<'a>, sel: &str) -> Operand<'a> {
-        let ty = check_types_eq_scalar(&src.ty, &dst.ty).unwrap();
-        let modes = (src.loc.mode(), dst.loc.mode(), sel);
+    pub fn add<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>, sel: &str)
+                  -> Operand<'a> {
+        match sel {
+            "a" => return self.adda(x, y),
+            "d" => return self.addd(x, y),
+            "i" => return self.addi(x, y),
+            "q" => return self.addq(x, y),
+            "x" => return self.addx(x, y),
+            _   => {}
+        }
+
+        let ty = self.check_types(types_eq_scalar, x, y);
+
+        let modes = (x.loc.mode(), y.loc.mode());
         match modes {
-            (M_Imm,  M_Imm,  _  )                      => self.add_const(src, dst),
-            (M_Data, _,      "g") if dst.loc.is(M_Dst) => self.add_data(ty, src, dst),
-            (_,      M_Data, "g") if src.loc.is(M_Src) => self.add_data(ty, src, dst),
-            // ...others...
-            (M_Data, _,      _  ) if dst.loc.is(M_Dst) => self.add_data(ty, src, dst),
-            (_,      M_Data, _  ) if src.loc.is(M_Src) => self.add_data(ty, src, dst),
-            _                                          => dst
+            (M_Imm,  M_Imm )                                    => self.addc(        x, y),
+            (_,      M_Addr) if x.loc.is(M_Src)                 => self.op2l("adda", x, y),
+            (M_Imm,  _     ) if y.loc.is(M_Dst) && x.loc.is_q() => self.op2l("addq", x, y),
+            (M_Imm,  M_Data)                                    => self.op2l("addi", x, y),
+            (M_Data, _     ) if y.loc.is(M_Dst)                 => self.op2l("add",  x, y),
+            (_,      M_Data) if x.loc.is(M_Src)                 => self.op2l("add",  x, y),
+            _                                                   => panic!() // error
         }
     }
 
-    pub fn add_data<'a>(&mut self,
-                        ty:  &'a Type<'a>,
-                        src: Operand<'a>,
-                        dst: Operand<'a>)
-                       -> Operand<'a> {
-        self.write_ins_s2("add", ty, &src, &dst);
-        dst
+    pub fn adda<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+        let modes = (x.loc.mode(), y.loc.mode());
+        match modes {
+            (_, M_Addr) if x.loc.is(M_Src) => self.op2l("adda", x, y),
+            _                              => panic!() // error
+        }
     }
 
-    fn add_const<'a>(&mut self, x: Operand<'a>, y: Operand<'a>) -> Operand<'a> {
+    pub fn addd<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+        let modes = (x.loc.mode(), y.loc.mode());
+        match modes {
+            (M_Data, _     ) if y.loc.is(M_Dst) => self.op2l("add", x, y),
+            (_,      M_Data) if x.loc.is(M_Src) => self.op2l("add", x, y),
+            _                                   => panic!() // error
+        }
+    }
+
+    pub fn addi<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+        let modes = (x.loc.mode(), y.loc.mode());
+        match modes {
+            (M_Imm,  M_Data) => self.op2l("addi", x, y),
+            _                => panic!() // error
+        }
+    }
+
+    pub fn addq<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+        let modes = (x.loc.mode(), y.loc.mode());
+        match modes {
+            (M_Imm,  _) if y.loc.is(M_Dst) && x.loc.is_q() => self.op2l("addq", x, y),
+            _                                              => panic!() // error
+        }
+    }
+
+    pub fn addx<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+        let modes = (x.loc.mode(), y.loc.mode());
+        match modes {
+            (M_Data, M_Data) => self.op2l("addx", x, y),
+            _                => panic!() // error
+        }
+    }
+
+    fn addc<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
         let args = (
-            x.loc.to_expr(), y.loc.to_expr()
+            x.loc.as_expr(), y.loc.as_expr()
         );
         let expr = match args {
-            (Expr::Int(x), Expr::Int(y)) => {
+            (&Expr::Int(ref x), &Expr::Int(ref y)) => {
                 Expr::Int(x + y)
             },
             (x, y) => {
-                Expr::Add(Box::new(x), Box::new(y), None)
+                Expr::Add(Box::new(x.clone()), Box::new(y.clone()), None)
             }
         };
         Operand::new(Loc::Imm(expr), INT, x.pos)
+    }
+
+    fn op2l<'a>(&mut self, op: &str, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+        let t = self.check_types(types_eq_scalar, x, y);
+        self.write_ins_s2(op, t, x, y);
+        y.clone()
     }
 
     fn write_ins_s2<A: Display, B: Display>
@@ -132,13 +181,20 @@ impl<W> CodeGen<W> where W: io::Write {
             _        => ""
         }
     }
+
+    fn check_types<'a, 'b>
+                  (&self,
+                   f: fn(&'b Type<'a>, &'b Type<'a>) -> Option<&'b Type<'a>>,
+                   x: &'b Operand<'a>,
+                   y: &'b Operand<'a>)
+                  -> &'b Type<'a> {
+        f(&x.ty, &y.ty).unwrap()
+    }
 }
 
-fn check_types_eq_scalar<'a>
-                        (x: &'a Type<'a>,
-                         y: &'a Type<'a>)
-                        -> Option<&'a Type<'a>>
-{
+fn types_eq_scalar<'a, 'b>
+                  (x: &'b Type<'a>, y: &'b Type<'a>)
+                  -> Option<&'b Type<'a>> {
     match (x, y) {
         (&Type::Int(xx), &Type::Int(yy)) => match (xx, yy) {
             _ if xx == yy => Some(x),
@@ -170,7 +226,7 @@ mod tests {
         let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof(0));
 
         let mut gen = CodeGen::new(io::stdout());
-        let res = gen.add_data(U8, src, dst.clone());
+        let res = gen.add(&src, &dst, "");
 
         assert_eq!(dst, res);
     }

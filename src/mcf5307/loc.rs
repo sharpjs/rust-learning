@@ -128,11 +128,11 @@ impl<'a> Loc<'a> {
         }
     }
 
-    pub fn to_expr(self) -> Expr<'a> {
-        match self {
-            Loc::Imm   (e) => e,
-            Loc::Abs16 (e) => e,
-            Loc::Abs32 (e) => e,
+    pub fn as_expr(&self) -> &Expr<'a> {
+        match *self {
+            Loc::Imm   (ref e) => e,
+            Loc::Abs16 (ref e) => e,
+            Loc::Abs32 (ref e) => e,
             _ => panic!("Cannot unwrap to expression.")
         }
     }
