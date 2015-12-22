@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn fmt_ident() {
         let expr = Expr::Ident("a");
-        let text = format!("{}", expr);
+        let text = format!("{}", &expr);
         assert_eq!(text, "a");
     }
 
@@ -193,8 +193,31 @@ mod tests {
         \"";
 
         let expr = Expr::Str(original);
-        let text = format!("{}", expr);
+        let text = format!("{}", &expr);
         assert_eq!(text, formatted);
+    }
+
+    #[test]
+    fn fmt_int_small() {
+        let expr = Expr::Int(7.into());
+        let text = format!("{}", &expr);
+        assert_eq!(text, "7");
+    }
+
+    #[test]
+    fn fmt_int_large() {
+        let expr = Expr::Int(42.into());
+        let text = format!("{}", &expr);
+        assert_eq!(text, "0x2A");
+    }
+
+    #[test]
+    fn fmt_add() {
+        let a    = Box::new(Expr::Ident("a"));
+        let b    = Box::new(Expr::Ident("b"));
+        let expr = Expr::Add(a, b, None);
+        let text = format!("{}", &expr);
+        assert_eq!(text, "(a + b)");
     }
 }
 
