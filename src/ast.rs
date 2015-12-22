@@ -153,3 +153,37 @@ fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fmt_ident() {
+        let expr = Expr::Ident("a");
+        let text = format!("{}", expr);
+        assert_eq!(text, "a");
+    }
+
+    #[test]
+    fn fmt_str() {
+        let original = "\
+            \x08\x09\x0A\x0C\x0D\
+            !\"#$%&'()*+,-./0123456789:;<=>?\
+            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\
+            `abcdefghijklmnopqrstuvwxyz{|}~\
+            \x13\x7F\u{7FFF}\
+        ";
+        let formatted = "\"\
+            \\b\\t\\n\\f\\r\
+            !\\\"#$%&'()*+,-./0123456789:;<=>?\
+            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_\
+            `abcdefghijklmnopqrstuvwxyz{|}~\
+            \\023\\177\\347\\277\\277\
+        \"";
+
+        let expr = Expr::Str(original);
+        let text = format!("{}", expr);
+        assert_eq!(text, formatted);
+    }
+}
+
