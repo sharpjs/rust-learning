@@ -91,6 +91,7 @@ pub enum Expr<'a> {
 
     // Comparison
     Compare    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    Test       (Box<Expr<'a>>,                Option<&'a str>),
 
     // Assignment
     Move       (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
