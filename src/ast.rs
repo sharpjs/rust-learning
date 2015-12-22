@@ -49,40 +49,50 @@ pub enum Stmt<'a> {
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Expr<'a> {
+    // Atoms
     Ident      (&'a str),
     Str        (&'a str),
     Int        (BigInt),
+    Deref      (Vec<Expr<'a>>),
 
+    // Right Unary
     MemberOf   (Box<Expr<'a>>, &'a str),
 
+    // Left Unary
     Increment  (Box<Expr<'a>>, Option<&'a str>),
     Decrement  (Box<Expr<'a>>, Option<&'a str>),
-
     Clear      (Box<Expr<'a>>, Option<&'a str>),
     Negate     (Box<Expr<'a>>, Option<&'a str>),
     Complement (Box<Expr<'a>>, Option<&'a str>),
 
+    // Multiplicative
     Multiply   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     Divide     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     Modulo     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
+    // Additive
     Add        (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     Subtract   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
+    // Bitwise Shift
     ShiftL     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     ShiftR     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
+    // Bitwise Boolean
     BitAnd     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     BitXor     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     BitOr      (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
+    // Bit Manipulation
     BitChange  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     BitClear   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     BitSet     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     BitTest    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
+    // Comparison
     Compare    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
 
+    // Assignment
     Move       (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     MoveCond   (Box<Expr<'a>>, Box<Cond<'a>>, Option<&'a str>),
 }
