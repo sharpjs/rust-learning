@@ -64,24 +64,24 @@ impl<W> CodeGen<W> where W: io::Write {
 
     // This is all WIP, just idea exploration.
 
-    pub fn visit_expr<'a>(&mut self, expr: &Expr<'a>) -> Operand<'a> {
+    pub fn visit_expr<'a>(&mut self, expr: &Expr<'a>) -> Result<Operand<'a>, ()> {
         match *expr {
             Expr::Add(ref src, ref dst, sel) => {
-                let src = self.visit_expr(src);
-                let dst = self.visit_expr(dst);
+                let src = try!(self.visit_expr(src));
+                let dst = try!(self.visit_expr(dst));
                 self.add(&src, &dst, sel.unwrap_or(""))
             },
             Expr::Int(_) => {
-                Operand::new(Loc::Imm(expr.clone()), INT, Pos::bof(0))
+                Ok(Operand::new(Loc::Imm(expr.clone()), INT, Pos::bof(0)))
             }
             _ => {
-                panic!("not supported yet");
+                Err(())
             }
         }
     }
 
     pub fn add<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>, sel: &str)
-                  -> Operand<'a> {
+                  -> Result<Operand<'a>, ()> {
         match sel {
             "a" => return self.adda(x, y),
             "d" => return self.addd(x, y),
@@ -105,48 +105,54 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn adda<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+    pub fn adda<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+                   -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
             (_, M_Addr) if x.loc.is(M_Src) => self.op2l("adda", x, y),
-            _                              => panic!() // error
+            _                              => Err(())
         }
     }
 
-    pub fn addd<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+    pub fn addd<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+                   -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
             (M_Data, _     ) if y.loc.is(M_Dst) => self.op2l("add", x, y),
             (_,      M_Data) if x.loc.is(M_Src) => self.op2l("add", x, y),
-            _                                   => panic!() // error
+            _                                   => Err(())
         }
     }
 
-    pub fn addi<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+    pub fn addi<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+                   -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
             (M_Imm,  M_Data) => self.op2l("addi", x, y),
-            _                => panic!() // error
+            _                => Err(())
         }
     }
 
-    pub fn addq<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+    pub fn addq<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+                   -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
             (M_Imm,  _) if y.loc.is(M_Dst) && x.loc.is_q() => self.op2l("addq", x, y),
-            _                                              => panic!() // error
+            _                                              => Err(())
         }
     }
 
-    pub fn addx<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+    pub fn addx<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+                   -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
             (M_Data, M_Data) => self.op2l("addx", x, y),
-            _                => panic!() // error
+            _                => Err(())
         }
     }
 
-    fn addc<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+    fn addc<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+                   -> Result<Operand<'a>, ()> {
         let args = (
             x.loc.as_expr(), y.loc.as_expr()
         );
@@ -158,13 +164,14 @@ impl<W> CodeGen<W> where W: io::Write {
                 Expr::Add(Box::new(x.clone()), Box::new(y.clone()), None)
             }
         };
-        Operand::new(Loc::Imm(expr), INT, x.pos)
+        Ok(Operand::new(Loc::Imm(expr), INT, x.pos))
     }
 
-    fn op2l<'a>(&mut self, op: &str, x: &Operand<'a>, y: &Operand<'a>) -> Operand<'a> {
+    fn op2l<'a>(&mut self, op: &str, x: &Operand<'a>, y: &Operand<'a>)
+               -> Result<Operand<'a>, ()> {
         let t = self.check_types(types_eq_scalar, x, y);
         self.write_ins_s2(op, t, x, y);
-        y.clone()
+        Ok(y.clone())
     }
 
     fn write_ins_s2<A: Display, B: Display>
@@ -226,7 +233,7 @@ mod tests {
         let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof(0));
 
         let mut gen = CodeGen::new(io::stdout());
-        let res = gen.add(&src, &dst, "");
+        let res = gen.add(&src, &dst, "").unwrap();
 
         assert_eq!(dst, res);
     }
