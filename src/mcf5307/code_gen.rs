@@ -91,7 +91,7 @@ impl<W> CodeGen<W> where W: io::Write {
             _   => {}
         }
 
-        let ty = self.check_types(types_eq_scalar, x, y);
+        let ty = try!(self.check_types(types_eq_scalar, x, y));
 
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
@@ -101,7 +101,7 @@ impl<W> CodeGen<W> where W: io::Write {
             (M_Imm,  M_Data)                                    => self.op2l("addi", x, y),
             (M_Data, _     ) if y.loc.is(M_Dst)                 => self.op2l("add",  x, y),
             (_,      M_Data) if x.loc.is(M_Src)                 => self.op2l("add",  x, y),
-            _                                                   => panic!() // error
+            _                                                   => Err(())
         }
     }
 
@@ -169,7 +169,7 @@ impl<W> CodeGen<W> where W: io::Write {
 
     fn op2l<'a>(&mut self, op: &str, x: &Operand<'a>, y: &Operand<'a>)
                -> Result<Operand<'a>, ()> {
-        let t = self.check_types(types_eq_scalar, x, y);
+        let t = try!(self.check_types(types_eq_scalar, x, y));
         self.write_ins_s2(op, t, x, y);
         Ok(y.clone())
     }
@@ -194,8 +194,8 @@ impl<W> CodeGen<W> where W: io::Write {
                    f: fn(&'b Type<'a>, &'b Type<'a>) -> Option<&'b Type<'a>>,
                    x: &'b Operand<'a>,
                    y: &'b Operand<'a>)
-                  -> &'b Type<'a> {
-        f(&x.ty, &y.ty).unwrap()
+                  -> Result<&'b Type<'a>, ()> {
+        f(&x.ty, &y.ty).ok_or(())
     }
 }
 
