@@ -56,7 +56,7 @@ pub enum Expr<'a> {
     Deref      (Vec<Expr<'a>>),
 
     // Right Unary
-    MemberOf   (Box<Expr<'a>>, &'a str),
+    Member     (Box<Expr<'a>>, &'a str),
 
     // Left Unary
     Increment  (Box<Expr<'a>>, Option<&'a str>),
