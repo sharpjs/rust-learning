@@ -46,7 +46,7 @@ mod arena;
 mod ast;
 mod interner;
 //mod lexer;
-//mod message;
+mod message;
 //mod parser;
 mod scope;
 mod symbol;

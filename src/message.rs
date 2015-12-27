@@ -21,32 +21,14 @@ use std::borrow::{Cow};
 use std::fmt::{self, Display};
 use std::io::{stderr, Write};
 
-#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
-#[repr(u8)]
-pub enum MessageLevel { Warning, Error }
+use self::MessageId::*;
 use self::MessageLevel::*;
 
-#[allow(non_camel_case_types)]
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-#[repr(u8)]
-pub enum MessageId {
-    // Lexer Messages
-    Lex_Unrec,
-    Lex_UnrecNum,
-    Lex_UnrecEsc,
-    Lex_UntermChar,
-    Lex_UntermStr,
-    Lex_UntermRaw,
-    Lex_UntermEsc,
-    Lex_CharLength,
-    Lex_OverflowNum,
-    Lex_OverflowEsc,
-    // Parser Messages
-    // ...
-    // Semantic Analysis Messages
-    Sem_TypeMismatch,
+#[derive(Clone)]
+pub struct Messages {
+    messages:    Vec<Message>,
+    error_count: usize
 }
-use self::MessageId::*;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Message {
@@ -56,9 +38,30 @@ pub struct Message {
     pub text:       Cow<'static, str>,
 }
 
-pub struct Messages {
-    messages:    Vec<Message>,
-    error_count: usize
+#[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[repr(u8)]
+pub enum MessageLevel { Warning, Error }
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[repr(u8)]
+pub enum MessageId {
+    // Lexer Messages
+    Unrec,
+    UnrecNum,
+    UnrecEsc,
+    UntermChar,
+    UntermStr,
+    UntermRaw,
+    UntermEsc,
+    CharLength,
+    OverflowNum,
+    OverflowEsc,
+
+    // Parser Messages
+    //   (none yet)
+
+    // Semantic Analysis Messages
+    TypeMismatch,
 }
 
 impl Messages {
@@ -77,11 +80,6 @@ impl Messages {
         self.error_count
     }
 
-    pub fn print(&self) {
-        let r = write!(stderr(), "{}", self);
-        if let Err(_) = r { /*ignore*/ }
-    }
-
     fn add<T>(&mut self, p: Pos, l: MessageLevel, i: MessageId, t: T)
     where T: Into<Cow<'static, str>> {
         self.messages.push(Message {
@@ -93,71 +91,76 @@ impl Messages {
     }
 
     pub fn err_unrec(&mut self, p: Pos, c: char) {
-        self.add(p, Error, Lex_Unrec, format!(
+        self.add(p, Error, Unrec, format!(
             "Unrecognized character: '{}'", c
         ));
     }
 
     pub fn err_unrec_num(&mut self, p: Pos, c: char) {
-        self.add(p, Error, Lex_UnrecNum, format!(
+        self.add(p, Error, UnrecNum, format!(
             "Unrecognized character in number literal: '{}'", c
         ));
     }
 
     pub fn err_unrec_esc(&mut self, p: Pos, c: char) {
-        self.add(p, Error, Lex_UnrecEsc, format!(
+        self.add(p, Error, UnrecEsc, format!(
             "Unrecognized character in escape sequence: '{}'", c
         ));
     }
 
     pub fn err_unterm_char(&mut self, p: Pos) {
-        self.add(p, Error, Lex_UntermChar,
+        self.add(p, Error, UntermChar,
             "Unterminated character literal."
         );
     }
 
     pub fn err_unterm_str(&mut self, p: Pos) {
-        self.add(p, Error, Lex_UntermStr,
+        self.add(p, Error, UntermStr,
             "Unterminated string literal."
         );
     }
 
     pub fn err_unterm_raw(&mut self, p: Pos) {
-        self.add(p, Error, Lex_UntermRaw,
+        self.add(p, Error, UntermRaw,
             "Unterminated raw block."
         );
     }
 
     pub fn err_unterm_esc(&mut self, p: Pos) {
-        self.add(p, Error, Lex_UntermEsc,
+        self.add(p, Error, UntermEsc,
             "Unterminated escape sequence."
         );
     }
 
     pub fn err_length_char(&mut self, p: Pos) {
-        self.add(p, Error, Lex_CharLength,
+        self.add(p, Error, CharLength,
             "Invalid character literal length. \
              Character literals must contain exactly one character."
         );
     }
 
     pub fn err_overflow_num(&mut self, p: Pos) {
-        self.add(p, Error, Lex_OverflowNum,
+        self.add(p, Error, OverflowNum,
             "Overflow in number literal.  Integers are unsigned 64-bit."
         );
     }
 
     pub fn err_overflow_esc(&mut self, p: Pos) {
-        self.add(p, Error, Lex_OverflowEsc,
+        self.add(p, Error, OverflowEsc,
             "Overflow in Unicode escape sequence. \
              The maximum permitted is \\u{10FFFF}."
         );
     }
 
     pub fn err_type_mismatch(&mut self, p: Pos) {
-        self.add(p, Error, Sem_TypeMismatch,
+        self.add(p, Error, TypeMismatch,
             "Type mismatch."
         );
+    }
+
+    pub fn print(&self) {
+        let r = write!(stderr(), "{}", self);
+        if let Err(_) = r { /*ignore*/ }
     }
 }
 
@@ -200,7 +203,7 @@ mod tests {
     #[test]
     fn messages_single() {
         let mut m = Messages::new();
-        let     p = Pos::bof();
+        let     p = Pos::bof(13);
 
         m.err_unrec(p, 'c');
 
@@ -215,7 +218,7 @@ mod tests {
     #[test]
     fn messages_multiple() {
         let mut m = Messages::new();
-        let mut p = Pos::bof();
+        let mut p = Pos::bof(13);
 
         m.err_unrec(p, 'c');
         p.advance('c');
