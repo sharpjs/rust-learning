@@ -20,7 +20,8 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hash;
-use arena::*;
+
+use aex::mem::arena::*;
 
 pub type StringInterner<'a> = Interner<'a, String, str>;
 

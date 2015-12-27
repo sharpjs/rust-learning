@@ -16,10 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use util::Pos;
 use std::borrow::{Cow};
 use std::fmt::{self, Display};
 use std::io::{stderr, Write};
+
+use aex::pos::Pos;
 
 use self::MessageId::*;
 use self::MessageLevel::*;
@@ -189,7 +190,7 @@ impl<'a> Display for Message<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use util::Pos;
+    use aex::pos::Pos;
 
     #[test]
     fn messages_empty() {

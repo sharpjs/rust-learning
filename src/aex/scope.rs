@@ -18,9 +18,9 @@
 
 use std::collections::HashMap;
 
-use arena::*;
-use symbol::*;
-use types::*;
+use aex::mem::arena::*;
+use aex::symbol::*;
+use aex::types::*;
 
 pub struct Scope<'a> {
     pub symbols: ScopeMap<'a, Symbol<'a>>,
@@ -107,6 +107,7 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
 
 #[cfg(test)]
 mod tests {
+
     mod scope {
         use super::super::*;
 
@@ -128,7 +129,7 @@ mod tests {
 
     mod scope_map {
         use super::super::*;
-        use types::*;
+        use aex::types::*;
 
         #[test]
         fn empty() {

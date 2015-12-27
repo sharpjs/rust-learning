@@ -18,9 +18,6 @@
 
 use std::fmt;
 
-// -----------------------------------------------------------------------------
-// Pos - a position within a character stream
-
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Pos<'a> {
     pub file:   &'a str,    // file name
@@ -62,47 +59,43 @@ impl<'a> fmt::Debug for Pos<'a> {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
 
-    #[cfg(test)]
-    mod pos {
-        use super::super::*;
+    #[test]
+    fn bof() {
+        let p = Pos::bof("f");
+        assert_eq!(p, Pos { file: "f", byte: 0, line: 1, column: 1 });
+    }
 
-        #[test]
-        fn bof() {
-            let p = Pos::bof("f");
-            assert_eq!(p, Pos { file: "f", byte: 0, line: 1, column: 1 });
-        }
+    #[test]
+    fn advance() {
+        let mut p = Pos::bof("f");
+        p.advance('a');
+        assert_eq!(p, Pos { file: "f", byte: 1, line: 1, column: 2 });
+        p.advance('\u{10ABCD}');
+        assert_eq!(p, Pos { file: "f", byte: 5, line: 1, column: 3 });
+    }
 
-        #[test]
-        fn advance() {
-            let mut p = Pos::bof("f");
-            p.advance('a');
-            assert_eq!(p, Pos { file: "f", byte: 1, line: 1, column: 2 });
-            p.advance('\u{10ABCD}');
-            assert_eq!(p, Pos { file: "f", byte: 5, line: 1, column: 3 });
-        }
+    #[test]
+    fn newline() {
+        let mut p = Pos::bof("f");
+        p.advance('\n');
+        p.newline();
+        assert_eq!(p, Pos { file: "f", byte: 1, line: 2, column: 1 });
+    }
 
-        #[test]
-        fn newline() {
-            let mut p = Pos::bof("f");
-            p.advance('\n');
-            p.newline();
-            assert_eq!(p, Pos { file: "f", byte: 1, line: 2, column: 1 });
-        }
+    #[test]
+    fn fmt_display() {
+        let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
+        let s = format!("{}", &p);
+        assert_eq!(s, "f:2:3");
+    }
 
-        #[test]
-        fn fmt_display() {
-            let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
-            let s = format!("{}", &p);
-            assert_eq!(s, "f:2:3");
-        }
-
-        #[test]
-        fn fmt_debug() {
-            let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
-            let s = format!("{:?}", &p);
-            assert_eq!(s, "f[1]:2:3");
-        }
+    #[test]
+    fn fmt_debug() {
+        let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
+        let s = format!("{:?}", &p);
+        assert_eq!(s, "f[1]:2:3");
     }
 }
 

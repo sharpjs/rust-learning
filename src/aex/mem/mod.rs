@@ -1,4 +1,4 @@
-// Symbols
+// Aex Memory Utilities Module
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -16,11 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use types::*;
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Symbol<'a> {
-    pub name: &'a str,
-    pub ty:   &'a Type<'a>,
-}
+pub mod arena;
+pub mod interner;
 

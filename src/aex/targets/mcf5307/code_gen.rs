@@ -21,11 +21,11 @@
 use std::io;
 use std::fmt::{self, Display, Formatter};
 
-use ast::*;
-use mcf5307::loc::*;
-use message::*;
-use types::*;
-use util::Pos;
+use aex::ast::*;
+use aex::message::*;
+use aex::pos::Pos;
+use aex::targets::mcf5307::loc::*;
+use aex::types::*;
 
 // -----------------------------------------------------------------------------
 // Operand - a machine location with its analyzed type and source position
@@ -217,16 +217,17 @@ fn types_eq_scalar<'a, 'b>
 
 #[cfg(test)]
 mod tests {
-    use num::bigint::ToBigInt;
-    use std::io;
-
-    use ast::Expr;
-    use mcf5307::loc::*;
-    use mcf5307::loc::DataReg::*;
-    //use mcf5307::loc::AddrReg::*;
     use super::*;
-    use types::*;
-    use util::*;
+
+    use std::io;
+    use num::bigint::ToBigInt;
+
+    use aex::ast::Expr;
+    use aex::pos::Pos;
+    use aex::targets::mcf5307::loc::*;
+    use aex::targets::mcf5307::loc::DataReg::*;
+  //use aex::targets::mcf5307::loc::AddrReg::*;
+    use aex::types::*;
 
     #[test]
     fn foo() {

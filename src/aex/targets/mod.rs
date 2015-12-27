@@ -1,4 +1,4 @@
-// AEx - Just a toy language for learning Rust
+// Target Modules
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -16,29 +16,5 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-#![allow(dead_code)]
-#![allow(unused_variables)]
-
-// Returns true if the value matches any of the given patterns.
-//
-macro_rules! is {
-    { $val:expr => $( $pat:pat ),* } => {
-        match $val {
-            $( $pat => true ),* ,
-            _ => false
-        }
-    };
-    { $val:expr => $( $pat:pat if $cond:expr ),* } => {
-        match $val {
-            $( $pat if $cond => true ),* ,
-            _ => false
-        }
-    };
-}
-
-extern crate num;
-
-mod aex;
-
-fn main() {}
+pub mod mcf5307;
 

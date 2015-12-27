@@ -18,8 +18,9 @@
 
 use std::fmt::{self, Display, Formatter, Write};
 use num::{BigInt, ToPrimitive};
-use types::*;
-use util::*;
+
+use aex::pos::*;
+use aex::types::*;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Node<'a> {

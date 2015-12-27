@@ -1,4 +1,4 @@
-// Utilities
+// Symbols
 //
 // This file is part of AEx.
 // Copyright (C) 2015 Jeffrey Sharp
@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
-mod dynamic_eq;
-mod pos;
-mod shared;
+use aex::types::*;
 
-pub use self::dynamic_eq::*;
-pub use self::pos::*;
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Symbol<'a> {
+    pub name: &'a str,
+    pub ty:   &'a Type<'a>,
+}
 

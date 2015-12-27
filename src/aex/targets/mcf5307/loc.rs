@@ -18,11 +18,11 @@
 
 #![allow(non_upper_case_globals)]
 
-use num::ToPrimitive;
 use std::fmt::{self, Display, Formatter, Write};
 use std::ops::BitOr;
+use num::ToPrimitive;
 
-use ast::Expr;
+use aex::ast::Expr;
 
 use self::AddrReg::*;
 use self::DataReg::*;
