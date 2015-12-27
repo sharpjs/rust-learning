@@ -23,6 +23,7 @@ use std::fmt::{self, Display, Formatter};
 
 use ast::*;
 use mcf5307::loc::*;
+use message::*;
 use types::*;
 use util::Pos;
 
@@ -33,11 +34,11 @@ use util::Pos;
 pub struct Operand<'a> {
     pub loc: Loc<'a>,       // Machine location
     pub ty:  &'a Type<'a>,  // Analyzed type
-    pub pos: Pos,           // Source position
+    pub pos: Pos<'a>,       // Source position
 }
 
 impl<'a> Operand<'a> {
-    pub fn new(loc: Loc<'a>, ty: &'a Type<'a>, pos: Pos) -> Self
+    pub fn new(loc: Loc<'a>, ty: &'a Type<'a>, pos: Pos<'a>) -> Self
     {
         Operand { loc: loc, ty: ty, pos: pos }
     }
@@ -53,18 +54,19 @@ impl<'a> Display for Operand<'a> {
 // -----------------------------------------------------------------------------
 // Code Generator
 
-pub struct CodeGen<W: io::Write> {
-    out: W
+pub struct CodeGen<'a, W: io::Write> {
+    out:  W,
+    msgs: Messages<'a>,
 }
 
-impl<W> CodeGen<W> where W: io::Write {
+impl<'a, W> CodeGen<'a, W> where W: io::Write {
     pub fn new(out: W) -> Self {
-        CodeGen { out: out }
+        CodeGen { out: out, msgs: Messages::new() }
     }
 
     // This is all WIP, just idea exploration.
 
-    pub fn visit_expr<'a>(&mut self, expr: &Expr<'a>) -> Result<Operand<'a>, ()> {
+    pub fn visit_expr(&mut self, expr: &Expr<'a>) -> Result<Operand<'a>, ()> {
         match *expr {
             Expr::Add(ref src, ref dst, sel) => {
                 let src = try!(self.visit_expr(src));
@@ -72,7 +74,7 @@ impl<W> CodeGen<W> where W: io::Write {
                 self.add(&src, &dst, sel.unwrap_or(""))
             },
             Expr::Int(_) => {
-                Ok(Operand::new(Loc::Imm(expr.clone()), INT, Pos::bof(0)))
+                Ok(Operand::new(Loc::Imm(expr.clone()), INT, Pos::bof("f")))
             }
             _ => {
                 Err(())
@@ -80,7 +82,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn add<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>, sel: &str)
+    pub fn add(&mut self, x: &Operand<'a>, y: &Operand<'a>, sel: &str)
                   -> Result<Operand<'a>, ()> {
         match sel {
             "a" => return self.adda(x, y),
@@ -105,7 +107,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn adda<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+    pub fn adda(&mut self, x: &Operand<'a>, y: &Operand<'a>)
                    -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
@@ -114,7 +116,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn addd<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+    pub fn addd(&mut self, x: &Operand<'a>, y: &Operand<'a>)
                    -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
@@ -124,7 +126,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn addi<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+    pub fn addi(&mut self, x: &Operand<'a>, y: &Operand<'a>)
                    -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
@@ -133,7 +135,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn addq<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+    pub fn addq(&mut self, x: &Operand<'a>, y: &Operand<'a>)
                    -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
@@ -142,7 +144,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    pub fn addx<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+    pub fn addx(&mut self, x: &Operand<'a>, y: &Operand<'a>)
                    -> Result<Operand<'a>, ()> {
         let modes = (x.loc.mode(), y.loc.mode());
         match modes {
@@ -151,7 +153,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    fn addc<'a>(&mut self, x: &Operand<'a>, y: &Operand<'a>)
+    fn addc(&mut self, x: &Operand<'a>, y: &Operand<'a>)
                    -> Result<Operand<'a>, ()> {
         let args = (
             x.loc.as_expr(), y.loc.as_expr()
@@ -167,7 +169,7 @@ impl<W> CodeGen<W> where W: io::Write {
         Ok(Operand::new(Loc::Imm(expr), INT, x.pos))
     }
 
-    fn op2l<'a>(&mut self, op: &str, x: &Operand<'a>, y: &Operand<'a>)
+    fn op2l(&mut self, op: &str, x: &Operand<'a>, y: &Operand<'a>)
                -> Result<Operand<'a>, ()> {
         let t = try!(self.check_types(types_eq_scalar, x, y));
         self.write_ins_s2(op, t, x, y);
@@ -189,7 +191,7 @@ impl<W> CodeGen<W> where W: io::Write {
         }
     }
 
-    fn check_types<'a, 'b>
+    fn check_types<'b>
                   (&self,
                    f: fn(&'b Type<'a>, &'b Type<'a>) -> Option<&'b Type<'a>>,
                    x: &'b Operand<'a>,
@@ -229,8 +231,8 @@ mod tests {
     #[test]
     fn foo() {
         let n   = 4u8.to_bigint().unwrap();
-        let src = Operand::new(Loc::Imm(Expr::Int(n)), U8, Pos::bof(0));
-        let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof(0));
+        let src = Operand::new(Loc::Imm(Expr::Int(n)), U8, Pos::bof("f"));
+        let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof("f"));
 
         let mut gen = CodeGen::new(io::stdout());
         let res = gen.add(&src, &dst, "").unwrap();

@@ -23,8 +23,8 @@ use util::*;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Node<'a> {
-    Stmt (Stmt<'a>, Pos),
-    Expr (Expr<'a>, Pos),
+    Stmt (Stmt<'a>, Pos<'a>),
+    Expr (Expr<'a>, Pos<'a>),
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]

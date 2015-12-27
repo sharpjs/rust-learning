@@ -25,14 +25,14 @@ use self::MessageId::*;
 use self::MessageLevel::*;
 
 #[derive(Clone)]
-pub struct Messages {
-    messages:    Vec<Message>,
+pub struct Messages<'a> {
+    messages:    Vec<Message<'a>>,
     error_count: usize
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Message {
-    pub position:   Pos,
+pub struct Message<'a> {
+    pub position:   Pos<'a>,
     pub level:      MessageLevel,
     pub id:         MessageId,
     pub text:       Cow<'static, str>,
@@ -64,7 +64,7 @@ pub enum MessageId {
     TypeMismatch,
 }
 
-impl Messages {
+impl<'a> Messages<'a> {
     pub fn new() -> Self {
         Messages {
             messages:    vec![],
@@ -80,8 +80,8 @@ impl Messages {
         self.error_count
     }
 
-    fn add<T>(&mut self, p: Pos, l: MessageLevel, i: MessageId, t: T)
-    where T: Into<Cow<'static, str>> {
+    fn add<T>(&mut self, p: Pos<'a>, l: MessageLevel, i: MessageId, t: T)
+             where T: Into<Cow<'static, str>> {
         self.messages.push(Message {
             position: p, level: l, id: i, text: t.into()
         });
@@ -90,69 +90,69 @@ impl Messages {
         }
     }
 
-    pub fn err_unrec(&mut self, p: Pos, c: char) {
+    pub fn err_unrec(&mut self, p: Pos<'a>, c: char) {
         self.add(p, Error, Unrec, format!(
             "Unrecognized character: '{}'", c
         ));
     }
 
-    pub fn err_unrec_num(&mut self, p: Pos, c: char) {
+    pub fn err_unrec_num(&mut self, p: Pos<'a>, c: char) {
         self.add(p, Error, UnrecNum, format!(
             "Unrecognized character in number literal: '{}'", c
         ));
     }
 
-    pub fn err_unrec_esc(&mut self, p: Pos, c: char) {
+    pub fn err_unrec_esc(&mut self, p: Pos<'a>, c: char) {
         self.add(p, Error, UnrecEsc, format!(
             "Unrecognized character in escape sequence: '{}'", c
         ));
     }
 
-    pub fn err_unterm_char(&mut self, p: Pos) {
+    pub fn err_unterm_char(&mut self, p: Pos<'a>) {
         self.add(p, Error, UntermChar,
             "Unterminated character literal."
         );
     }
 
-    pub fn err_unterm_str(&mut self, p: Pos) {
+    pub fn err_unterm_str(&mut self, p: Pos<'a>) {
         self.add(p, Error, UntermStr,
             "Unterminated string literal."
         );
     }
 
-    pub fn err_unterm_raw(&mut self, p: Pos) {
+    pub fn err_unterm_raw(&mut self, p: Pos<'a>) {
         self.add(p, Error, UntermRaw,
             "Unterminated raw block."
         );
     }
 
-    pub fn err_unterm_esc(&mut self, p: Pos) {
+    pub fn err_unterm_esc(&mut self, p: Pos<'a>) {
         self.add(p, Error, UntermEsc,
             "Unterminated escape sequence."
         );
     }
 
-    pub fn err_length_char(&mut self, p: Pos) {
+    pub fn err_length_char(&mut self, p: Pos<'a>) {
         self.add(p, Error, CharLength,
             "Invalid character literal length. \
              Character literals must contain exactly one character."
         );
     }
 
-    pub fn err_overflow_num(&mut self, p: Pos) {
+    pub fn err_overflow_num(&mut self, p: Pos<'a>) {
         self.add(p, Error, OverflowNum,
             "Overflow in number literal.  Integers are unsigned 64-bit."
         );
     }
 
-    pub fn err_overflow_esc(&mut self, p: Pos) {
+    pub fn err_overflow_esc(&mut self, p: Pos<'a>) {
         self.add(p, Error, OverflowEsc,
             "Overflow in Unicode escape sequence. \
              The maximum permitted is \\u{10FFFF}."
         );
     }
 
-    pub fn err_type_mismatch(&mut self, p: Pos) {
+    pub fn err_type_mismatch(&mut self, p: Pos<'a>) {
         self.add(p, Error, TypeMismatch,
             "Type mismatch."
         );
@@ -164,7 +164,7 @@ impl Messages {
     }
 }
 
-impl Display for Messages {
+impl<'a> Display for Messages<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         for m in &self.messages {
             try!(writeln!(f, "{}", m));
@@ -173,7 +173,7 @@ impl Display for Messages {
     }
 }
 
-impl Display for Message {
+impl<'a> Display for Message<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}:{}:{}: {}{:03}: {}",
             "(file)",
@@ -203,7 +203,7 @@ mod tests {
     #[test]
     fn messages_single() {
         let mut m = Messages::new();
-        let     p = Pos::bof(13);
+        let     p = Pos::bof("f");
 
         m.err_unrec(p, 'c');
 
@@ -218,7 +218,7 @@ mod tests {
     #[test]
     fn messages_multiple() {
         let mut m = Messages::new();
-        let mut p = Pos::bof(13);
+        let mut p = Pos::bof("f");
 
         m.err_unrec(p, 'c');
         p.advance('c');
