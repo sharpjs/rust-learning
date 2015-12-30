@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::collections::VecDeque;
+
 use aex::ast::*;
 use aex::message::*;
 use aex::pos::*;
@@ -26,7 +28,7 @@ use aex::types::*;
 pub struct DeclScanner<'a> {
     scope:    &'a mut Scope<'a>,
     messages: &'a mut Messages<'a>,
-    todo:     Vec<&'a Stmt<'a>>,
+    todo:     VecDeque<&'a Stmt<'a>>,
 }
 
 impl<'a> DeclScanner<'a> {
@@ -36,13 +38,11 @@ impl<'a> DeclScanner<'a> {
         DeclScanner {
             scope:    scope,
             messages: messages,
-            todo:     vec![]
+            todo:     VecDeque::new(),
         }
     }
 
     pub fn scan(&mut self, mut stmt: &'a Stmt<'a>) {
-        let mut todo = vec![];
-
         loop {
             match *stmt {
                 Stmt::Block
@@ -57,7 +57,7 @@ impl<'a> DeclScanner<'a> {
                 _ => {}
             }
 
-            match todo.pop() {
+            match self.todo.pop_front() {
                 Some(s) => stmt = s,
                 None    => return,
             }
@@ -69,7 +69,7 @@ impl<'a> DeclScanner<'a> {
                  ) {
         let todo = &mut self.todo;
         todo.reserve(stmts.len());
-        for s in stmts { todo.push(s) }
+        for s in stmts { todo.push_back(s) }
     }
 
     fn scan_type_def(&mut self,
