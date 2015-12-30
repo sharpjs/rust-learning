@@ -20,6 +20,7 @@ use aex::ast::*;
 use aex::message::*;
 use aex::pos::*;
 use aex::scope::*;
+use aex::symbol::Symbol;
 use aex::types::*;
 
 pub struct DeclScanner<'a> {
@@ -50,6 +51,9 @@ impl<'a> DeclScanner<'a> {
                 Stmt::TypeDef
                     (ref name, ref ty)
                     => self.scan_type_def(name, ty),
+                Stmt::Label
+                    (ref name)
+                    => self.scan_label(name),
                 _ => {}
             }
 
@@ -72,8 +76,17 @@ impl<'a> DeclScanner<'a> {
                      name: &'a str,
                      ty:   &'a Type<'a>
                     ) {
-        if let Err(_) = self.scope.types.define_ref(name, ty) {
-            self.messages.err_type_redefined(Pos::bof("f"), ty);
+        let res = self.scope.types.define_ref(name, ty);
+        if let Err(_) = res {
+            self.messages.err_type_redefined(Pos::bof("f"), name);
+        }
+    }
+
+    fn scan_label(&mut self, name: &'a str) {
+        let sym = Symbol { name: name, ty: INT }; // TODO: target pointer type
+        let res = self.scope.symbols.define(name, sym);
+        if let Err(_) = res {
+            self.messages.err_sym_redefined(Pos::bof("f"), name);
         }
     }
 }
