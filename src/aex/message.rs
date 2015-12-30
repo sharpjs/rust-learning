@@ -21,6 +21,7 @@ use std::fmt::{self, Display};
 use std::io::{stderr, Write};
 
 use aex::pos::Pos;
+use aex::types::Type;
 
 use self::MessageId::*;
 use self::MessageLevel::*;
@@ -60,6 +61,9 @@ pub enum MessageId {
 
     // Parser Messages
     //   (none yet)
+
+    // Declaration Analysis Messages
+    TypeRedefined,
 
     // Semantic Analysis Messages
     TypeMismatch,
@@ -151,6 +155,12 @@ impl<'a> Messages<'a> {
             "Overflow in Unicode escape sequence. \
              The maximum permitted is \\u{10FFFF}."
         );
+    }
+
+    pub fn err_type_redefined(&mut self, p: Pos<'a>, ty: &Type) {
+        self.add(p, Error, TypeRedefined, format!(
+            "Type already defined: {:?}", ty
+        ));
     }
 
     pub fn err_type_mismatch(&mut self, p: Pos<'a>) {
