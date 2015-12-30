@@ -16,34 +16,65 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use ast::Stmt;
-use scope::*;
+use aex::ast::*;
+use aex::message::*;
+use aex::pos::*;
+use aex::scope::*;
+use aex::types::*;
 
 pub struct DeclScanner<'a> {
-    scope: &'a mut Scope<'a>
+    scope:    &'a mut Scope<'a>,
+    messages: &'a mut Messages<'a>,
+    todo:     Vec<&'a Stmt<'a>>,
 }
 
 impl<'a> DeclScanner<'a> {
-    pub fn new(scope: &'a mut Scope<'a>) -> Self {
-        DeclScanner { scope: scope }
+    pub fn new( scope:    &'a mut Scope   <'a>,
+                messages: &'a mut Messages<'a>,
+              ) -> Self {
+        DeclScanner {
+            scope:    scope,
+            messages: messages,
+            todo:     vec![]
+        }
     }
 
-    pub fn scan(&mut self, stmts: &'a Vec<Stmt>) {
-        for stmt in stmts {
+    pub fn scan(&mut self, mut stmt: &'a Stmt<'a>) {
+        let mut todo = vec![];
+
+        loop {
             match *stmt {
-                Stmt::Block(..) => {
-                    // TODO: recurse into subscope
-                },
-                Stmt::TypeDef(ref name, ref decl) => { 
-                    if let Err(ty) = self.scope.types.define_ref(name, &*decl) {
-                        panic!("type already defined: {:?}", &ty)
-                    }
-                },
+                Stmt::Block
+                    (ref stmts)
+                    => self.scan_block(stmts),
+                Stmt::TypeDef
+                    (ref name, ref ty)
+                    => self.scan_type_def(name, ty),
                 _ => {}
             }
-        }
 
-        // TODO: Any labels here are pointers to position at EOF
+            match todo.pop() {
+                Some(s) => stmt = s,
+                None    => return,
+            }
+        }
+    }
+
+    fn scan_block(&mut self,
+                  stmts: &'a Vec<Stmt<'a>>
+                 ) {
+        let todo = &mut self.todo;
+        todo.reserve(stmts.len());
+        for s in stmts { todo.push(s) }
+    }
+
+    fn scan_type_def(&mut self,
+                     name: &'a str,
+                     ty:   &'a Type<'a>
+                    ) {
+        if let Err(_) = self.scope.types.define_ref(name, ty) {
+            self.messages.err_type_redefined(Pos::bof("f"), ty);
+        }
     }
 }
 
