@@ -21,7 +21,6 @@ use std::fmt::{self, Display};
 use std::io::{stderr, Write};
 
 use aex::pos::Pos;
-use aex::types::Type;
 
 use self::MessageId::*;
 use self::MessageLevel::*;
@@ -64,6 +63,7 @@ pub enum MessageId {
 
     // Declaration Analysis Messages
     TypeRedefined,
+    SymRedefined,
 
     // Semantic Analysis Messages
     TypeMismatch,
@@ -157,9 +157,15 @@ impl<'a> Messages<'a> {
         );
     }
 
-    pub fn err_type_redefined(&mut self, p: Pos<'a>, ty: &Type) {
+    pub fn err_type_redefined(&mut self, p: Pos<'a>, name: &str) {
         self.add(p, Error, TypeRedefined, format!(
-            "Type already defined: {:?}", ty
+            "Type already defined: {}", name
+        ));
+    }
+
+    pub fn err_sym_redefined(&mut self, p: Pos<'a>, name: &str) {
+        self.add(p, Error, SymRedefined, format!(
+            "Symbol already defined: {}", name
         ));
     }
 
