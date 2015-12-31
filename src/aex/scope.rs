@@ -81,6 +81,15 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
+    pub fn alias(&mut self, name: &'a str, to_name: &'a str)
+                -> Result<(), Option<&T>> {
+        let object = try!(
+            self.lookup_internal(to_name).ok_or(None)
+        );
+
+        self.define_ref(name, object).map_err(Some)
+    }
+
     pub fn lookup(&self, name: &str) -> Option<&T> {
         self.lookup_internal(name)
     }
@@ -194,6 +203,8 @@ mod tests {
             assert_eq!( map.define("t", U32.clone()), Err (U16) );
             assert_eq!( map.lookup("t"),              Some(U32) );
         }
+        
+        // TODO: Test alias
     }
 }
 
