@@ -22,7 +22,7 @@ use aex::ast::*;
 use aex::message::*;
 use aex::pos::*;
 use aex::scope::*;
-use aex::symbol::Symbol;
+use aex::symbol::*;
 use aex::types::*;
 
 pub struct DeclScanner<'a> {
@@ -45,15 +45,35 @@ impl<'a> DeclScanner<'a> {
     pub fn scan(&mut self, mut stmt: &'a Stmt<'a>) {
         loop {
             match *stmt {
-                Stmt::Block
-                    (ref stmts)
-                    => self.scan_block(stmts),
+                // Type Declarations
                 Stmt::TypeDef
-                    (ref name, ref ty)
-                    => self.scan_type_def(name, ty),
+                    (ref pos, ref name, ref ty)
+                    => self.declare_type(pos, name, ty),
+
+                // Symbol Declarations
                 Stmt::Label
-                    (ref name)
-                    => self.scan_label(name),
+                    (ref pos, ref name)
+                    => self.declare_sym(pos, name, INT),
+                    // TODO: Use target ptr type
+                Stmt::Bss
+                    (ref pos, ref name, ref ty)
+                    => self.declare_sym(pos, name, ty),
+                Stmt::Data
+                    (ref pos, ref name, ref ty, _)
+                    => self.declare_sym(pos, name, ty),
+                Stmt::Alias
+                    (ref pos, ref name, ref ty, _)
+                    => self.declare_sym(pos, name, ty),
+                Stmt::Func
+                    (ref pos, ref name, ref ty, _)
+                    => self.declare_sym(pos, name, ty),
+
+                // Compound Statements
+                Stmt::Block
+                    (_, ref stmts)
+                    => self.todo.extend(stmts),
+
+                // Other (ignored)
                 _ => {}
             }
 
@@ -64,29 +84,24 @@ impl<'a> DeclScanner<'a> {
         }
     }
 
-    fn scan_block(&mut self,
-                  stmts: &'a Vec<Stmt<'a>>
-                 ) {
-        let todo = &mut self.todo;
-        todo.reserve(stmts.len());
-        for s in stmts { todo.push_back(s) }
-    }
-
-    fn scan_type_def(&mut self,
-                     name: &'a str,
-                     ty:   &'a Type<'a>
-                    ) {
+    fn declare_type(&mut self,
+                    pos:  &Pos<'a>,
+                    name: &'a str,
+                    ty:   &'a Type<'a>) {
         let res = self.scope.types.define_ref(name, ty);
         if let Err(_) = res {
-            self.messages.err_type_redefined(Pos::bof("f"), name);
+            self.messages.err_type_redefined(pos, name);
         }
     }
 
-    fn scan_label(&mut self, name: &'a str) {
-        let sym = Symbol { name: name, ty: INT }; // TODO: target pointer type
+    fn declare_sym(&mut self,
+                   pos:  &Pos<'a>,
+                   name: &'a str,
+                   ty:   &'a Type<'a>) {
+        let sym = Symbol { name: name, ty: ty };
         let res = self.scope.symbols.define(name, sym);
         if let Err(_) = res {
-            self.messages.err_sym_redefined(Pos::bof("f"), name);
+            self.messages.err_sym_redefined(pos, name);
         }
     }
 }

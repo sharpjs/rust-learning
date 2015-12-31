@@ -23,29 +23,23 @@ use aex::pos::*;
 use aex::types::*;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub enum Node<'a> {
-    Stmt (Stmt<'a>, Pos<'a>),
-    Expr (Expr<'a>, Pos<'a>),
-}
-
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Stmt<'a> {
     // Meta
-    Block   (Vec<Stmt<'a>>),
+    Block   (Pos<'a>, Vec<Stmt<'a>>),
 
     // Declaration
-    TypeDef (&'a str, Box<Type<'a>>),
-    Label   (&'a str),
-    Bss     (&'a str, Box<Type<'a>>),
-    Data    (&'a str, Box<Type<'a>>, Box<Expr<'a>>),
-    Alias   (&'a str, Box<Type<'a>>, Box<Expr<'a>>),
-    Func    (&'a str, Box<Type<'a>>, Box<Stmt<'a>>),
+    TypeDef (Pos<'a>, &'a str, Box<Type<'a>>),
+    Label   (Pos<'a>, &'a str),
+    Bss     (Pos<'a>, &'a str, Box<Type<'a>>),
+    Data    (Pos<'a>, &'a str, Box<Type<'a>>, Box<Expr<'a>>),
+    Alias   (Pos<'a>, &'a str, Box<Type<'a>>, Box<Expr<'a>>),
+    Func    (Pos<'a>, &'a str, Box<Type<'a>>, Box<Stmt<'a>>),
 
     // Execution
-    Eval    (Box<Expr<'a>>),
-    Loop    (Box<Stmt<'a>>),
-    If      (Cond<'a>, Box<Stmt<'a>>, Option<Box<Stmt<'a>>>),
-    While   (Cond<'a>, Box<Stmt<'a>>),
+    Eval    (Pos<'a>, Box<Expr<'a>>),
+    Loop    (Pos<'a>, Box<Stmt<'a>>),
+    If      (Pos<'a>, Cond<'a>, Box<Stmt<'a>>, Option<Box<Stmt<'a>>>),
+    While   (Pos<'a>, Cond<'a>, Box<Stmt<'a>>),
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]

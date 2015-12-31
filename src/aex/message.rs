@@ -157,14 +157,16 @@ impl<'a> Messages<'a> {
         );
     }
 
-    pub fn err_type_redefined(&mut self, p: Pos<'a>, name: &str) {
-        self.add(p, Error, TypeRedefined, format!(
+    pub fn err_type_redefined(&mut self, p: &Pos<'a>, name: &str) {
+        self.add(p.clone(), Error, TypeRedefined, format!(
+            // TODO: Don't need clone
             "Type already defined: {}", name
         ));
     }
 
-    pub fn err_sym_redefined(&mut self, p: Pos<'a>, name: &str) {
-        self.add(p, Error, SymRedefined, format!(
+    pub fn err_sym_redefined(&mut self, p: &Pos<'a>, name: &str) {
+        self.add(p.clone(), Error, SymRedefined, format!(
+            // TODO: Don't need clone
             "Symbol already defined: {}", name
         ));
     }
