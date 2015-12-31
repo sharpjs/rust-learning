@@ -60,21 +60,12 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
     }
 
     pub fn add(&mut self, object: T) -> &T {
-        self.arena.alloc(object)
+        self.add_internal(object)
     }
 
-    pub fn define(&mut self, name: &'a str, object: T) -> Result<(), &T> {
-        use std::mem::transmute;
-
-        // SAFETY: We move the object into the arena and receive a borrow to it.
-        //   We then must use transmute to promote the borrow's lifetime to that
-        //   required by `map`.  The new lifetime might exceed the arena's
-        //   lifetime.  That is OK, because the lifetime is reconstrained to
-        //   that of &self on return from this function, and the arena will not
-        //   drop the object within the lifetime of &self.
-        //   
-        let object: &   T = self.arena.alloc(object);
-        let object: &'a T = unsafe { transmute(object) };
+    pub fn define(&mut self, name: &'a str, object: T)
+                 -> Result<(), &T> {
+        let object = self.add_internal(object);
 
         match self.map.insert(name, object) {
             None    => Ok(()),
@@ -82,7 +73,8 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
-    pub fn define_ref(&mut self, name: &'a str, object: &'a T) -> Result<(), &'a T> {
+    pub fn define_ref(&mut self, name: &'a str, object: &'a T)
+                     -> Result<(), &T> {
         match self.map.insert(name, object) {
             None    => Ok(()),
             Some(o) => Err(o)
@@ -90,14 +82,38 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
     }
 
     pub fn lookup(&self, name: &str) -> Option<&T> {
+        self.lookup_internal(name)
+    }
+
+    #[inline]
+    fn add_internal(&mut self, object: T) -> &'a T {
+        use std::mem::transmute;
+
+        // SAFETY: We move the object into the arena and receive a borrow to it.
+        //   We then must use transmute to promote the borrow's lifetime to that
+        //   required by `map`.  The new lifetime ('a) might exceed the arena's
+        //   lifetime.  That is OK, because the lifetime is reconstrained to
+        //   that of &self by the exposed functions of this type, and because
+        //   the arena will not drop the object within the lifetime of &self.
+        //   
+        let object: &   T = self.arena.alloc(object);
+        let object: &'a T = unsafe { transmute(object) };
+        object
+    }
+
+    fn lookup_internal(&self, name: &str) -> Option<&'a T> {
+        // SAFETY: See note above.  This method must not be public, because all
+        //   exposed methods of this type must constrain the lifetime of the
+        //   return value to that of &self.
+
         // First, look in this map
         if let Some(&object) = self.map.get(&name) {
             return Some(object);
         }
 
-        // Else look in parent map, if any
+        // Else look in parent scope, if any
         if let Some(parent) = self.parent {
-            return parent.lookup(name);
+            return parent.lookup_internal(name);
         }
 
         // Else fail
