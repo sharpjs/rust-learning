@@ -58,7 +58,7 @@ impl<T> Arena<T> {
         // Move object into current chunk, and obtain a ref to its new home
         let object = chunks.current.alloc(object);
 
-        // Promote ref lifetime to that of arena
+        // Promote ref lifetime to that of &self
         unsafe { transmute::<&mut T, &mut T>(object) }
     }
 }
