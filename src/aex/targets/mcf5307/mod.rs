@@ -19,3 +19,31 @@
 mod loc;
 mod code_gen;
 
+use aex::types::*;
+use aex::targets::*;
+
+pub struct Mcf5307 {
+    ptr_type: Type<'static>
+}
+
+impl Mcf5307 {
+    fn new() -> Self {
+        Mcf5307 {
+            ptr_type: Type::Ptr(
+                Box::new(Type::Ref("int")),
+                Box::new(Type::Ref("u8" ))
+            )
+        }
+    }
+}
+
+impl Default for Mcf5307 {
+    #[inline]
+    fn default() -> Self { Self::new() }
+}
+
+impl Target for Mcf5307 {
+    #[inline]
+    fn label_type(&self) -> &Type<'static> { &self.ptr_type }
+}
+

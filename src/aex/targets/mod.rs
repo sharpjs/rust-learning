@@ -18,3 +18,9 @@
 
 pub mod mcf5307;
 
+use aex::types::Type;
+
+pub trait Target {
+    fn label_type(&self) -> &Type<'static>;
+}
+
