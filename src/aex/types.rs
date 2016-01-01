@@ -43,13 +43,16 @@ pub struct Member<'a> {
     ty:   Box<Type<'a>>,
 }
 
+// Shorthand for built-in types
+pub type StaticType = &'static Type<'static>;
+
 // Abstract Integer
-pub const INT: &'static Type<'static> = &Int(None);
+pub const INT: StaticType = &Int(None);
 
 // Concrete Integers
 macro_rules! ints {
     ($($name:ident: $vw:expr, $sw:expr, $sg:expr;)*) => {$(
-        pub const $name: &'static Type<'static> = &Int(Some(IntSpec {
+        pub const $name: StaticType = &Int(Some(IntSpec {
             value_width: $vw, store_width: $sw, signed: $sg
         }));
     )*}
