@@ -18,7 +18,7 @@
 
 use aex::types::*;
 
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Symbol<'a> {
     pub name: &'a str,
     pub ty:   &'a Type<'a>,

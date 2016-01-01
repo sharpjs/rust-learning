@@ -28,8 +28,7 @@ use aex::types::*;
 pub struct DeclScanner<'a> {
     scope:    &'a mut Scope<'a>,
     messages: &'a mut Messages<'a>,
-    todo:     VecDeque<&'a Stmt<'a>>,
-    labels:   VecDeque<&'a str>,
+    labels:   VecDeque<(&'a Pos<'a>, &'a str)>,
 }
 
 impl<'a> DeclScanner<'a> {
@@ -39,14 +38,18 @@ impl<'a> DeclScanner<'a> {
         DeclScanner {
             scope:    scope,
             messages: messages,
-            todo:     VecDeque::new(),
             labels:   VecDeque::new(),
         }
     }
 
-    pub fn scan(&mut self, mut stmt: &'a Stmt<'a>) {
-        loop {
+    pub fn scan(&mut self, stmts: &'a Vec<Stmt<'a>>) {
+        for stmt in stmts {
             match *stmt {
+                // Compound Statements
+                Stmt::Block
+                    (_, ref stmts)
+                    => { self.scan(stmts); self.declare_sym_labels(INT) }
+
                 // Type Declarations
                 Stmt::TypeDef
                     (ref pos, ref name, ref ty)
@@ -55,7 +58,7 @@ impl<'a> DeclScanner<'a> {
                 // Symbol Declarations
                 Stmt::Label
                     (ref pos, ref name)
-                    => self.labels.push_back(name),
+                    => self.labels.push_back((pos, *name)),
                 Stmt::Bss
                     (ref pos, ref name, ref ty)
                     => self.declare_sym(pos, name, ty),
@@ -69,50 +72,61 @@ impl<'a> DeclScanner<'a> {
                     (ref pos, ref name, ref ty, _)
                     => self.declare_sym(pos, name, ty),
 
-                // Compound Statements
-                Stmt::Block
-                    (_, ref stmts)
-                    => self.todo.extend(stmts),
-
-                // Other (ignored)
-                _ => if !self.labels.is_empty() {}
-            }
-
-            match self.todo.pop_front() {
-                Some(s) => stmt = s,
-                None    => return,
+                // Executables
+                Stmt::Eval  (..) |
+                Stmt::Loop  (..) |
+                Stmt::If    (..) |
+                Stmt::While (..)
+                    => self.declare_sym_labels(INT),
             }
         }
     }
 
     fn declare_type(&mut self,
-                    pos:  &Pos<'a>,
+                    pos:  &   Pos<'a>,
                     name: &'a str,
                     ty:   &'a Type<'a>) {
-        let res = self.scope.types.insert_ref(ty).named(name);
+
+        let res = self.scope.types.define_ref(name, ty);
+
         if let Err(_) = res {
             self.messages.err_type_redefined(pos, name);
         }
     }
 
     fn declare_sym(&mut self,
-                   pos:  &Pos<'a>,
+                   pos:  &   Pos<'a>,
                    name: &'a str,
                    ty:   &'a Type<'a>) {
 
-        let     sym = Symbol { name: name, ty: ty };
-        let mut sym = self.scope.symbols.insert(sym);
+        self.declare_sym_labels(ty);
+        self.declare_sym_named(pos, name, ty);
+    }
 
-        for label in &self.labels {
-            if let Err(_) = sym.named(label) {
-                self.messages.err_sym_redefined(pos, label);
-            }
+    fn declare_sym_labels(&mut self,
+                          ty: &'a Type<'a>) {
+
+        if self.labels.is_empty() { return }
+
+        // Copy to new vec to avoid borrowck error
+        let labels = self.labels.split_off(0);
+
+        for (pos, name) in labels {
+            self.declare_sym_named(pos, name, ty);
         }
+    }
 
-        if let Err(_) = sym.named(name) {
+    fn declare_sym_named(&mut self,
+                         pos:  &   Pos<'a>,
+                         name: &'a str,
+                         ty:   &'a Type<'a>) {
+
+        let sym = Symbol { name: name, ty: ty };
+        let res = self.scope.symbols.define(name, sym);
+
+        if let Err(_) = res {
             self.messages.err_sym_redefined(pos, name);
         }
     }
-    //self.declare_sym(pos, name, INT),
 }
 

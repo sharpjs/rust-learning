@@ -63,7 +63,8 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
-    pub fn insert<'m>(&'m mut self, object: T) -> ScopeInsert<'m, 'a, T> {
+    pub fn define(&mut self, name: &'a str, obj: T)
+                 -> Result<(), &T> {
         use std::mem::transmute;
 
         // SAFETY: We move the object into the arena and receive a borrow to it.
@@ -73,57 +74,33 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         //   that of &self by the exposed functions of this type, and because
         //   the arena will not drop the object within the lifetime of &self.
         //   
-        let object: *const T = self.arena.alloc(object);
-        let object: &'a    T = unsafe { transmute(object) };
+        let obj: *const T = self.arena.alloc(obj);
+        let obj: &'a    T = unsafe { transmute(obj) };
 
-        self.insert_ref(object)
+        self.define_ref(name, obj)
     }
 
-    pub fn insert_ref<'m>(&'m mut self, object: &'a T) -> ScopeInsert<'m, 'a, T> {
-        ScopeInsert { target: self, object: object }
+    pub fn define_ref(&mut self, name: &'a str, obj: &'a T)
+                     -> Result<(), &T> {
+        match self.map.insert(name, obj) {
+            None      => Ok(()),
+            Some(obj) => Err(obj)
+        }
     }
 
     pub fn lookup(&self, name: &str) -> Option<&T> {
-        self.lookup_internal(name)
-    }
-
-    fn lookup_internal(&self, name: &str) -> Option<&'a T> {
-        // SAFETY: See note above.  This method must not be public, because all
-        //   exposed methods of this type must constrain the lifetime of the
-        //   return value to that of &self.
-
         // First, look in this map
-        if let Some(&object) = self.map.get(&name) {
-            return Some(object);
+        if let Some(&obj) = self.map.get(&name) {
+            return Some(obj);
         }
 
         // Else look in parent scope, if any
         if let Some(parent) = self.parent {
-            return parent.lookup_internal(name);
+            return parent.lookup(name);
         }
 
         // Else fail
         None
-    }
-}
-
-// -----------------------------------------------------------------------------
-
-pub struct ScopeInsert<'map, 'obj: 'map, T: 'obj> {
-    target: &'map mut ScopeMap<'obj, T>,
-    object: &'obj T,
-}
-
-impl<'map, 'obj: 'map, T: 'obj> ScopeInsert<'map, 'obj, T> {
-    pub fn get_ref(&self) -> &'map T {
-        self.object
-    }
-
-    pub fn named(&mut self, name: &'obj str) -> Result<(), &'map T> {
-        match self.target.map.insert(name, self.object) {
-            None    => Ok(()),
-            Some(o) => Err(o)
-        }
     }
 }
 
@@ -167,7 +144,7 @@ mod tests {
         fn defined_own() {
             let mut map = ScopeMap::new(None);
 
-            assert_eq!( map.insert(U32.clone()).named("t"), Ok(()) );
+            assert_eq!( map.define("t", U32.clone()), Ok(()) );
 
             assert_eq!( map.lookup("t"), Some(U32) );
         }
@@ -176,7 +153,7 @@ mod tests {
         fn defined_ref() {
             let mut map = ScopeMap::new(None);
 
-            assert_eq!( map.insert_ref(U32).named("t"), Ok(()) );
+            assert_eq!( map.define_ref("t", U32), Ok(()) );
 
             assert_eq!( map.lookup("t"), Some(U32) );
         }
@@ -185,7 +162,7 @@ mod tests {
         fn inherited() {
             let mut parent = ScopeMap::new(None);
 
-            assert_eq!( parent.insert_ref(U32).named("t"), Ok(()) );
+            assert_eq!( parent.define_ref("t", U32), Ok(()) );
 
             let map = ScopeMap::new(Some(&parent));
 
@@ -196,11 +173,11 @@ mod tests {
         fn overridden() {
             let mut parent = ScopeMap::new(None);
 
-            assert_eq!( parent.insert_ref(U16).named("t"), Ok(()) );
+            assert_eq!( parent.define_ref("t", U16), Ok(()) );
 
             let mut map = ScopeMap::new(Some(&parent));
 
-            assert_eq!( map.insert_ref(U32).named("t"), Ok(()) );
+            assert_eq!( map.define_ref("t", U32), Ok(()) );
 
             assert_eq!( map.lookup("t"), Some(U32) );
         }
@@ -209,26 +186,11 @@ mod tests {
         fn duplicate() {
             let mut map = ScopeMap::new(None);
 
-            assert_eq!( map.insert_ref(U16).named("t"), Ok(()) );
+            assert_eq!( map.define_ref("t", U16), Ok(()) );
 
-            assert_eq!( map.insert_ref(U32).named("t"), Err(U16) );
+            assert_eq!( map.define_ref("t", U32), Err(U16) );
 
             assert_eq!( map.lookup("t"), Some(U32) );
-        }
-
-        #[test]
-        fn get_ref() {
-            let mut map = ScopeMap::new(None);
-
-            assert_eq!(
-                map.insert(U32.clone()).get_ref(),
-                U32
-            );
-
-            assert_eq!(
-                map.insert_ref(U32).get_ref() as *const _,
-                U32                           as *const _
-            );
         }
     }
 }
