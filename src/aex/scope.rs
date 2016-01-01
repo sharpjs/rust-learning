@@ -22,15 +22,11 @@ use aex::mem::arena::*;
 use aex::symbol::*;
 use aex::types::*;
 
+// -----------------------------------------------------------------------------
+
 pub struct Scope<'a> {
     pub symbols: ScopeMap<'a, Symbol<'a>>,
     pub types:   ScopeMap<'a, Type  <'a>>,
-}
-
-pub struct ScopeMap<'a, T: 'a> {
-    map:    HashMap<&'a str, &'a T>,
-    arena:  Arena<T>,
-    parent: Option<&'a ScopeMap<'a, T>>,
 }
 
 impl<'a> Scope<'a> {
@@ -50,6 +46,14 @@ impl<'a> Scope<'a> {
     }
 }
 
+// -----------------------------------------------------------------------------
+
+pub struct ScopeMap<'a, T: 'a> {
+    map:    HashMap<&'a str, &'a T>,
+    arena:  Arena<T>,
+    parent: Option<&'a ScopeMap<'a, T>>,
+}
+
 impl<'a, T: 'a> ScopeMap<'a, T> {
     fn new(parent: Option<&'a ScopeMap<'a, T>>) -> Self {
         ScopeMap {
@@ -59,43 +63,7 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
-    pub fn add(&mut self, object: T) -> &T {
-        self.add_internal(object)
-    }
-
-    pub fn define(&mut self, name: &'a str, object: T)
-                 -> Result<(), &T> {
-        let object = self.add_internal(object);
-
-        match self.map.insert(name, object) {
-            None    => Ok(()),
-            Some(o) => Err(o)
-        }
-    }
-
-    pub fn define_ref(&mut self, name: &'a str, object: &'a T)
-                     -> Result<(), &T> {
-        match self.map.insert(name, object) {
-            None    => Ok(()),
-            Some(o) => Err(o)
-        }
-    }
-
-    pub fn alias(&mut self, name: &'a str, to_name: &'a str)
-                -> Result<(), Option<&T>> {
-        let object = try!(
-            self.lookup_internal(to_name).ok_or(None)
-        );
-
-        self.define_ref(name, object).map_err(Some)
-    }
-
-    pub fn lookup(&self, name: &str) -> Option<&T> {
-        self.lookup_internal(name)
-    }
-
-    #[inline]
-    fn add_internal(&mut self, object: T) -> &'a T {
+    pub fn insert<'m>(&'m mut self, object: T) -> ScopeInsert<'m, 'a, T> {
         use std::mem::transmute;
 
         // SAFETY: We move the object into the arena and receive a borrow to it.
@@ -105,9 +73,18 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         //   that of &self by the exposed functions of this type, and because
         //   the arena will not drop the object within the lifetime of &self.
         //   
-        let object: &   T = self.arena.alloc(object);
-        let object: &'a T = unsafe { transmute(object) };
-        object
+        let object: *const T = self.arena.alloc(object);
+        let object: &'a    T = unsafe { transmute(object) };
+
+        self.insert_ref(object)
+    }
+
+    pub fn insert_ref<'m>(&'m mut self, object: &'a T) -> ScopeInsert<'m, 'a, T> {
+        ScopeInsert { target: self, object: object }
+    }
+
+    pub fn lookup(&self, name: &str) -> Option<&T> {
+        self.lookup_internal(name)
     }
 
     fn lookup_internal(&self, name: &str) -> Option<&'a T> {
@@ -129,6 +106,28 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         None
     }
 }
+
+// -----------------------------------------------------------------------------
+
+pub struct ScopeInsert<'map, 'obj: 'map, T: 'obj> {
+    target: &'map mut ScopeMap<'obj, T>,
+    object: &'obj T,
+}
+
+impl<'map, 'obj: 'map, T: 'obj> ScopeInsert<'map, 'obj, T> {
+    pub fn get_ref(&self) -> &'map T {
+        self.object
+    }
+
+    pub fn named(&mut self, name: &'obj str) -> Result<(), &'map T> {
+        match self.target.map.insert(name, self.object) {
+            None    => Ok(()),
+            Some(o) => Err(o)
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
@@ -165,18 +164,28 @@ mod tests {
         }
 
         #[test]
-        fn defined() {
+        fn defined_own() {
             let mut map = ScopeMap::new(None);
 
-            assert_eq!( map.define("t", U32.clone()), Ok  (( )) );
-            assert_eq!( map.lookup("t"),              Some(U32) );
+            assert_eq!( map.insert(U32.clone()).named("t"), Ok(()) );
+
+            assert_eq!( map.lookup("t"), Some(U32) );
+        }
+
+        #[test]
+        fn defined_ref() {
+            let mut map = ScopeMap::new(None);
+
+            assert_eq!( map.insert_ref(U32).named("t"), Ok(()) );
+
+            assert_eq!( map.lookup("t"), Some(U32) );
         }
 
         #[test]
         fn inherited() {
             let mut parent = ScopeMap::new(None);
 
-            assert_eq!( parent.define("t", U32.clone()), Ok(()) );
+            assert_eq!( parent.insert_ref(U32).named("t"), Ok(()) );
 
             let map = ScopeMap::new(Some(&parent));
 
@@ -187,24 +196,40 @@ mod tests {
         fn overridden() {
             let mut parent = ScopeMap::new(None);
 
-            assert_eq!( parent.define("t", U16.clone()), Ok(()) );
+            assert_eq!( parent.insert_ref(U16).named("t"), Ok(()) );
 
             let mut map = ScopeMap::new(Some(&parent));
 
-            assert_eq!( map.define("t", U32.clone()), Ok  (( )) );
-            assert_eq!( map.lookup("t"),              Some(U32) );
+            assert_eq!( map.insert_ref(U32).named("t"), Ok(()) );
+
+            assert_eq!( map.lookup("t"), Some(U32) );
         }
 
         #[test]
         fn duplicate() {
             let mut map = ScopeMap::new(None);
 
-            assert_eq!( map.define("t", U16.clone()), Ok  (( )) );
-            assert_eq!( map.define("t", U32.clone()), Err (U16) );
-            assert_eq!( map.lookup("t"),              Some(U32) );
+            assert_eq!( map.insert_ref(U16).named("t"), Ok(()) );
+
+            assert_eq!( map.insert_ref(U32).named("t"), Err(U16) );
+
+            assert_eq!( map.lookup("t"), Some(U32) );
         }
-        
-        // TODO: Test alias
+
+        #[test]
+        fn get_ref() {
+            let mut map = ScopeMap::new(None);
+
+            assert_eq!(
+                map.insert(U32.clone()).get_ref(),
+                U32
+            );
+
+            assert_eq!(
+                map.insert_ref(U32).get_ref() as *const _,
+                U32                           as *const _
+            );
+        }
     }
 }
 

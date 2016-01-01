@@ -29,16 +29,18 @@ pub struct DeclScanner<'a> {
     scope:    &'a mut Scope<'a>,
     messages: &'a mut Messages<'a>,
     todo:     VecDeque<&'a Stmt<'a>>,
+    labels:   VecDeque<&'a str>,
 }
 
 impl<'a> DeclScanner<'a> {
-    pub fn new( scope:    &'a mut Scope   <'a>,
-                messages: &'a mut Messages<'a>,
-              ) -> Self {
+    pub fn new(scope:    &'a mut Scope   <'a>,
+               messages: &'a mut Messages<'a>)
+              -> Self {
         DeclScanner {
             scope:    scope,
             messages: messages,
             todo:     VecDeque::new(),
+            labels:   VecDeque::new(),
         }
     }
 
@@ -53,8 +55,7 @@ impl<'a> DeclScanner<'a> {
                 // Symbol Declarations
                 Stmt::Label
                     (ref pos, ref name)
-                    => self.declare_sym(pos, name, INT),
-                    // TODO: Use target ptr type
+                    => self.labels.push_back(name),
                 Stmt::Bss
                     (ref pos, ref name, ref ty)
                     => self.declare_sym(pos, name, ty),
@@ -74,7 +75,7 @@ impl<'a> DeclScanner<'a> {
                     => self.todo.extend(stmts),
 
                 // Other (ignored)
-                _ => {}
+                _ => if !self.labels.is_empty() {}
             }
 
             match self.todo.pop_front() {
@@ -88,7 +89,7 @@ impl<'a> DeclScanner<'a> {
                     pos:  &Pos<'a>,
                     name: &'a str,
                     ty:   &'a Type<'a>) {
-        let res = self.scope.types.define_ref(name, ty);
+        let res = self.scope.types.insert_ref(ty).named(name);
         if let Err(_) = res {
             self.messages.err_type_redefined(pos, name);
         }
@@ -98,11 +99,20 @@ impl<'a> DeclScanner<'a> {
                    pos:  &Pos<'a>,
                    name: &'a str,
                    ty:   &'a Type<'a>) {
-        let sym = Symbol { name: name, ty: ty };
-        let res = self.scope.symbols.define(name, sym);
-        if let Err(_) = res {
+
+        let     sym = Symbol { name: name, ty: ty };
+        let mut sym = self.scope.symbols.insert(sym);
+
+        for label in &self.labels {
+            if let Err(_) = sym.named(label) {
+                self.messages.err_sym_redefined(pos, label);
+            }
+        }
+
+        if let Err(_) = sym.named(name) {
             self.messages.err_sym_redefined(pos, name);
         }
     }
+    //self.declare_sym(pos, name, INT),
 }
 
