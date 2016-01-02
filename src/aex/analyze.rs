@@ -25,15 +25,15 @@ use aex::scope::*;
 use aex::symbol::*;
 use aex::types::*;
 
-pub struct DeclScanner<'a> {
-    scope:    &'a mut Scope<'a>,
-    messages: &'a mut Messages<'a>,
-    labels:   VecDeque<(&'a Pos<'a>, &'a str)>,
+pub struct DeclScanner<'me, 'a: 'me> {
+    scope:    &'me mut Scope   <'a>,
+    messages: &'me mut Messages<'a>,
+    labels:   VecDeque<(&'me Pos<'a>, &'a str)>,
 }
 
-impl<'a> DeclScanner<'a> {
-    pub fn new(scope:    &'a mut Scope   <'a>,
-               messages: &'a mut Messages<'a>)
+impl<'me, 'a> DeclScanner<'me, 'a> {
+    pub fn new(scope:    &'me mut Scope   <'a>,
+               messages: &'me mut Messages<'a>)
               -> Self {
         DeclScanner {
             scope:    scope,
@@ -42,7 +42,7 @@ impl<'a> DeclScanner<'a> {
         }
     }
 
-    pub fn scan(&mut self, stmts: &'a Vec<Stmt<'a>>) {
+    pub fn scan(&mut self, stmts: &'a [Stmt<'a>]) {
         for stmt in stmts {
             match *stmt {
                 // Compound Statements
