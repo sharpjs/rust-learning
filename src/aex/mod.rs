@@ -18,6 +18,7 @@
 
 mod analyze;
 mod ast;
+mod asm;
 mod mem;
 mod message;
 mod pos;
@@ -26,7 +27,6 @@ mod symbol;
 mod targets;
 mod types;
 
-//mod analyze;
 //mod lexer;
 //mod parser;
 
