@@ -19,30 +19,30 @@
 use std::collections::VecDeque;
 
 use aex::ast::*;
-use aex::message::*;
+use aex::output::*;
 use aex::pos::*;
 use aex::scope::*;
 use aex::symbol::*;
 use aex::types::*;
 
-pub struct DeclScanner<'me, 'a: 'me> {
-    scope:    &'me mut Scope   <'a>,
-    messages: &'me mut Messages<'a>,
-    labels:   VecDeque<(&'me Pos<'a>, &'a str)>,
+pub struct DeclScanner<'me, 'str: 'me, 'cg: 'me> {
+    out:    &'me mut Output<'str>,
+    scope:  &'me mut Scope <'cg>,
+    labels: VecDeque<(&'me Pos<'str>, &'str str)>,
 }
 
-impl<'me, 'a> DeclScanner<'me, 'a> {
-    pub fn new(scope:    &'me mut Scope   <'a>,
-               messages: &'me mut Messages<'a>)
+impl<'me, 'str, 'cg> DeclScanner<'me, 'str, 'cg> {
+    pub fn new(out:   &'me mut Output<'str>,
+               scope: &'me mut Scope <'cg>)
               -> Self {
         DeclScanner {
-            scope:    scope,
-            messages: messages,
-            labels:   VecDeque::new(),
+            out:    out,
+            scope:  scope,
+            labels: VecDeque::new(),
         }
     }
 
-    pub fn scan(&mut self, stmts: &'a [Stmt<'a>]) {
+    pub fn scan(&mut self, stmts: &'cg [Stmt<'str>]) {
         for stmt in stmts {
             match *stmt {
                 // Compound Statements
@@ -83,28 +83,28 @@ impl<'me, 'a> DeclScanner<'me, 'a> {
     }
 
     fn declare_type(&mut self,
-                    pos:  &   Pos<'a>,
-                    name: &'a str,
-                    ty:   &'a Type<'a>) {
+                    pos:  &     Pos<'str>,
+                    name: &'str str,
+                    ty:   &'cg  Type<'str>) {
 
         let res = self.scope.types.define_ref(name, ty);
 
         if let Err(_) = res {
-            self.messages.err_type_redefined(pos, name);
+            self.out.log.err_type_redefined(pos, name);
         }
     }
 
     fn declare_sym(&mut self,
-                   pos:  &   Pos<'a>,
-                   name: &'a str,
-                   ty:   &'a Type<'a>) {
+                   pos:  &     Pos<'str>,
+                   name: &'str str,
+                   ty:   &'cg  Type<'str>) {
 
         self.declare_sym_labels(ty);
         self.declare_sym_named(pos, name, ty);
     }
 
     fn declare_sym_labels(&mut self,
-                          ty: &'a Type<'a>) {
+                          ty: &'cg Type<'str>) {
 
         if self.labels.is_empty() { return }
 
@@ -117,15 +117,15 @@ impl<'me, 'a> DeclScanner<'me, 'a> {
     }
 
     fn declare_sym_named(&mut self,
-                         pos:  &   Pos<'a>,
-                         name: &'a str,
-                         ty:   &'a Type<'a>) {
+                         pos:  &     Pos<'str>,
+                         name: &'str str,
+                         ty:   &'cg  Type<'str>) {
 
         let sym = Symbol { name: name, ty: ty };
         let res = self.scope.symbols.define(name, sym);
 
         if let Err(_) = res {
-            self.messages.err_sym_redefined(pos, name);
+            self.out.log.err_sym_redefined(pos, name);
         }
     }
 }
