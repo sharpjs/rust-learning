@@ -1,7 +1,7 @@
 // Scopes
 //
 // This file is part of AEx.
-// Copyright (C) 2015 Jeffrey Sharp
+// Copyright (C) 2016 Jeffrey Sharp
 //
 // AEx is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published
@@ -24,38 +24,53 @@ use aex::types::*;
 
 // -----------------------------------------------------------------------------
 
-pub struct Scope<'a> {
-    pub symbols: ScopeMap<'a, Symbol<'a>>,
-    pub types:   ScopeMap<'a, Type  <'a>>,
+pub struct Scope<'me> {
+    pub symbols: ScopeMap<'me, Symbol<'me>>,
+    pub types:   ScopeMap<'me, Type  <'me>>,
 }
 
-impl<'a> Scope<'a> {
-    fn new(parent: Option<&'a Self>) -> Self {
+impl<'me> Scope<'me> {
+    pub fn new() -> Self {
         Scope {
-            symbols: ScopeMap::new(parent.map(|p| &p.symbols)),
-            types:   ScopeMap::new(parent.map(|p| &p.types  )),
+            symbols: ScopeMap::new(None),
+            types:   ScopeMap::new(None),
         }
     }
 
-    pub fn new_root() -> Self {
-        Self::new(None)
-    }
+    pub fn with_parent<'p: 'me>(parent: &'p Scope<'p>) -> Self {
+        use std::mem::transmute;
+    
+        // SAFETY:  Arena's use of RefCell makes ScopeMap invariant in its
+        //   lifetime parameter.  There undoubtedly are good reasons for that
+        //   in general, but in this case we do want variance: the parent has
+        //   lifetime 'p, but we need lifetime 'me.  Thus we use transmute to
+        //   demote the lifetime.  This is OK because:
+        //
+        //     * 'p >= 'me
+        //     * this object does not access parent's arena
+        //
+        //  More information is in the Rustonomicon:
+        //  https://doc.rust-lang.org/stable/nomicon/subtyping.html
+        //
+        let parent: &'me Scope<'me> = unsafe { transmute(parent) };
 
-    pub fn new_subscope(&'a self) -> Self {
-        Self::new(Some(self))
+        Scope {
+            symbols: ScopeMap::new(Some(&parent.symbols)),
+            types:   ScopeMap::new(Some(&parent.types  )),
+        }
     }
 }
 
 // -----------------------------------------------------------------------------
 
-pub struct ScopeMap<'a, T: 'a> {
-    map:    HashMap<&'a str, &'a T>,
+pub struct ScopeMap<'me, T: 'me> {
+    map:    HashMap<&'me str, &'me T>,
     arena:  Arena<T>,
-    parent: Option<&'a ScopeMap<'a, T>>,
+    parent: Option<&'me ScopeMap<'me, T>>,
 }
 
-impl<'a, T: 'a> ScopeMap<'a, T> {
-    fn new(parent: Option<&'a ScopeMap<'a, T>>) -> Self {
+impl<'me, T> ScopeMap<'me, T> {
+    fn new<'p: 'me>(parent: Option<&'p ScopeMap<'p, T>>) -> Self {
         ScopeMap {
             map:    HashMap::new(),
             arena:  Arena::new(),
@@ -63,25 +78,23 @@ impl<'a, T: 'a> ScopeMap<'a, T> {
         }
     }
 
-    pub fn define(&mut self, name: &'a str, obj: T)
-                 -> Result<(), &T> {
+    pub fn define(&mut self, name: &'me str, obj: T) -> Result<(), &T> {
         use std::mem::transmute;
 
         // SAFETY: We move the object into the arena and receive a borrow to it.
         //   We then must use transmute to promote the borrow's lifetime to that
-        //   required by `map`.  The new lifetime ('a) might exceed the arena's
+        //   required by `map`.  The new lifetime ('me) might exceed the arena's
         //   lifetime.  That is OK, because the lifetime is reconstrained to
         //   that of &self by the exposed functions of this type, and because
         //   the arena will not drop the object within the lifetime of &self.
         //   
         let obj: *const T = self.arena.alloc(obj);
-        let obj: &'a    T = unsafe { transmute(obj) };
+        let obj: &'me   T = unsafe { transmute(obj) };
 
         self.define_ref(name, obj)
     }
 
-    pub fn define_ref(&mut self, name: &'a str, obj: &'a T)
-                     -> Result<(), &T> {
+    pub fn define_ref(&mut self, name: &'me str, obj: &'me T) -> Result<(), &T> {
         match self.map.insert(name, obj) {
             None      => Ok(()),
             Some(obj) => Err(obj)
@@ -114,8 +127,8 @@ mod tests {
 
         #[test]
         fn new() {
-            let parent = Scope::new_root();
-            let child  = parent.new_subscope();
+            let parent = Scope::new();
+            let child  = Scope::with_parent(&parent);
 
             assert_eq!(
                 child.types.parent.unwrap() as *const _,
