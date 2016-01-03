@@ -79,9 +79,14 @@ impl Assembly {
                 for arg in &args[1..] {
                     write!(self, ", {}", arg).unwrap();
                 }
-                self.write_line();
+                self.write_line()
             }
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear();
+        self.0.shrink_to_fit();
     }
 }
 
