@@ -37,7 +37,7 @@ impl<'me> Scope<'me> {
         }
     }
 
-    pub fn with_parent<'p: 'me>(parent: &'p Scope<'p>) -> Self {
+    pub fn with_parent<'p: 'me>(parent: &'me Scope<'p>) -> Self {
         use std::mem::transmute;
     
         // SAFETY:  Arena's use of RefCell makes ScopeMap invariant in its
