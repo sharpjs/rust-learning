@@ -19,6 +19,7 @@
 mod analyze;
 mod ast;
 mod asm;
+mod codegen;
 mod mem;
 mod message;
 mod output;
