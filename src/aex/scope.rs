@@ -70,7 +70,7 @@ pub struct ScopeMap<'me, T: 'me> {
 }
 
 impl<'me, T> ScopeMap<'me, T> {
-    fn new<'p: 'me>(parent: Option<&'p ScopeMap<'p, T>>) -> Self {
+    fn new<'p: 'me>(parent: Option<&'me ScopeMap<'p, T>>) -> Self {
         ScopeMap {
             map:    HashMap::new(),
             arena:  Arena::new(),
