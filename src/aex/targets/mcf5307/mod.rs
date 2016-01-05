@@ -27,7 +27,7 @@ pub struct Mcf5307 {
 }
 
 impl Mcf5307 {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Mcf5307 {
             ptr_type: Type::Ptr(
                 Box::new(Type::Ref("int")),
