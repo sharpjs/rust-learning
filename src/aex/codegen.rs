@@ -27,19 +27,25 @@ use aex::scope::Scope;
 // Code Generator
 
 pub struct CodeGenerator<'me, 'str: 'me> {
-    out:    &'me mut Output <'str>,
-    scope:           Scope  <'me >,
-    eval:   &'me     Eval,
+    context:   Context<'me, 'str>,
+    evaluator: &'me Eval,
+}
+
+pub struct Context<'me, 'str: 'me> {
+    pub scope: Scope<'me>,
+    pub out:   &'me mut Output<'str>,
 }
 
 impl<'me, 'str> CodeGenerator<'me, 'str> {
-    pub fn new(out:  &'me mut Output <'str>,
-               eval: &'me     Eval,
+    pub fn new(out:       &'me mut Output <'str>,
+               evaluator: &'me     Eval,
               ) -> Self {
         CodeGenerator {
-            out:    out,
-            eval:   eval,
-            scope:  Scope::new(),
+            evaluator: evaluator,
+            context:   Context {
+                scope: Scope::new(),
+                out:   out,
+            },
         }
     }
 
@@ -47,9 +53,11 @@ impl<'me, 'str> CodeGenerator<'me, 'str> {
                       (parent: &'me mut CodeGenerator<'p, 'str>)
                       -> Self {
         CodeGenerator {
-            out:    parent.out,
-            eval:   parent.eval,
-            scope:  Scope::with_parent(&parent.scope),
+            evaluator: parent.evaluator,
+            context:   Context {
+                scope: Scope::with_parent(&parent.context.scope),
+                out:   parent.context.out,
+            }
         }
     }
 
@@ -63,7 +71,7 @@ impl<'me, 'str> CodeGenerator<'me, 'str> {
     pub fn visit(&mut self, stmts: &'me [Stmt<'str>]) {
         // Collect declarations first
         DeclScanner
-            ::new(self.out, &mut self.scope)
+            ::new(self.context.out, &mut self.context.scope)
             .scan(stmts);
 
         // Then generate code
@@ -80,14 +88,14 @@ impl<'me, 'str> CodeGenerator<'me, 'str> {
                     // No code to generate
                 },
                 Stmt::Label(_, ref name) => {
-                    self.out.asm.write_label(name);
+                    self.context.out.asm.write_label(name);
                 },
                 //Stmt::Bss(_, ref name, ref ty) => {
                 //},
                 //Stmt::Data(_, ref name, ref ty, ref expr) => {
                 //},
                 Stmt::Eval(_, ref expr) => {
-                    self.eval.eval(expr, self.out, &mut self.scope);
+                    self.evaluator.eval(expr, &mut self.context);
                 },
                 _ => {}
             }
@@ -100,65 +108,11 @@ impl<'me, 'str> CodeGenerator<'me, 'str> {
 
 pub trait Eval {
     fn eval(
-        self:  &    Self,
-        expr:  &    Expr,
-        out:   &mut Output,
-        scope: &mut Scope,
+        self: &    Self,
+        expr: &    Expr,
+        ctx:  &mut Context,
     );
 }
-
-//pub struct Evaluator<'me, 'str:'me, 'cg:'me, T:'cg> {
-//    out:    &'me mut Output<'str>,
-//    scope:  &'me mut Scope <'cg>,
-//    target: &'me     TargetEvaluator<Operand=T>,
-//}
-//
-//impl<'me, 'str, 'cg, T> Evaluator<'me, 'str, 'cg, T> {
-//    pub fn new(out:    &'me mut Output<'str>,
-//               scope:  &'me mut Scope <'cg>,
-//               target: &'me     TargetEvaluator<Operand=T>)
-//              -> Self {
-//        Evaluator {
-//            out:    out,
-//            scope:  scope,
-//            target: target,
-//        }
-//    }
-//
-//    fn eval(&mut self, expr: &Expr<'str>) -> Result<T, ()> {
-//        match *expr {
-//            Expr::Add(ref src, ref dst, sel) => {
-//                let src = try!(self.eval(src));
-//                let dst = try!(self.eval(dst));
-//                let sel = sel.unwrap_or("");
-//                TargetEvaluator::add(self, &src, &dst, sel)
-//            },
-//            // Subtract, etc...
-//            _ => {
-//                Err(())
-//            }
-//        }
-//    }
-//}
-//
-//impl<'me, 'str, 'cg, T> Eval<'str> for Evaluator<'me, 'str, 'cg, T> {
-//    #[inline]
-//    #[allow(unused_must_use)]
-//    fn eval(&mut self, expr: &Expr) {
-//        self.eval(expr);
-//    }
-//}
-//
-//pub trait TargetEvaluator {
-//    type Operand;
-//
-//    fn add<'a, 'b, 'c>
-//          (ctx: &mut Evaluator<'a, 'b, 'c, Self::Operand>,
-//           src: &Self::Operand,
-//           dst: &Self::Operand,
-//           sel: &'c str)
-//          -> Result<Self::Operand, ()>;
-//}
 
 // -----------------------------------------------------------------------------
 // Tests
