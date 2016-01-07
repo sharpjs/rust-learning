@@ -19,13 +19,6 @@
 use num::BigUint;
 use self::Type::*;
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
-pub struct IntSpec {
-    value_width: u8,    // count of value bits
-    store_width: u8,    // count of value + padding bits
-    signed:      bool,  // whether signed or unsigned
-}
-
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
     Ref    (&'a str),
@@ -37,10 +30,17 @@ pub enum Type<'a> {
     Func   (Vec<Member<'a>>, Vec<Member<'a>>),
 }
 
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+pub struct IntSpec {
+    pub value_width: u8,    // count of value bits
+    pub store_width: u8,    // count of value + padding bits
+    pub signed:      bool,  // whether signed or unsigned
+}
+
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub struct Member<'a> {
-    name: &'a str,
-    ty:   Box<Type<'a>>,
+    pub name: &'a str,
+    pub ty:   Type<'a>,
 }
 
 // Shorthand for built-in types
