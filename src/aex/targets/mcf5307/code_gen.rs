@@ -23,6 +23,7 @@ use std::fmt::{self, Display, Formatter};
 use aex::ast::*;
 use aex::codegen::{Context, Eval};
 use aex::pos::Pos;
+use aex::scope::Scope;
 use aex::targets::mcf5307::loc::*;
 use aex::types::*;
 
@@ -31,15 +32,21 @@ use aex::types::*;
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Operand<'me, 'str: 'me> {
-    pub loc:      Loc  <'str>,  // Machine location
-    pub ty:  &'me Type <'str>,  // Analyzed type
-    pub pos:      Pos  <'str>,  // Source position
+    pub loc: Loc   <     'str>,  // Machine location
+    pub ty:  TypeA <'me, 'str>,  // Analyzed type
+    pub pos: Pos   <     'str>,  // Source position
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+pub struct TypeA<'me, 'str: 'me> {
+    pub nominal: &'me Type <'str>,  // Type written in source
+    pub actual:  &'me Type <'str>,  // Type resolved to structure
 }
 
 impl<'me, 'str> Operand<'me, 'str> {
-    pub fn new(loc:      Loc  <'str>,
-               ty:  &'me Type <'str>,
-               pos:      Pos  <'str>)
+    pub fn new(loc: Loc   <     'str>,
+               ty:  TypeA <'me, 'str>,
+               pos: Pos   <     'str>)
               -> Self {
         Operand { loc: loc, ty: ty, pos: pos }
     }
@@ -124,12 +131,23 @@ impl Evaluator {
         };
 
         // Type check
-        let ty = Some(dst.ty)
-            .and_then(|ty| types_eq_ptr(ty, src.ty))
-            .and_then(|ty| types_eq_ptr(ty, U32   ));
+        let ty = types_ck_integral(dst.ty, src.ty);
         let ty = match ty {
             Some(ty) => ty,
             None => {
+                // todo: error
+                return Err(());
+            }
+        };
+
+        // Opcode check
+        let op = match ty {
+            TypeA {
+                actual: &Type::Int(Some(IntSpec {
+                    store_width: 32, ..
+                })), ..
+            } => "adda.l",
+            _ => {
                 // todo: error
                 return Err(());
             }
@@ -142,31 +160,34 @@ impl Evaluator {
     }
 }
 
-fn types_eq_ptr
-    <'me, 'str>
-    (x: &'me Type<'str>, y: &'me Type<'str>)
-    -> Option<&'me Type<'str>> {
+// must ref same type name
+// type must be integral
 
-    match (x, y) {
+fn types_ck_integral
+    <'op, 'str>
+    (x: TypeA <'op, 'str>,
+     y: TypeA <'op, 'str>)
+    -> Option<TypeA<'op, 'str>> {
+
+    match (x.actual, y.actual) {
         (&Type::Int(xi),
          &Type::Int(yi)) => {
             match (xi, yi) {
                 _ if xi == yi => Some(x),
                 (_, None)     => Some(x),
                 (None, _)     => Some(y),
-                _             => None
+                _             => None,
             }
         },
         (&Type::Ptr(ref xp, ref xv),
-         &Type::Ptr(ref yp, ref yv))
-        if xv == yv => {
+         &Type::Ptr(ref yp, ref yv)) if xv == yv => {
             match (&**xp, &**yp) {
                 (&Type::Int(xi),
                  &Type::Int(yi)) => {
                     match (xi, yi) {
-                        _ if xi == yi => Some(&**xp),
-                        (_, None)     => Some(&**xp),
-                        (None, _)     => Some(&**yp),
+                        _ if xi == yi => Some(x),
+                        (_, None)     => Some(x),
+                        (None, _)     => Some(y),
                         _             => None
                     }
                 }
