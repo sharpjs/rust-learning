@@ -21,7 +21,7 @@
 use std::fmt::{self, Display, Formatter};
 
 use aex::ast::*;
-use aex::codegen::{Context, Eval};
+use aex::codegen::*;
 use aex::pos::Pos;
 use aex::scope::Scope;
 use aex::targets::mcf5307::loc::*;
