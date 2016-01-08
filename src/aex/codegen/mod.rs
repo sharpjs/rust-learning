@@ -23,6 +23,10 @@ use aex::output::*;
 //use aex::types::*;
 use aex::scope::Scope;
 
+use self::eval::Eval;
+
+pub mod eval;
+
 // -----------------------------------------------------------------------------
 // Code Generator
 
@@ -104,26 +108,16 @@ impl<'me, 'str> CodeGenerator<'me, 'str> {
 }
 
 // -----------------------------------------------------------------------------
-// Evaluator
-
-pub trait Eval {
-    fn eval(
-        self: &    Self,
-        expr: &    Expr,
-        ctx:  &mut Context,
-    );
-}
-
-// -----------------------------------------------------------------------------
 // Tests
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use super::eval::Eval;
 
     use aex::ast::Expr;
     use aex::output::Output;
-    use aex::scope::Scope;
+    //use aex::scope::Scope;
 
     #[test]
     fn not_sure_yet() {

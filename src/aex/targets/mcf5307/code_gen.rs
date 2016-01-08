@@ -18,68 +18,15 @@
 
 #![allow(non_upper_case_globals)]
 
-use std::fmt::{self, Display, Formatter};
-
 use aex::ast::*;
-use aex::codegen::*;
-use aex::pos::Pos;
-use aex::scope::Scope;
-use aex::targets::mcf5307::loc::*;
+use aex::codegen::Context;
+use aex::codegen::eval::{self, Eval, TypeA};
+//use aex::scope::Scope;
 use aex::types::*;
 
-// -----------------------------------------------------------------------------
-// Operand - a machine location with its analyzed type and source position
+use super::loc::*;
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct Operand<'a> {
-    pub loc: Loc   <'a>,  // Machine location
-    pub ty:  TypeA <'a>,  // Analyzed type
-    pub pos: Pos   <'a>,  // Source position
-}
-
-impl<'a> Operand<'a> {
-    pub fn new(loc: Loc   <'a>,
-               ty:  TypeA <'a>,
-               pos: Pos   <'a>)
-              -> Self {
-        Operand { loc: loc, ty: ty, pos: pos }
-    }
-}
-
-impl<'a> Display for Operand<'a> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&self.loc, f)
-    }
-}
-
-// -----------------------------------------------------------------------------
-// TypeA - a type in both original and analyzed forms
-
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
-pub struct TypeA<'a> {
-    pub nominal: &'a Type<'a>,  // Type as written in source
-    pub actual:  &'a Type<'a>,  // Type resolved until structurally comparable
-}
-
-pub fn analyze_type<'a>
-                   (ty: &'a Type<'a>, scope: &'a Scope<'a>)
-                   -> Result<TypeA<'a>, &'a str> {
-    let res = try!(resolve_type(ty, scope));
-    Ok(TypeA { nominal: ty, actual: res })
-}
-
-pub fn resolve_type<'a>
-                   (ty: &'a Type<'a>, scope: &'a Scope <'a>)
-                   -> Result<&'a Type<'a>, &'a str> {
-    match *ty {
-        Type::Ref(n) => match scope.types.lookup(n) {
-            Some(ty) => resolve_type(ty, scope),
-            None     => Err(n),
-        },
-        _ => Ok(ty)
-    }
-}
+type Operand<'a> = eval::Operand<'a, Loc<'a>>;
 
 // -----------------------------------------------------------------------------
 // Evaluator
