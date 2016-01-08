@@ -140,8 +140,7 @@ mod tests {
         fn eval(
             self:  &    Self,
             expr:  &    Expr,
-            out:   &mut Output,
-            scope: &mut Scope,
+            ctx:   &mut Context,
         ) {}
     }
 }
