@@ -31,31 +31,53 @@ use aex::types::*;
 // Operand - a machine location with its analyzed type and source position
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
-pub struct Operand<'me, 'str: 'me> {
-    pub loc: Loc   <     'str>,  // Machine location
-    pub ty:  TypeA <'me, 'str>,  // Analyzed type
-    pub pos: Pos   <     'str>,  // Source position
+pub struct Operand<'a> {
+    pub loc: Loc   <'a>,  // Machine location
+    pub ty:  TypeA <'a>,  // Analyzed type
+    pub pos: Pos   <'a>,  // Source position
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
-pub struct TypeA<'me, 'str: 'me> {
-    pub nominal: &'me Type <'str>,  // Type written in source
-    pub actual:  &'me Type <'str>,  // Type resolved to structure
-}
-
-impl<'me, 'str> Operand<'me, 'str> {
-    pub fn new(loc: Loc   <     'str>,
-               ty:  TypeA <'me, 'str>,
-               pos: Pos   <     'str>)
+impl<'a> Operand<'a> {
+    pub fn new(loc: Loc   <'a>,
+               ty:  TypeA <'a>,
+               pos: Pos   <'a>)
               -> Self {
         Operand { loc: loc, ty: ty, pos: pos }
     }
 }
 
-impl<'me, 'str> Display for Operand<'me, 'str> {
+impl<'a> Display for Operand<'a> {
     #[inline(always)]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         Display::fmt(&self.loc, f)
+    }
+}
+
+// -----------------------------------------------------------------------------
+// TypeA - a type in both original and analyzed forms
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+pub struct TypeA<'a> {
+    pub nominal: &'a Type<'a>,  // Type as written in source
+    pub actual:  &'a Type<'a>,  // Type resolved until structurally comparable
+}
+
+pub fn analyze_type<'a>
+                   (ty: &'a Type<'a>, scope: &'a Scope<'a>)
+                   -> Result<TypeA<'a>, &'a str> {
+    let res = try!(resolve_type(ty, scope));
+    Ok(TypeA { nominal: ty, actual: res })
+}
+
+pub fn resolve_type<'a>
+                   (ty: &'a Type<'a>, scope: &'a Scope <'a>)
+                   -> Result<&'a Type<'a>, &'a str> {
+    match *ty {
+        Type::Ref(n) => match scope.types.lookup(n) {
+            Some(ty) => resolve_type(ty, scope),
+            None     => Err(n),
+        },
+        _ => Ok(ty)
     }
 }
 
@@ -91,34 +113,33 @@ impl Evaluator {
         }
     }
 
-    fn add<'op, 'str: 'op>
+    fn add<'a>
           (&self,
-           src: Operand<'op, 'str>,
-           dst: Operand<'op, 'str>,
+           src: Operand<'a>,
+           dst: Operand<'a>,
            sel: &str,
            ctx: &mut Context)
-          -> Result<Operand<'op, 'str>, ()> {
+          -> Result<Operand<'a>, ()> {
 
         match sel {
             ""  => {},
             "a" => return self.adda(src, dst, ctx),
-        //    "d" => return self.addd(x, y),
-        //    "i" => return self.addi(x, y),
-        //    "q" => return self.addq(x, y),
-        //    "x" => return self.addx(x, y),
+        //  "d" => return self.addd(x, y),
+        //  "i" => return self.addi(x, y),
+        //  "q" => return self.addq(x, y),
+        //  "x" => return self.addx(x, y),
             _   => panic!("bad selector")
         }
 
         Ok(dst)
     }
 
-    fn adda
-        <'op, 'str: 'op>
+    fn adda<'a>
         (&self,
-         src: Operand<'op, 'str>,
-         dst: Operand<'op, 'str>,
+         src: Operand<'a>,
+         dst: Operand<'a>,
          ctx: &mut Context)
-        -> Result<Operand<'op, 'str>, ()> {
+        -> Result<Operand<'a>, ()> {
 
         // Mode check
         let modes = (src.loc.mode(), dst.loc.mode());
@@ -163,12 +184,7 @@ impl Evaluator {
 // must ref same type name
 // type must be integral
 
-fn types_ck_integral
-    <'op, 'str>
-    (x: TypeA <'op, 'str>,
-     y: TypeA <'op, 'str>)
-    -> Option<TypeA<'op, 'str>> {
-
+fn types_ck_integral<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
     match (x.actual, y.actual) {
         (&Type::Int(xi),
          &Type::Int(yi)) => {
