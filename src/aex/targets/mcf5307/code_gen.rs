@@ -93,7 +93,7 @@ impl Evaluator {
         match modes {
             (_, M_Addr) if src.loc.is(M_Src) => {},
             _ => {
-                // todo: error
+                // Error: No target instruction for the given addressing mode(s).
                 return Err(());
             }
         };
@@ -103,7 +103,7 @@ impl Evaluator {
         let ty = match ty {
             Some(ty) => ty,
             None => {
-                // todo: error
+                // Error: No target instruction for the given operand type(s).
                 return Err(());
             }
         };
@@ -121,15 +121,19 @@ impl Evaluator {
             }
         };
 
+        // Value check
+        //
+        // if ! value is in range of type {
+        //     Error: Operand value out of range.
+        //     return Err(());
+        // }
+
         // Emit
         ctx.out.asm.write_op_2("adda.l", &src, &dst);
 
         Ok(Operand { ty: ty, .. dst })
     }
 }
-
-// must ref same type name
-// type must be integral
 
 fn types_ck_integral<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
     match (x.actual, y.actual) {
