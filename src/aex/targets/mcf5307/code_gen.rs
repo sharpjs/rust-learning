@@ -109,14 +109,10 @@ impl Evaluator {
         };
 
         // Opcode check
-        let op = match ty {
-            TypeA {
-                actual: &Type::Int(Some(IntSpec {
-                    store_width: 32, ..
-                })), ..
-            } => "adda.l",
-            _ => {
-                // todo: error
+        let op = match select_op(ty.actual, LONG, OPS_ADDA) {
+            Some(op) => op,
+            None => {
+                // Error: No target instruction for the given operand size(s).
                 return Err(());
             }
         };
@@ -164,6 +160,26 @@ fn types_ck_integral<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
         _ => None
     }
 }
+
+type OpTable = [(u8, &'static str)];
+
+fn select_op(ty: &Type, iw: u8, ops: &OpTable) -> Option<&'static str> {
+    let ty_width = ty.store_width().unwrap_or(iw);
+
+    for &(op_width, op) in ops {
+        if op_width == ty_width { return Some(op) }
+    }
+
+    None
+}
+
+const BYTE: u8 =  8;
+const WORD: u8 = 16;
+const LONG: u8 = 32;
+
+const OPS_ADDA: &'static OpTable = &[
+    (LONG, "adda.l")
+];
 
 //// -----------------------------------------------------------------------------
 //// Evaluator
