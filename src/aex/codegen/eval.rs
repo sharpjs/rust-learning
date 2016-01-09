@@ -35,7 +35,7 @@ pub trait Eval {
 // -----------------------------------------------------------------------------
 // Operand - a machine location with its analyzed type and source position
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Operand<'a, L: 'a + Display> {
     pub loc: L          ,   // Machine location
     pub ty:  TypeA <'a> ,   // Analyzed type
@@ -56,30 +56,65 @@ impl<'a, L: 'a + Display> Display for Operand<'a, L> {
 }
 
 // -----------------------------------------------------------------------------
-// TypeA - a type with its analyzed form
+// TypeA - an analyzed type
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct TypeA<'a> {
-    pub nominal: &'a Type<'a>,  // Type as written in source
-    pub actual:  &'a Type<'a>,  // Type resolved until structurally comparable
+    pub ty:   &'a Type<'a>, // Type as written in source
+    pub form: TypeForm      // Type reduced to info for typeck and codegen
 }
 
-pub fn analyze_type<'a>
-                   (ty: &'a Type<'a>, scope: &'a Scope<'a>)
-                   -> Result<TypeA<'a>, &'a str> {
-    let res = try!(resolve_type(ty, scope));
-    Ok(TypeA { nominal: ty, actual: res })
+// Just enough info about a type to enable coercion and opcode selection
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum TypeForm {
+    Inty    (Option<(u8, bool)>), // Int, Ptr
+    Floaty  (Option<(u8      )>), // Float
+    Opaque,                       // Array, Union, Struct, Func
 }
 
-pub fn resolve_type<'a>
-                   (ty: &'a Type<'a>, scope: &'a Scope <'a>)
-                   -> Result<&'a Type<'a>, &'a str> {
+pub fn analyze_type
+    <'a>
+    (ty:    &'a Type <'a>,
+     scope: &'a Scope<'a>)
+    -> Result<TypeA<'a>, &'a str> {
+
+    let res = try!(resolve_type_form(ty, scope));
+
+    Ok(TypeA { ty: ty, form: res })
+}
+
+fn resolve_type_form
+    <'a>
+    (ty:    &'a Type  <'a>,
+     scope: &'a Scope <'a>)
+    -> Result<TypeForm, &'a str> {
+
     match *ty {
-        Type::Ref(n) => match scope.types.lookup(n) {
-            Some(ty) => resolve_type(ty, scope),
-            None     => Err(n),
+        Type::Ref(n) => {
+            // Form is that of referenced type
+            match scope.types.lookup(n) {
+                Some(ty) => resolve_type_form(ty, scope),
+                None     => Err(n),
+            }
         },
-        _ => Ok(ty)
+        Type::Int(None) => {
+            // Form is arbitrary integer
+            Ok(TypeForm::Inty(None))
+        },
+        Type::Int(Some(s)) => {
+            // Form is specified integer
+            let IntSpec { store_width, signed, .. } = s;
+            let s =     ( store_width, signed     );
+            Ok(TypeForm::Inty(Some(s)))
+        },
+        Type::Ptr(ref ty, _) => {
+            // Form is that of address type
+            resolve_type_form(&**ty, scope)
+        },
+        _ => {
+            // Everything else is opaque
+            Ok(TypeForm::Opaque)
+        }
     }
 }
 

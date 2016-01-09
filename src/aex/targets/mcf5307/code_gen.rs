@@ -20,9 +20,7 @@
 
 use aex::ast::*;
 use aex::codegen::Context;
-use aex::codegen::eval::{self, Eval, TypeA};
-//use aex::scope::Scope;
-use aex::types::*;
+use aex::codegen::eval::{self, Eval, TypeA, TypeForm};
 
 use super::loc::*;
 
@@ -93,26 +91,36 @@ impl Evaluator {
         match modes {
             (_, M_Addr) if src.loc.is(M_Src) => {},
             _ => {
-                // Error: No target instruction for the given addressing mode(s).
+                // Error: No target instruction for the given addressing modes.
                 return Err(());
             }
         };
 
-        // Type check
-        let ty = types_ck_integral(dst.ty, src.ty);
+        // General type check
+        let ty = typecheck(dst.ty, src.ty);
         let ty = match ty {
             Some(ty) => ty,
             None => {
-                // Error: No target instruction for the given operand type(s).
+                // Error: Operands are of incompatible types.
+                return Err(());
+            }
+        };
+
+        // Opcode type check
+        let w = match ty.form {
+            TypeForm::Inty(None)         => LONG,
+            TypeForm::Inty(Some((w, _))) => w,
+            _ => {
+                // Error: No target instruction for the given operand types.
                 return Err(());
             }
         };
 
         // Opcode check
-        let op = match select_op(ty.actual, LONG, OPS_ADDA) {
+        let op = match select_op(w, OPS_ADDA) {
             Some(op) => op,
             None => {
-                // Error: No target instruction for the given operand size(s).
+                // Error: No target instruction for the given operand sizes.
                 return Err(());
             }
         };
@@ -131,45 +139,43 @@ impl Evaluator {
     }
 }
 
-fn types_ck_integral<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
-    match (x.actual, y.actual) {
-        (&Type::Int(xi),
-         &Type::Int(yi)) => {
-            match (xi, yi) {
-                _ if xi == yi => Some(x),
-                (_, None)     => Some(x),
-                (None, _)     => Some(y),
-                _             => None,
+fn typecheck<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
+   
+    // A type is compatible with itself
+    //
+    if x.ty as *const _ == y.ty as *const _ {
+        return Some(x);
+    }
+
+    // Otherwise, two types are compatible if:
+    //   - they are of the same form, and
+    //   - at least one is arbitrary
+    //
+    match (x.form, y.form) {
+        (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
+            match (xf, yf) {
+                (_, None) => Some(x),
+                (None, _) => Some(y),
+                _         => None,
             }
         },
-        (&Type::Ptr(ref xp, ref xv),
-         &Type::Ptr(ref yp, ref yv)) if xv == yv => {
-            match (&**xp, &**yp) {
-                (&Type::Int(xi),
-                 &Type::Int(yi)) => {
-                    match (xi, yi) {
-                        _ if xi == yi => Some(x),
-                        (_, None)     => Some(x),
-                        (None, _)     => Some(y),
-                        _             => None
-                    }
-                }
-                _ => None
+        (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
+            match (xf, yf) {
+                (_, None) => Some(x),
+                (None, _) => Some(y),
+                _         => None,
             }
-        }
+        },
         _ => None
     }
 }
 
 type OpTable = [(u8, &'static str)];
 
-fn select_op(ty: &Type, iw: u8, ops: &OpTable) -> Option<&'static str> {
-    let ty_width = ty.store_width().unwrap_or(iw);
-
+fn select_op(ty_width: u8, ops: &OpTable) -> Option<&'static str> {
     for &(op_width, op) in ops {
         if op_width == ty_width { return Some(op) }
     }
-
     None
 }
 
