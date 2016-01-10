@@ -16,7 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use num::BigUint;
+use num::{BigInt, BigUint, Zero, One};
+
 use self::Type::*;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
@@ -86,6 +87,65 @@ impl<'a> Type<'a> {
             Int(Some(IntSpec { store_width, .. })) => Some(store_width),
             _                                      => None
         }
+    }
+}
+
+impl IntSpec {
+    pub fn min_value(self) -> BigInt {
+        if self.signed {
+            BigInt::zero() - bit(self.value_width - 1)
+        } else {
+            BigInt::zero()
+        }
+    }
+
+    pub fn max_value(self) -> BigInt {
+        if self.signed {
+            bit(self.value_width - 1) - BigInt::one()
+        } else {
+            bit(self.value_width    ) - BigInt::one()
+        }
+    }
+}
+
+fn bit(n: u8) -> BigInt {
+    BigInt::from(1 << (n as u64))
+}
+
+#[cfg(test)]
+mod tests {
+    use num::BigInt;
+
+    mod int_spec {
+        use num::BigInt;
+        use super::super::IntSpec;
+
+        static U8: IntSpec = IntSpec {
+            value_width: 8, store_width: 16, signed: false
+        };
+
+        static I8: IntSpec = IntSpec {
+            value_width: 8, store_width: 16, signed: true
+        };
+
+        #[test]
+        fn min_value() {
+            assert_eq!( U8.min_value(), BigInt::from(   0) );
+            assert_eq!( I8.min_value(), BigInt::from(-128) );
+        }
+
+        #[test]
+        fn max_value() {
+            assert_eq!( U8.max_value(), BigInt::from(255) );
+            assert_eq!( I8.max_value(), BigInt::from(127) );
+        }
+    }
+
+    #[test]
+    fn bit() {
+        assert_eq!( super::bit(0), BigInt::from(1 << 0) );
+        assert_eq!( super::bit(1), BigInt::from(1 << 1) );
+        assert_eq!( super::bit(7), BigInt::from(1 << 7) );
     }
 }
 
