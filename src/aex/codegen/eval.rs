@@ -64,12 +64,11 @@ pub struct TypeA<'a> {
     pub form: TypeForm      // Type reduced to info for typeck and codegen
 }
 
-// Just enough info about a type to enable coercion and opcode selection
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum TypeForm {
-    Inty    (Option<(u8, bool)>), // Int, Ptr
-    Floaty  (Option<(u8      )>), // Float
-    Opaque,                       // Array, Union, Struct, Func
+    Inty    (Option<IntSpec  >), // Int, Ptr
+    Floaty  (Option<FloatSpec>), // Float
+    Opaque,                      // Array, Union, Struct, Func
 }
 
 pub fn analyze_type
@@ -91,24 +90,22 @@ fn resolve_type_form
 
     match *ty {
         Type::Ref(n) => {
-            // Form is that of referenced type
+            // For type references, form is that of referenced type
             match scope.types.lookup(n) {
                 Some(ty) => resolve_type_form(ty, scope),
                 None     => Err(n),
             }
         },
-        Type::Int(None) => {
-            // Form is arbitrary integer
-            Ok(TypeForm::Inty(None))
+        Type::Int(s) => {
+            // For integers, form is inty
+            Ok(TypeForm::Inty(s))
         },
-        Type::Int(Some(s)) => {
-            // Form is specified integer
-            let IntSpec { store_width, signed, .. } = s;
-            let s =     ( store_width, signed     );
-            Ok(TypeForm::Inty(Some(s)))
+        Type::Float(s) => {
+            // For floats, form is floaty
+            Ok(TypeForm::Floaty(s))
         },
         Type::Ptr(ref ty, _) => {
-            // Form is that of address type
+            // For pointers, form is that of address type (probably inty)
             resolve_type_form(&**ty, scope)
         },
         _ => {
