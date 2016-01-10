@@ -23,7 +23,8 @@ use self::Type::*;
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
     Ref    (&'a str),
-    Int    (Option<IntSpec>),
+    Int    (Option<  IntSpec>),
+    Float  (Option<FloatSpec>),
     Array  (Box<Type<'a>>, Option<BigUint>),
     Ptr    (Box<Type<'a>>, Box<Type<'a>>),
     Struct (Vec<Member<'a>>),
@@ -36,6 +37,12 @@ pub struct IntSpec {
     pub value_width: u8,    // count of value bits
     pub store_width: u8,    // count of value + padding bits
     pub signed:      bool,  // whether signed or unsigned
+}
+
+#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+pub struct FloatSpec {
+    pub value_width: u8,    // count of value bits
+    pub store_width: u8,    // count of value + padding bits
 }
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
