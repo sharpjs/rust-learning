@@ -66,7 +66,11 @@ pub enum MessageId {
     SymRedefined,
 
     // Semantic Analysis Messages
-    TypeMismatch,
+    IncompatibleTypes,
+    ValueOutOfRange,
+    NoOpForAddrModes,
+    NoOpForOperandTypes,
+    NoOpForOperandSizes,
 }
 
 impl<'a> Messages<'a> {
@@ -171,9 +175,33 @@ impl<'a> Messages<'a> {
         ));
     }
 
-    pub fn err_type_mismatch(&mut self, p: Pos<'a>) {
-        self.add(p, Error, TypeMismatch,
-            "Type mismatch."
+    pub fn err_incompatible_types(&mut self, p: Pos<'a>) {
+        self.add(p, Error, IncompatibleTypes,
+            "Operands are of incompatible types."
+        );
+    }
+
+    pub fn err_value_out_of_range(&mut self, p: Pos<'a>) {
+        self.add(p, Error, ValueOutOfRange,
+            "Operand value out of range."
+        );
+    }
+
+    pub fn err_no_op_for_addr_modes(&mut self, p: Pos<'a>) {
+        self.add(p, Error, NoOpForAddrModes,
+            "No target instruction for the given addressing mode(s)."
+        );
+    }
+
+    pub fn err_no_op_for_operand_types(&mut self, p: Pos<'a>) {
+        self.add(p, Error, NoOpForOperandTypes,
+            "No target instruction for the given operand type(s)."
+        );
+    }
+
+    pub fn err_no_op_for_operand_sizes(&mut self, p: Pos<'a>) {
+        self.add(p, Error, NoOpForOperandSizes,
+            "No target instruction for the given operand size(s)."
         );
     }
 

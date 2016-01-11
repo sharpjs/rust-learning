@@ -94,7 +94,7 @@ impl Evaluator {
         match modes {
             (_, M_Addr) if src.loc.is(M_Src) => {},
             _ => {
-                // Error: No target instruction for the given addressing modes.
+                ctx.out.log.err_no_op_for_addr_modes(src.pos);
                 return Err(());
             }
         };
@@ -104,7 +104,7 @@ impl Evaluator {
         let ty = match ty {
             Some(ty) => ty,
             None => {
-                // Error: Operands are of incompatible types.
+                ctx.out.log.err_incompatible_types(src.pos);
                 return Err(());
             }
         };
@@ -114,7 +114,7 @@ impl Evaluator {
             TypeForm::Inty(None)    => LONG,
             TypeForm::Inty(Some(s)) => s.store_width,
             _ => {
-                // Error: No target instruction for the given operand types.
+                ctx.out.log.err_no_op_for_operand_types(src.pos);
                 return Err(());
             }
         };
@@ -123,7 +123,7 @@ impl Evaluator {
         let op = match select_op(w, OPS_ADDA) {
             Some(op) => op,
             None => {
-                // Error: No target instruction for the given operand sizes.
+                ctx.out.log.err_no_op_for_operand_sizes(src.pos);
                 return Err(());
             }
         };
@@ -131,7 +131,7 @@ impl Evaluator {
         // Value check
         if let Loc::Imm(ref expr) = src.loc {
             if src.ty.form.contains(expr) == Some(false) {
-                // Error: Operand value out of range.
+                ctx.out.log.err_value_out_of_range(src.pos);
                 return Err(());
             }
         }
