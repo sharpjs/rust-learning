@@ -36,17 +36,21 @@ pub struct Evaluator;
 impl Eval for Evaluator {
     #[inline]
     #[allow(unused_must_use)]
-    fn eval<'a, 'cg: 'a, 'str: 'cg>(
-        self: &'a     Self,
-        expr: &'a     Expr   <     'str>,
-        ctx:  &'a mut Context<'cg, 'str>,
-    )
-    { Evaluator::eval(self, expr, ctx); }
+    fn eval<'cg, 'str>
+           (self: &    Self,
+            expr: &    Expr   <     'str>,
+            ctx:  &mut Context<'cg, 'str>) {
+
+        Evaluator::eval(self, expr, ctx);
+    }
 }
 
 impl Evaluator {
-    fn eval<'a, 'b:'a, 'c:'b>(&'a self, expr: &'a Expr<'c>, ctx: &'a mut Context<'b, 'c>)
-           -> Result<Operand<'c>, ()> {
+    fn eval<'cg, 'str>
+           (self: &    Self,
+            expr: &    Expr   <     'str>,
+            ctx:  &mut Context<'cg, 'str>)
+           -> Result<Operand<'str>, ()> {
 
         match *expr {
             Expr::Add(ref src, ref dst, sel) => {
@@ -62,11 +66,11 @@ impl Evaluator {
     }
 
     fn add<'a, 'b>
-          (&self,
-           src: Operand<'a>,
-           dst: Operand<'a>,
-           sel: &str,
-           ctx: &mut Context<'b, 'a>)
+          (self: &    Self,
+           src:       Operand<    'a>,
+           dst:       Operand<    'a>,
+           sel:  &    str,
+           ctx:  &mut Context<'b, 'a>)
           -> Result<Operand<'a>, ()> {
 
         match sel {
@@ -83,11 +87,11 @@ impl Evaluator {
     }
 
     fn adda<'a, 'b>
-        (&self,
-         src: Operand<'a>,
-         dst: Operand<'a>,
-         ctx: &mut Context<'b, 'a>)
-        -> Result<Operand<'a>, ()> {
+           (self: &    Self,
+            src:       Operand<    'a>,
+            dst:       Operand<    'a>,
+            ctx:  &mut Context<'b, 'a>)
+           -> Result<Operand<'a>, ()> {
 
         // Mode check
         let modes = (src.loc.mode(), dst.loc.mode());

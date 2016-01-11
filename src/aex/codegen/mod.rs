@@ -131,11 +131,11 @@ mod tests {
     struct FakeEvaluator;
 
     impl Eval for FakeEvaluator {
-        fn eval<'a, 'cg: 'a, 'str: 'cg>(
-            self: &'a     Self,
-            expr: &'a     Expr   <     'str>,
-            ctx:  &'a mut Context<'cg, 'str>,
-        ) {}
+        fn eval<'cg, 'str>
+               (self: &    Self,
+                expr: &    Expr   <     'str>,
+                ctx:  &mut Context<'cg, 'str>)
+        {}
     }
 }
 
