@@ -54,13 +54,18 @@ pub const M_CCR:         Mode = 1 << 16;
 pub const M_BC:          Mode = 1 << 17;
 
 pub const M_Reg: Mode
-     = M_Data | M_Addr;
+    = M_Data | M_Addr;
 
 pub const M_Dst: Mode
-     = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
+    = M_Reg | M_AddrInd | M_AddrIndInc | M_AddrIndDec | M_AddrDisp | M_AddrDispIdx;
 
 pub const M_Src: Mode
     = M_Dst | M_Imm | M_PcDisp | M_PcDispIdx;
+
+#[inline(always)]
+pub fn mode_any(mode: Mode, modes: Mode) -> bool {
+    mode & modes != 0
+}
 
 // -----------------------------------------------------------------------------
 // Loc - a location where data can be read or written
@@ -112,7 +117,7 @@ impl<'a> Loc<'a> {
     }
 
     pub fn is(&self, modes: Mode) -> bool {
-        self.mode() & modes != 0
+        mode_any(self.mode(), modes)
     }
 
     pub fn is_q(&self) -> bool {
