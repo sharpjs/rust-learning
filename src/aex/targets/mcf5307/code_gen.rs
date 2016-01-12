@@ -178,9 +178,9 @@ fn typecheck<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
     }
 }
 
-type OpTable = [(u8, &'static str)];
+type OpTable = &'static [(u8, &'static str)];
 
-fn select_op(ty_width: u8, ops: &OpTable) -> Option<&'static str> {
+fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
     for &(op_width, op) in ops {
         if op_width == ty_width { return Some(op) }
     }
@@ -191,7 +191,7 @@ const BYTE: u8 =  8;
 const WORD: u8 = 16;
 const LONG: u8 = 32;
 
-const OPS_ADDA: &'static OpTable = &[
+const OPS_ADDA: OpTable = &[
     (LONG, "adda.l")
 ];
 
