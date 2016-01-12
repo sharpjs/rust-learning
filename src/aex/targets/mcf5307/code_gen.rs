@@ -197,6 +197,44 @@ const OPS_ADDA: OpTable = &[
 
 // -----------------------------------------------------------------------------
 
+type ModeCheck =         fn(Mode,      Mode     ) -> bool;
+type TypeCheck = for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>;
+
+struct BinaryOp {
+    opcodes:        OpTable,
+    default_width:  u8,
+    check_modes:    ModeCheck,
+    check_types:    TypeCheck,
+}
+
+static ADDA: BinaryOp = BinaryOp {
+    opcodes:        &[(LONG, "adda.l")],
+    default_width:  LONG,
+    check_modes:    check_modes_src_addr,
+    check_types:    typecheck,
+};
+
+fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
+    dst == M_Addr && mode_any(src, M_Src)
+}
+
+//fn binary_op<'a, 'b>
+//       (self:     &    Self,
+//        src:           Operand<    'a>,
+//        dst:           Operand<    'a>,
+//        ctx:      &mut Context<'b, 'a>,
+//        mode_ck:  &    MC,
+//        type_ck:  &    TC,
+//        def_wid:       u8,
+//        opcodes:  &    OpTable)
+//       -> Result<Operand<'a>, ()> {
+//       where MC: Fn(AddrMode, AddrMode) -> bool,
+//             TC: Fn(&Type,    &Type   ) -> bool
+//
+//}
+
+// -----------------------------------------------------------------------------
+
 trait Contains<T> {
     fn contains(&self, item: &T) -> Option<bool>;
     //
