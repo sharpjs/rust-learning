@@ -73,6 +73,7 @@ impl Evaluator {
            ctx:  &mut Context<'b, 'a>)
           -> Result<Operand<'a>, ()> {
 
+        // Choose via selector
         match sel {
             ""  => {},
             "a" => return self.adda(src, dst, ctx),
@@ -80,9 +81,13 @@ impl Evaluator {
         //  "i" => return self.addi(x, y),
         //  "q" => return self.addq(x, y),
         //  "x" => return self.addx(x, y),
-            _   => panic!("bad selector")
+            _   => {
+                ctx.out.log.err_no_op_for_selector(src.pos);
+                return Err(());
+            }
         }
 
+        // Choose via modes
         Ok(dst)
     }
 

@@ -68,6 +68,7 @@ pub enum MessageId {
     // Semantic Analysis Messages
     IncompatibleTypes,
     ValueOutOfRange,
+    NoOpForSelector,
     NoOpForAddrModes,
     NoOpForOperandTypes,
     NoOpForOperandSizes,
@@ -184,6 +185,12 @@ impl<'a> Messages<'a> {
     pub fn err_value_out_of_range(&mut self, p: Pos<'a>) {
         self.add(p, Error, ValueOutOfRange,
             "Operand value out of range."
+        );
+    }
+
+    pub fn err_no_op_for_selector(&mut self, p: Pos<'a>) {
+        self.add(p, Error, NoOpForSelector,
+            "No target instruction for the given selector."
         );
     }
 
