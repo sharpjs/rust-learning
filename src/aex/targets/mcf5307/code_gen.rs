@@ -36,27 +36,27 @@ pub struct Evaluator;
 impl Eval for Evaluator {
     #[inline]
     #[allow(unused_must_use)]
-    fn eval<'cg, 'str>
-           (self: &    Self,
-            expr: &    Expr   <     'str>,
+    fn eval<'cg, 'str>(
+            &self,
+            expr: &Expr<'str>,
             ctx:  &mut Context<'cg, 'str>) {
 
-        Evaluator::eval(self, expr, ctx);
+        // Delegate to the real `eval` and ignore its result.
+        Self::eval(expr, ctx);
     }
 }
 
 impl Evaluator {
-    fn eval<'cg, 'str>
-           (self: &    Self,
-            expr: &    Expr   <     'str>,
+    fn eval<'cg, 'str>(
+            expr: &Expr<'str>,
             ctx:  &mut Context<'cg, 'str>)
-           -> Result<Operand<'str>, ()> {
+            ->    Result<Operand<'str>, ()> {
 
         match *expr {
             Expr::Add(ref src, ref dst, sel) => {
-                let src = try!(self.eval(src, ctx));
-                let dst = try!(self.eval(dst, ctx));
-                self.add(src, dst, sel.unwrap_or(""), ctx)
+                let src = try!(Self::eval(src, ctx));
+                let dst = try!(Self::eval(dst, ctx));
+                Self::add(src, dst, sel.unwrap_or(""), ctx)
             },
             // Subtract, etc...
             _ => {
@@ -65,13 +65,12 @@ impl Evaluator {
         }
     }
 
-    fn add<'a, 'b>
-          (self: &    Self,
-           src:       Operand<    'a>,
-           dst:       Operand<    'a>,
-           sel:  &    str,
-           ctx:  &mut Context<'b, 'a>)
-          -> Result<Operand<'a>, ()> {
+    fn add<'cg, 'str>(
+           src: Operand<'str>,
+           dst: Operand<'str>,
+           sel: &str,
+           ctx: &mut Context<'cg, 'str>)
+           ->   Result<Operand<'str>, ()> {
 
         // Choose via selector
         match sel {
@@ -89,16 +88,6 @@ impl Evaluator {
 
         // Choose via modes
         Ok(dst)
-    }
-
-    fn adda<'a, 'b>
-           (self: &    Self,
-            src:       Operand<    'a>,
-            dst:       Operand<    'a>,
-            ctx:  &mut Context<'b, 'a>)
-           -> Result<Operand<'a>, ()> {
-
-        ADDA.invoke(src, dst, ctx)
     }
 }
 
@@ -165,12 +154,12 @@ struct BinaryOp {
 }
 
 impl BinaryOp {
-    fn invoke<'a, 'b>
-       (self: &    Self,
-        src:       Operand<    'a>,
-        dst:       Operand<    'a>,
-        ctx:  &mut Context<'b, 'a>)
-       -> Result<Operand<'a>, ()> {
+    fn invoke<'a, 'b>(
+              &self,
+              src: Operand<'a>,
+              dst: Operand<'a>,
+              ctx: &mut Context<'b, 'a>)
+              -> Result<Operand<'a>, ()> {
 
         // Mode check
         let ok = (self.check_modes)(src.loc.mode(), dst.loc.mode());
