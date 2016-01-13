@@ -76,7 +76,7 @@ impl Evaluator {
         // Choose via selector
         match sel {
             ""  => {},
-            "a" => return self.adda(src, dst, ctx),
+            "a" => return ADDA.invoke(src, dst, ctx),
         //  "d" => return self.addd(x, y),
         //  "i" => return self.addi(x, y),
         //  "q" => return self.addq(x, y),
@@ -98,57 +98,7 @@ impl Evaluator {
             ctx:  &mut Context<'b, 'a>)
            -> Result<Operand<'a>, ()> {
 
-        // Mode check
-        let modes = (src.loc.mode(), dst.loc.mode());
-        match modes {
-            (_, M_Addr) if src.loc.is(M_Src) => {},
-            _ => {
-                ctx.out.log.err_no_op_for_addr_modes(src.pos);
-                return Err(());
-            }
-        };
-
-        // General type check
-        let ty = typecheck(dst.ty, src.ty);
-        let ty = match ty {
-            Some(ty) => ty,
-            None => {
-                ctx.out.log.err_incompatible_types(src.pos);
-                return Err(());
-            }
-        };
-
-        // Opcode type check
-        let w = match ty.form {
-            TypeForm::Inty(None)    => LONG,
-            TypeForm::Inty(Some(s)) => s.store_width,
-            _ => {
-                ctx.out.log.err_no_op_for_operand_types(src.pos);
-                return Err(());
-            }
-        };
-
-        // Opcode variant check
-        let op = match select_op(w, OPS_ADDA) {
-            Some(op) => op,
-            None => {
-                ctx.out.log.err_no_op_for_operand_sizes(src.pos);
-                return Err(());
-            }
-        };
-
-        // Value check
-        if let Loc::Imm(ref expr) = src.loc {
-            if src.ty.form.contains(expr) == Some(false) {
-                ctx.out.log.err_value_out_of_range(src.pos);
-                return Err(());
-            }
-        }
-
-        // Emit
-        ctx.out.asm.write_op_2(op, &src, &dst);
-
-        Ok(Operand { ty: ty, .. dst })
+        ADDA.invoke(src, dst, ctx)
     }
 }
 
@@ -204,12 +154,73 @@ const OPS_ADDA: OpTable = &[
 
 type ModeCheck =         fn(Mode,      Mode     ) -> bool;
 type TypeCheck = for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>;
+type FormCheck =         fn(TypeForm            ) -> Option<u8>;
 
 struct BinaryOp {
     opcodes:        OpTable,
     default_width:  u8,
     check_modes:    ModeCheck,
     check_types:    TypeCheck,
+    check_form:     FormCheck,
+}
+
+impl BinaryOp {
+    fn invoke<'a, 'b>
+       (self: &    Self,
+        src:       Operand<    'a>,
+        dst:       Operand<    'a>,
+        ctx:  &mut Context<'b, 'a>)
+       -> Result<Operand<'a>, ()> {
+
+        // Mode check
+        let ok = (self.check_modes)(src.loc.mode(), dst.loc.mode());
+        if !ok {
+            ctx.out.log.err_no_op_for_addr_modes(src.pos);
+            return Err(());
+        }
+
+        // General type check
+        let ty = (self.check_types)(dst.ty, src.ty);
+        let ty = match ty {
+            Some(ty) => ty,
+            None => {
+                ctx.out.log.err_incompatible_types(src.pos);
+                return Err(());
+            }
+        };
+
+        // Opcode type check
+        let w = (self.check_form)(ty.form);
+        let w = match w {
+            Some(w) => w,
+            None => {
+                ctx.out.log.err_no_op_for_operand_types(src.pos);
+                return Err(());
+            }
+        };
+
+        // Opcode variant check
+        let op = match select_op(w, self.opcodes) {
+            Some(op) => op,
+            None => {
+                ctx.out.log.err_no_op_for_operand_sizes(src.pos);
+                return Err(());
+            }
+        };
+
+        // Value check
+        if let Loc::Imm(ref expr) = src.loc {
+            if src.ty.form.contains(expr) == Some(false) {
+                ctx.out.log.err_value_out_of_range(src.pos);
+                return Err(());
+            }
+        }
+
+        // Emit
+        ctx.out.asm.write_op_2(op, &src, &dst);
+
+        Ok(Operand { ty: ty, .. dst })
+    }
 }
 
 static ADDA: BinaryOp = BinaryOp {
@@ -217,10 +228,19 @@ static ADDA: BinaryOp = BinaryOp {
     default_width:  LONG,
     check_modes:    check_modes_src_addr,
     check_types:    typecheck,
+    check_form:     check_form_inty,
 };
 
 fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
     dst == M_Addr && mode_any(src, M_Src)
+}
+
+fn check_form_inty(form: TypeForm) -> Option<u8> {
+    match form {
+        TypeForm::Inty(None)    => Some(LONG),
+        TypeForm::Inty(Some(s)) => Some(s.store_width),
+        _                       => None
+    }
 }
 
 //fn binary_op<'a, 'b>
