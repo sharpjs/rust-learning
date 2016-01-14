@@ -23,13 +23,11 @@ use aex::codegen::Context;
 use aex::codegen::eval::{self, Eval, TypeA, TypeForm};
 use aex::types::IntSpec;
 
-
 use super::loc::*;
 
 type Operand<'a> = eval::Operand<'a, Loc<'a>>;
 
 // -----------------------------------------------------------------------------
-// Evaluator
 
 pub struct Evaluator;
 
@@ -52,44 +50,56 @@ impl Evaluator {
             ctx:  &mut Context<'cg, 'str>)
             ->    Result<Operand<'str>, ()> {
 
+        macro_rules! op {
+            ($op:ident, $sel:ident, $($arg:ident),*) => {{
+                $(
+                    let $arg = try!(Self::eval($arg, ctx));
+                )*
+                $op.invoke($sel, $($arg),*, ctx)
+            }};
+        }
+
         match *expr {
-            Expr::Add(ref src, ref dst, sel) => {
-                let src = try!(Self::eval(src, ctx));
-                let dst = try!(Self::eval(dst, ctx));
-                Self::add(src, dst, sel.unwrap_or(""), ctx)
-            },
+            Expr::Add(ref src, ref dst, sel) => op!(ADD, sel, src, dst),
             // Subtract, etc...
             _ => {
+                //ctx.out.log.err_no_op_for_expression(src.pos);
                 Err(())
             }
         }
     }
+}
 
-    fn add<'cg, 'str>(
-           src: Operand<'str>,
-           dst: Operand<'str>,
-           sel: &str,
-           ctx: &mut Context<'cg, 'str>)
-           ->   Result<Operand<'str>, ()> {
+// -----------------------------------------------------------------------------
 
-        // Choose via selector
-        match sel {
-            ""  => {},
-            "a" => return ADDA.invoke(src, dst, ctx),
-        //  "d" => return self.addd(x, y),
-        //  "i" => return self.addi(x, y),
-        //  "q" => return self.addq(x, y),
-        //  "x" => return self.addx(x, y),
-            _   => {
+struct BinaryOpFamily (&'static [(&'static str, &'static BinaryOp)]);
+
+impl BinaryOpFamily {
+    fn invoke<'a, 'b>(
+              &self,
+              sel: Option<&str>,
+              src: Operand<'a>,
+              dst: Operand<'a>,
+              ctx: &mut Context<'b, 'a>)
+              -> Result<Operand<'a>, ()> {
+
+        let sel   = sel.unwrap_or("");
+        let found = self.0.iter().find(|e| e.0 == sel);
+        match found {
+            Some(&(_, op)) => {
+                op.invoke(src, dst, ctx)
+            },
+            None => {
                 ctx.out.log.err_no_op_for_selector(src.pos);
-                return Err(());
+                Err(())
             }
         }
-
-        // Choose via modes
-        Ok(dst)
     }
 }
+
+static ADD: BinaryOpFamily = BinaryOpFamily (&[
+    ("a", &ADDA),
+]);
 
 // -----------------------------------------------------------------------------
 
