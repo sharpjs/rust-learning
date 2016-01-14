@@ -60,8 +60,8 @@ impl Evaluator {
         }
 
         match *expr {
-            Expr::Add(ref src, ref dst, sel) => op!(ADD[sel] src, dst),
-            // Subtract, etc...
+            Expr::Add      (ref d, ref s, k) => op!(ADD[k] s, d),
+            Expr::Subtract (ref d, ref s, k) => op!(SUB[k] s, d),
             _ => {
                 //ctx.out.log.err_no_op_for_expression(src.pos);
                 Err(())
@@ -99,6 +99,10 @@ impl BinaryOpFamily {
 
 static ADD: BinaryOpFamily = BinaryOpFamily (&[
     ("a", &ADDA),
+]);
+
+static SUB: BinaryOpFamily = BinaryOpFamily (&[
+    ("a", &SUBA),
 ]);
 
 // -----------------------------------------------------------------------------
@@ -177,6 +181,14 @@ impl BinaryOp {
 
 static ADDA: BinaryOp = BinaryOp {
     opcodes:        &[(LONG, "adda.l")],
+    default_width:  LONG,
+    check_modes:    check_modes_src_addr,
+    check_types:    typecheck,
+    check_form:     check_form_inty,
+};
+
+static SUBA: BinaryOp = BinaryOp {
+    opcodes:        &[(LONG, "suba.l")],
     default_width:  LONG,
     check_modes:    check_modes_src_addr,
     check_types:    typecheck,
