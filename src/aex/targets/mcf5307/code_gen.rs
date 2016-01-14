@@ -51,7 +51,7 @@ impl Evaluator {
             ->    Result<Operand<'str>, ()> {
 
         macro_rules! op {
-            ($op:ident, $sel:ident, $($arg:ident),*) => {{
+            ($op:ident [$sel:ident] $($arg:ident),*) => {{
                 $(
                     let $arg = try!(Self::eval($arg, ctx));
                 )*
@@ -60,7 +60,7 @@ impl Evaluator {
         }
 
         match *expr {
-            Expr::Add(ref src, ref dst, sel) => op!(ADD, sel, src, dst),
+            Expr::Add(ref src, ref dst, sel) => op!(ADD[sel] src, dst),
             // Subtract, etc...
             _ => {
                 //ctx.out.log.err_no_op_for_expression(src.pos);
