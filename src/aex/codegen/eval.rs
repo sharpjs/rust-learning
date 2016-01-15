@@ -16,10 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Formatter};
-
 use aex::ast::*;
-use aex::pos::Pos;
 use aex::scope::Scope;
 use aex::types::*;
 
@@ -33,29 +30,6 @@ pub trait Eval {
            (self: &    Self,
             expr: &    Expr   <     'str>,
             ctx:  &mut Context<'cg, 'str>);
-}
-
-// -----------------------------------------------------------------------------
-// Operand - a machine location with its analyzed type and source position
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Operand<'a, L: 'a + Display> {
-    pub loc: L          ,   // Machine location
-    pub ty:  TypeA <'a> ,   // Analyzed type
-    pub pos: Pos   <'a> ,   // Source position
-}
-
-impl<'a, L: 'a + Display> Operand<'a, L> {
-    pub fn new(loc: L, ty: TypeA<'a>, pos: Pos<'a>) -> Self {
-        Operand { loc: loc, ty: ty, pos: pos }
-    }
-}
-
-impl<'a, L: 'a + Display> Display for Operand<'a, L> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&self.loc, f)
-    }
 }
 
 // -----------------------------------------------------------------------------

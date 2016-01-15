@@ -20,11 +20,12 @@
 
 use aex::ast::*;
 use aex::codegen::Context;
-use aex::codegen::eval::{self, Eval, TypeA, TypeForm, Contains};
+use aex::codegen::eval::*;
+use aex::codegen::ops;
 
 use super::loc::*;
 
-type Operand<'a> = eval::Operand<'a, Loc<'a>>;
+type Operand<'a> = ops::Operand<'a, Loc<'a>>;
 
 // -----------------------------------------------------------------------------
 

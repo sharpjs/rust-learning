@@ -19,13 +19,12 @@
 use aex::analyze::*;
 use aex::ast::*;
 use aex::output::*;
-//use aex::pos::Pos;
-//use aex::types::*;
 use aex::scope::Scope;
 
 use self::eval::Eval;
 
 pub mod eval;
+pub mod ops;
 
 // -----------------------------------------------------------------------------
 // Code Generator
@@ -117,7 +116,6 @@ mod tests {
 
     use aex::ast::Expr;
     use aex::output::Output;
-    //use aex::scope::Scope;
 
     #[test]
     fn not_sure_yet() {
