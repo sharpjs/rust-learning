@@ -68,6 +68,7 @@ pub enum MessageId {
     // Semantic Analysis Messages
     IncompatibleTypes,
     ValueOutOfRange,
+    NoOpForExpression,
     NoOpForSelector,
     NoOpForAddrModes,
     NoOpForOperandTypes,
@@ -185,6 +186,12 @@ impl<'a> Messages<'a> {
     pub fn err_value_out_of_range(&mut self, p: Pos<'a>) {
         self.add(p, Error, ValueOutOfRange,
             "Operand value out of range."
+        );
+    }
+
+    pub fn err_no_op_for_expression(&mut self, p: Pos<'a>) {
+        self.add(p, Error, NoOpForExpression,
+            "No target instruction for the given expression form."
         );
     }
 

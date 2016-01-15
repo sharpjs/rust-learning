@@ -59,10 +59,11 @@ impl Evaluator {
         }
 
         match *expr {
-            Expr::Add      (ref d, ref s, k) => op!(ADD[k] s, d),
-            Expr::Subtract (ref d, ref s, k) => op!(SUB[k] s, d),
+            Expr::Add      (ref d, ref s, k) => op!(ADD [k] s, d),
+            Expr::Subtract (ref d, ref s, k) => op!(SUB [k] s, d),
             _ => {
-                //ctx.out.log.err_no_op_for_expression(src.pos);
+                // TODO: Pos in expression
+                //ctx.out.log.err_no_op_for_expression(pos);
                 Err(())
             }
         }
