@@ -26,7 +26,7 @@ use aex::types::*;
 use super::Context;
 
 // -----------------------------------------------------------------------------
-// Evaluator
+// Eval - interface to an evaluator
 
 pub trait Eval {
     fn eval<'cg, 'str>
@@ -115,6 +115,57 @@ fn resolve_type_form
             // Everything else is opaque
             Ok(TypeForm::Opaque)
         }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Contains - discovers whether a type contains a value
+
+pub trait Contains<T> {
+    fn contains(&self, item: &T) -> Option<bool>;
+    //
+    // Some(true)  => item definitely     in self
+    // Some(false) => item definitely not in self
+    // None        => unknown
+}
+
+impl<'a, T, S> Contains<T> for Option<S> where S: Contains<T> {
+    #[inline]
+    fn contains(&self, item: &T) -> Option<bool> {
+        match *self {
+            Some(ref s) => s.contains(item),
+            None        => None,
+        }
+    }
+}
+
+impl<'a> Contains<Expr<'a>> for IntSpec {
+    fn contains(&self, expr: &Expr<'a>) -> Option<bool> {
+        match *expr {
+            Expr::Int(ref v) => {
+                let ok = *v >= self.min_value()
+                      && *v <= self.max_value();
+                Some(ok)
+            },
+            _ => None,
+        }
+    }
+}
+
+impl<'a> Contains<Expr<'a>> for TypeForm {
+    fn contains(&self, expr: &Expr<'a>) -> Option<bool> {
+        match *self {
+            TypeForm::Inty   (s) => s.contains(expr),
+            TypeForm::Floaty (s) => None,           // Don't know for now
+            TypeForm::Opaque     => Some(false)     // Inexpressable?
+        }
+    }
+}
+
+impl<'a, 'b> Contains<Expr<'a>> for TypeA<'b> {
+    #[inline(always)]
+    fn contains(&self, item: &Expr<'a>) -> Option<bool> {
+        self.form.contains(item)
     }
 }
 
