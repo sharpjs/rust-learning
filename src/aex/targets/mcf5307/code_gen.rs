@@ -72,7 +72,10 @@ impl Evaluator {
 
 // -----------------------------------------------------------------------------
 
-struct BinaryOpFamily (&'static [(&'static str, &'static BinaryOp)]);
+struct BinaryOpFamily {
+    by_sel: &'static [(&'static str, &'static BinaryOp)],
+    by_loc: fn(&Loc, &Loc) -> &'static BinaryOp,
+}
 
 impl BinaryOpFamily {
     fn invoke<'a, 'b>(
@@ -83,12 +86,21 @@ impl BinaryOpFamily {
               ctx: &mut Context<'b, 'a>)
               -> Result<Operand<'a>, ()> {
 
-        let sel   = sel.unwrap_or("");
-        let found = self.0.iter().find(|e| e.0 == sel);
-        match found {
-            Some(&(_, op)) => {
-                op.invoke(src, dst, ctx)
+        let op = match sel {
+            None => {
+                Some((self.by_loc)(&src.loc, &dst.loc))
             },
+            Some(sel) => {
+                self.by_sel.iter()
+                    .find(|e| e.0 == sel)
+                    .map(|&(_, op)| op)
+            },
+        };
+
+        match op {
+            Some(op) => {
+                op.invoke(src, dst, ctx)
+            }
             None => {
                 ctx.out.log.err_no_op_for_selector(src.pos);
                 Err(())
@@ -97,13 +109,39 @@ impl BinaryOpFamily {
     }
 }
 
-static ADD: BinaryOpFamily = BinaryOpFamily (&[
-    ("a", &ADDA),
-]);
+static ADD: BinaryOpFamily = BinaryOpFamily {
+    by_sel: &[("a", &ADDA)],
+    by_loc: choose_add,
+};
 
-static SUB: BinaryOpFamily = BinaryOpFamily (&[
-    ("a", &SUBA),
-]);
+static SUB: BinaryOpFamily = BinaryOpFamily {
+    by_sel: &[("a", &SUBA)],
+    by_loc: choose_sub,
+};
+
+fn choose_add(s: &Loc, d: &Loc) -> &'static BinaryOp {
+    match (s.mode(), d.mode()) {
+        (M_Imm,  M_Imm )                            => &ADDA,
+        (_,      M_Addr) if s.is(M_Src)             => &ADDA,
+        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &ADDA,
+        (M_Imm,  M_Data)                            => &ADDA,
+        (M_Data, _     ) if d.is(M_Dst)             => &ADDA,
+        (_,      M_Data) if s.is(M_Src)             => &ADDA,
+        _                                           => &ADDA,
+    }
+}
+
+fn choose_sub(s: &Loc, d: &Loc) -> &'static BinaryOp {
+    match (s.mode(), d.mode()) {
+        (M_Imm,  M_Imm )                            => &SUBA,
+        (_,      M_Addr) if s.is(M_Src)             => &SUBA,
+        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &SUBA,
+        (M_Imm,  M_Data)                            => &SUBA,
+        (M_Data, _     ) if d.is(M_Dst)             => &SUBA,
+        (_,      M_Data) if s.is(M_Src)             => &SUBA,
+        _                                           => &SUBA,
+    }
+}
 
 // -----------------------------------------------------------------------------
 
