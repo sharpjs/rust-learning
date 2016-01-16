@@ -146,77 +146,7 @@ fn choose_sub(s: &Loc, d: &Loc) -> &'static BinaryOp {
 
 // -----------------------------------------------------------------------------
 
-type ModeCheck =         fn(Mode,      Mode     ) -> bool;
-type TypeCheck = for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>;
-type FormCheck =         fn(TypeForm            ) -> Option<u8>;
-
-struct BinaryOp {
-    opcodes:        OpTable,
-    default_width:  u8,
-    check_modes:    ModeCheck,
-    check_types:    TypeCheck,
-    check_form:     FormCheck,
-}
-
-impl BinaryOp {
-    fn invoke<'a, 'b>(
-              &self,
-              src: Operand<'a>,
-              dst: Operand<'a>,
-              ctx: &mut Context<'b, 'a>)
-              -> Result<Operand<'a>, ()> {
-
-        // Mode check
-        let ok = (self.check_modes)(src.loc.mode(), dst.loc.mode());
-        if !ok {
-            ctx.out.log.err_no_op_for_addr_modes(src.pos);
-            return Err(());
-        }
-
-        // Type check
-        let ty = (self.check_types)(dst.ty, src.ty);
-        let ty = match ty {
-            Some(ty) => ty,
-            None     => {
-                ctx.out.log.err_incompatible_types(src.pos);
-                return Err(());
-            }
-        };
-
-        // Form check
-        let width = (self.check_form)(ty.form);
-        let width = match width {
-            Some(w) => w,
-            None    => {
-                ctx.out.log.err_no_op_for_operand_types(src.pos);
-                return Err(());
-            }
-        };
-
-        // Opcode select
-        let op = match select_op(width, self.opcodes) {
-            Some(op) => op,
-            None     => {
-                ctx.out.log.err_no_op_for_operand_sizes(src.pos);
-                return Err(());
-            }
-        };
-
-        // Value check
-        if let Loc::Imm(ref expr) = src.loc {
-            if src.ty.form.contains(expr) == Some(false) {
-                ctx.out.log.err_value_out_of_range(src.pos);
-                return Err(());
-            }
-        }
-
-        // Emit
-        ctx.out.asm.write_op_2(op, &src, &dst);
-
-        // Return operand cast to checked type
-        Ok(Operand { ty: ty, .. dst })
-    }
-}
+type BinaryOp = ops::BinaryOp<Mode>;
 
 static ADDA: BinaryOp = BinaryOp {
     opcodes:        &[(LONG, "adda.l")],
@@ -277,14 +207,7 @@ fn typecheck<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
     }
 }
 
-type OpTable = &'static [(u8, &'static str)];
-
-fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
-    for &(op_width, op) in ops {
-        if op_width == ty_width { return Some(op) }
-    }
-    None
-}
+type OpTable = ops::OpTable;
 
 const BYTE: u8 =  8;
 const WORD: u8 = 16;
