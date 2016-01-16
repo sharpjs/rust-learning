@@ -26,7 +26,10 @@ use aex::codegen::ops::BinaryOpFamilyInvoke;
 
 use super::loc::*;
 
-type Operand<'a> = ops::Operand<'a, Loc<'a>>;
+type BinaryOp       = ops::BinaryOp     <             Mode>;
+type OpBySelTable   = ops::OpBySelTable <             Mode>;
+type OpByLocFn <'a> = ops::OpByLocFn    <    Loc<'a>, Mode>;
+type Operand   <'a> = ops::Operand      <'a, Loc<'a>      >;
 
 // -----------------------------------------------------------------------------
 
@@ -84,9 +87,6 @@ impl<'a> ops::BinaryOpFamily<Loc<'a>, Mode> for BinaryOpFamily {
     fn by_loc(&self) -> OpByLocFn<'a> { self.by_loc }
 }
 
-type OpBySelTable  = ops::OpBySelTable <         Mode>;
-type OpByLocFn<'a> = ops::OpByLocFn    <Loc<'a>, Mode>;
-
 static ADD: BinaryOpFamily = BinaryOpFamily {
     by_sel: &[("a", &ADDA)],
     by_loc: choose_add,
@@ -123,8 +123,6 @@ fn choose_sub(s: &Loc, d: &Loc) -> &'static BinaryOp {
 
 // -----------------------------------------------------------------------------
 
-type BinaryOp = ops::BinaryOp<Mode>;
-
 static ADDA: BinaryOp = BinaryOp {
     opcodes:        &[(LONG, "adda.l")],
     default_width:  LONG,
@@ -140,6 +138,8 @@ static SUBA: BinaryOp = BinaryOp {
     check_types:    typecheck,
     check_form:     check_form_inty,
 };
+
+// -----------------------------------------------------------------------------
 
 fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
     dst == M_Addr && mode_any(src, M_Src)
