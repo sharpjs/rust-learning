@@ -56,16 +56,16 @@ impl<'a, L: 'a + Display> Display for Operand<'a, L> {
 
 // -----------------------------------------------------------------------------
 
-struct BinaryOp<Mode> {
-    opcodes:        OpTable,
-    default_width:  u8,
-    check_modes:    fn(Mode, Mode) -> bool,
-    check_types:    for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>,
-    check_form:     fn(TypeForm) -> Option<u8>,
+pub struct BinaryOp<Mode> {
+    pub opcodes:        OpTable,
+    pub default_width:  u8,
+    pub check_modes:    fn(Mode, Mode) -> bool,
+    pub check_types:    for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>,
+    pub check_form:     fn(TypeForm) -> Option<u8>,
 }
 
 impl<Mode> BinaryOp<Mode> {
-    fn invoke<'a, 'b, L: 'a + Loc<'a, Mode> + Display>(
+    pub fn invoke<'a, 'b, L: 'a + Loc<'a, Mode> + Display>(
               &self,
               src: Operand<'a, L>,
               dst: Operand<'a, L>,
@@ -124,7 +124,7 @@ impl<Mode> BinaryOp<Mode> {
     }
 }
 
-type OpTable = &'static [(u8, &'static str)];
+pub type OpTable = &'static [(u8, &'static str)];
 
 fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
     for &(op_width, op) in ops {
