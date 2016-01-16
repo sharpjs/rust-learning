@@ -92,6 +92,39 @@ fn resolve_type_form
     }
 }
 
+pub fn check_types_compat<'a>
+                         (x: TypeA<'a>, y: TypeA<'a>)
+                         -> Option<TypeA<'a>> {
+   
+    // A type is compatible with itself
+    //
+    if x.ty as *const _ == y.ty as *const _ {
+        return Some(x);
+    }
+
+    // Otherwise, two types are compatible if:
+    //   - they are of the same form, and
+    //   - at least one is arbitrary
+    //
+    match (x.form, y.form) {
+        (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
+            match (xf, yf) {
+                (_, None) => Some(x),
+                (None, _) => Some(y),
+                _         => None,
+            }
+        },
+        (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
+            match (xf, yf) {
+                (_, None) => Some(x),
+                (None, _) => Some(y),
+                _         => None,
+            }
+        },
+        _ => None
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Contains - discovers whether a type contains a value
 

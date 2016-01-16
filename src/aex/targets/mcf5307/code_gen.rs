@@ -132,7 +132,7 @@ static ADDA: BinaryOp = BinaryOp {
     opcodes:        &[(LONG, "adda.l")],
     default_width:  LONG,
     check_modes:    check_modes_src_addr,
-    check_types:    typecheck,
+    check_types:    check_types_compat,
     check_form:     check_form_inty,
 };
 
@@ -140,7 +140,7 @@ static SUBA: BinaryOp = BinaryOp {
     opcodes:        &[(LONG, "suba.l")],
     default_width:  LONG,
     check_modes:    check_modes_src_addr,
-    check_types:    typecheck,
+    check_types:    check_types_compat,
     check_form:     check_form_inty,
 };
 
@@ -155,37 +155,6 @@ fn check_form_inty(form: TypeForm) -> Option<u8> {
         TypeForm::Inty(None)    => Some(LONG),
         TypeForm::Inty(Some(s)) => Some(s.store_width),
         _                       => None
-    }
-}
-
-fn typecheck<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
-   
-    // A type is compatible with itself
-    //
-    if x.ty as *const _ == y.ty as *const _ {
-        return Some(x);
-    }
-
-    // Otherwise, two types are compatible if:
-    //   - they are of the same form, and
-    //   - at least one is arbitrary
-    //
-    match (x.form, y.form) {
-        (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
-            match (xf, yf) {
-                (_, None) => Some(x),
-                (None, _) => Some(y),
-                _         => None,
-            }
-        },
-        (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
-            match (xf, yf) {
-                (_, None) => Some(x),
-                (None, _) => Some(y),
-                _         => None,
-            }
-        },
-        _ => None
     }
 }
 
