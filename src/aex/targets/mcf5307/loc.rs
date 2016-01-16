@@ -23,6 +23,7 @@ use std::ops::BitOr;
 use num::ToPrimitive;
 
 use aex::ast::Expr;
+use aex::codegen::ops;
 
 use self::AddrReg::*;
 use self::DataReg::*;
@@ -139,6 +140,21 @@ impl<'a> Loc<'a> {
             Loc::Abs16 (ref e) => e,
             Loc::Abs32 (ref e) => e,
             _ => panic!("Cannot unwrap to expression.")
+        }
+    }
+}
+
+impl<'a> ops::Loc<'a, Mode> for Loc<'a> {
+    #[inline(always)]
+    fn mode(&self) -> Mode {
+        self.mode()
+    }
+
+    #[inline]
+    fn as_const(&self) -> Option<&Expr<'a>> {
+        match *self {
+            Loc::Imm(ref e) => Some(e),
+            _               => None,
         }
     }
 }
