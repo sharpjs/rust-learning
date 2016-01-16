@@ -111,18 +111,28 @@ impl<L, M> BinaryOpFamily<L, M> {
 pub struct BinaryOp<M> {
     pub opcodes:        OpTable,
     pub default_width:  u8,
-    pub check_modes:    fn(Mode, Mode) -> bool,
-    pub check_types:    for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>,
-    pub check_form:     fn(TypeForm) -> Option<u8>,
+    pub check_modes:    ModeCheck<M>,
+    pub check_types:    TypeCheck,
+    pub check_form:     FormCheck,
 }
 
-impl<Mode> BinaryOp<Mode> {
-    pub fn invoke<'a, 'b, L: 'a + Loc<'a, Mode> + Display>(
+pub type ModeCheck<M> =
+    fn(M, M) -> bool;
+
+pub type TypeCheck =
+    for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>;
+
+pub type FormCheck =
+    fn(TypeForm) -> Option<u8>;
+
+impl<M> BinaryOp<M> {
+    pub fn invoke<'a, 'b, L>(
               &self,
               src: Operand<'a, L>,
               dst: Operand<'a, L>,
               ctx: &mut Context<'b, 'a>)
-              -> Result<Operand<'a, L>, ()> {
+              -> Result<Operand<'a, L>, ()>
+              where L: 'a + Loc<'a, M> + Display {
 
         // Mode check
         let ok = (self.check_modes)(src.loc.mode(), dst.loc.mode());
