@@ -104,7 +104,7 @@ pub fn check_types_compat<'a>
 
     // Otherwise, two types are compatible if:
     //   - they are of the same form, and
-    //   - at least one is arbitrary
+    //   - at least one is arbitrary.
     //
     match (x.form, y.form) {
         (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
@@ -125,11 +125,62 @@ pub fn check_types_compat<'a>
     }
 }
 
+pub fn check_types_extend<'a>
+                         (x: TypeA<'a>, y: TypeA<'a>)
+                         -> Option<TypeA<'a>> {
+   
+    // Type A is extendible to type B if:
+    //   - A and B are of the same form, and
+    //   - neither A nor B is arbitrary, and
+    //   - A is narrower or same width as B.
+    //
+    match (x.form, y.form) {
+        (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
+            match (xf, yf) {
+                (Some(xf), Some(yf))
+                    if xf.value_width <= yf.value_width
+                    && xf.store_width <= yf.store_width
+                    && xf.signed      == yf.signed
+                  => Some(y),
+                _ => None
+            }
+        },
+        (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
+            match (xf, yf) {
+                (Some(xf), Some(yf))
+                    if xf.value_width <= yf.value_width
+                    && xf.store_width <= yf.store_width
+                  => Some(y),
+                _ => None
+            }
+        },
+        _ => None
+    }
+}
+
 pub fn check_form_inty(form: TypeForm, default_width: u8) -> Option<u8> {
     match form {
         TypeForm::Inty(None)    => Some(default_width),
         TypeForm::Inty(Some(s)) => Some(s.store_width),
         _                       => None
+    }
+}
+
+pub fn check_form_inty_extend(src: TypeForm,
+                              dst: TypeForm,
+                              default_width: u8)
+                              -> Option<u8> {
+
+    let sw = check_form_inty(src, default_width);
+    let dw = check_form_inty(dst, default_width);
+
+    // We encode a pair of widths into a single number by addition.
+    // This is not lossy, because widths are powers of 2.
+    // For example: extending u8 to u16 yields a 'width' of 24
+
+    match (sw, dw) {
+        (Some(sw), Some(dw)) if sw < dw => Some(sw + dw),
+        _                               => None,
     }
 }
 
