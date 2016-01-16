@@ -30,6 +30,11 @@ type BinaryOp       = ops::BinaryOp     <             Mode>;
 type OpBySelTable   = ops::OpBySelTable <             Mode>;
 type OpByLocFn <'a> = ops::OpByLocFn    <    Loc<'a>, Mode>;
 type Operand   <'a> = ops::Operand      <'a, Loc<'a>      >;
+type OpTable        = ops::OpTable;
+
+const BYTE: u8 =  8;
+const WORD: u8 = 16;
+const LONG: u8 = 32;
 
 // -----------------------------------------------------------------------------
 
@@ -183,16 +188,6 @@ fn typecheck<'a>(x: TypeA<'a>, y: TypeA<'a>) -> Option<TypeA<'a>> {
         _ => None
     }
 }
-
-type OpTable = ops::OpTable;
-
-const BYTE: u8 =  8;
-const WORD: u8 = 16;
-const LONG: u8 = 32;
-
-const OPS_ADDA: OpTable = &[
-    (LONG, "adda.l")
-];
 
 //// -----------------------------------------------------------------------------
 //// Evaluator
