@@ -144,6 +144,15 @@ static SUBA: BinaryOp = BinaryOp {
     check_form:     check_form_inty,
 };
 
+static MOVEA: BinaryOp = BinaryOp {
+    opcodes:        &[(LONG, "movea.l"),
+                      (WORD, "movea.w")],
+    default_width:  LONG,
+    check_modes:    check_modes_src_addr,
+    check_types:    check_types_compat,
+    check_form:     check_form_inty,
+};
+
 // -----------------------------------------------------------------------------
 
 fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
