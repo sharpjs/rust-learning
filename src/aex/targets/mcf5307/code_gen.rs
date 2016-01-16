@@ -22,6 +22,7 @@ use aex::ast::*;
 use aex::codegen::Context;
 use aex::codegen::eval::*;
 use aex::codegen::ops;
+use aex::codegen::ops::BinaryOpFamilyInvoke;
 
 use super::loc::*;
 
@@ -74,41 +75,17 @@ impl Evaluator {
 // -----------------------------------------------------------------------------
 
 struct BinaryOpFamily {
-    by_sel: &'static [(&'static str, &'static BinaryOp)],
+    by_sel: OpBySelTable,
     by_loc: fn(&Loc, &Loc) -> &'static BinaryOp,
 }
 
-impl BinaryOpFamily {
-    fn invoke<'a, 'b>(
-              &self,
-              sel: Option<&str>,
-              src: Operand<'a>,
-              dst: Operand<'a>,
-              ctx: &mut Context<'b, 'a>)
-              -> Result<Operand<'a>, ()> {
-
-        let op = match sel {
-            None => {
-                Some((self.by_loc)(&src.loc, &dst.loc))
-            },
-            Some(sel) => {
-                self.by_sel.iter()
-                    .find(|e| e.0 == sel)
-                    .map(|&(_, op)| op)
-            },
-        };
-
-        match op {
-            Some(op) => {
-                op.invoke(src, dst, ctx)
-            }
-            None => {
-                ctx.out.log.err_no_op_for_selector(src.pos);
-                Err(())
-            }
-        }
-    }
+impl<'a> ops::BinaryOpFamily<Loc<'a>, Mode> for BinaryOpFamily {
+    fn by_sel(&self) -> OpBySelTable  { self.by_sel }
+    fn by_loc(&self) -> OpByLocFn<'a> { self.by_loc }
 }
+
+type OpBySelTable  = ops::OpBySelTable <         Mode>;
+type OpByLocFn<'a> = ops::OpByLocFn    <Loc<'a>, Mode>;
 
 static ADD: BinaryOpFamily = BinaryOpFamily {
     by_sel: &[("a", &ADDA)],
