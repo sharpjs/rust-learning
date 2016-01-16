@@ -136,7 +136,7 @@ pub type TypeCheck =
     for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>;
 
 pub type FormCheck =
-    fn(TypeForm) -> Option<u8>;
+    fn(TypeForm, u8) -> Option<u8>;
 
 impl<M> BinaryOp<M> {
     pub fn invoke<'a, 'b, L>(
@@ -165,7 +165,7 @@ impl<M> BinaryOp<M> {
         };
 
         // Form check
-        let width = (self.check_form)(ty.form);
+        let width = (self.check_form)(ty.form, self.default_width);
         let width = match width {
             Some(w) => w,
             None    => {

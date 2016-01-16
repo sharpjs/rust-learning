@@ -150,14 +150,6 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
     dst == M_Addr && mode_any(src, M_Src)
 }
 
-fn check_form_inty(form: TypeForm) -> Option<u8> {
-    match form {
-        TypeForm::Inty(None)    => Some(LONG),
-        TypeForm::Inty(Some(s)) => Some(s.store_width),
-        _                       => None
-    }
-}
-
 //// -----------------------------------------------------------------------------
 //// Evaluator
 //

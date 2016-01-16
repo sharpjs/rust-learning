@@ -125,6 +125,14 @@ pub fn check_types_compat<'a>
     }
 }
 
+pub fn check_form_inty(form: TypeForm, default_width: u8) -> Option<u8> {
+    match form {
+        TypeForm::Inty(None)    => Some(default_width),
+        TypeForm::Inty(Some(s)) => Some(s.store_width),
+        _                       => None
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Contains - discovers whether a type contains a value
 
