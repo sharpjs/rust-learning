@@ -58,9 +58,9 @@ impl<'a, L: 'a + Display> Display for Operand<'a, L> {
 // -----------------------------------------------------------------------------
 // BinaryOpFamily - a set of binary opcodes dispatched by selector or type form
 
-pub struct BinaryOpFamily<L, M: 'static> {
-    pub by_sel: OpBySelTable <   M>,
-    pub by_loc: OpByLocFn    <L, M>,
+pub trait BinaryOpFamily<L, M: 'static> {
+    fn by_sel(&self) -> OpBySelTable <   M>;
+    fn by_loc(&self) -> OpByLocFn    <L, M>;
 }
 
 pub type OpBySelTable<M: 'static> =
@@ -72,22 +72,35 @@ pub type OpBySelTable<M: 'static> =
 pub type OpByLocFn<L, M: 'static> =
     fn(&L, &L) -> &'static BinaryOp<M>;
 
-impl<L, M> BinaryOpFamily<L, M> {
-    pub fn invoke<'a, 'b>(
-                  &self,
-                  sel: Option<&str>,
-                  src: Operand<'a, L>,
-                  dst: Operand<'a, L>,
-                  ctx: &mut Context<'b, 'a>)
-                  -> Result<Operand<'a, L>, ()>
-                  where L: 'a + Loc<'a, M> + Display {
+pub trait BinaryOpFamilyInvoke<L, M: 'static>: BinaryOpFamily<L, M> {
+    fn invoke<'a, 'b>(
+              &self,
+              sel: Option<&str>,
+              src: Operand<'a, L>,
+              dst: Operand<'a, L>,
+              ctx: &mut Context<'b, 'a>)
+              -> Result<Operand<'a, L>, ()>
+              where L: 'a + Loc<'a, M> + Display;
+}
+
+impl<L, M: 'static, F> BinaryOpFamilyInvoke<L, M> for F
+    where F: BinaryOpFamilyInvoke<L, M> {
+
+    fn invoke<'a, 'b>(
+              &self,
+              sel: Option<&str>,
+              src: Operand<'a, L>,
+              dst: Operand<'a, L>,
+              ctx: &mut Context<'b, 'a>)
+              -> Result<Operand<'a, L>, ()>
+              where L: 'a + Loc<'a, M> + Display {
 
         let op = match sel {
             None => {
-                Some((self.by_loc)(&src.loc, &dst.loc))
+                Some(self.by_loc()(&src.loc, &dst.loc))
             },
             Some(sel) => {
-                self.by_sel.iter()
+                self.by_sel().iter()
                     .find(|e| e.0 == sel)
                     .map(|&(_, op)| op)
             },
