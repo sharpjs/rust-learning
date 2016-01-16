@@ -25,6 +25,7 @@ use super::Context;
 use super::eval::{TypeA, TypeForm, Contains};
 
 // -----------------------------------------------------------------------------
+// Loc - a machine location
 
 pub trait Loc<'a, Mode> {
     fn mode(&self) -> Mode;
@@ -124,6 +125,9 @@ impl<Mode> BinaryOp<Mode> {
     }
 }
 
+// -----------------------------------------------------------------------------
+// OpTable - a table mapping widths to opcodes
+
 pub type OpTable = &'static [(u8, &'static str)];
 
 fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
@@ -132,3 +136,6 @@ fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
     }
     None
 }
+
+// -----------------------------------------------------------------------------
+
