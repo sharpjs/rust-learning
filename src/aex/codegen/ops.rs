@@ -56,8 +56,59 @@ impl<'a, L: 'a + Display> Display for Operand<'a, L> {
 }
 
 // -----------------------------------------------------------------------------
+// BinaryOpFamily - a set of binary opcodes dispatched by selector or type form
 
-pub struct BinaryOp<Mode> {
+pub struct BinaryOpFamily<L, M: 'static> {
+    pub by_sel: OpBySelTable <   M>,
+    pub by_loc: OpByLocFn    <L, M>,
+}
+
+pub type OpBySelTable<M: 'static> =
+    &'static [(
+        &'static str,
+        &'static BinaryOp<M>
+    )];
+
+pub type OpByLocFn<L, M: 'static> =
+    fn(&L, &L) -> &'static BinaryOp<M>;
+
+impl<L, M> BinaryOpFamily<L, M> {
+    pub fn invoke<'a, 'b>(
+                  &self,
+                  sel: Option<&str>,
+                  src: Operand<'a, L>,
+                  dst: Operand<'a, L>,
+                  ctx: &mut Context<'b, 'a>)
+                  -> Result<Operand<'a, L>, ()>
+                  where L: 'a + Loc<'a, M> + Display {
+
+        let op = match sel {
+            None => {
+                Some((self.by_loc)(&src.loc, &dst.loc))
+            },
+            Some(sel) => {
+                self.by_sel.iter()
+                    .find(|e| e.0 == sel)
+                    .map(|&(_, op)| op)
+            },
+        };
+
+        match op {
+            Some(op) => {
+                op.invoke(src, dst, ctx)
+            }
+            None => {
+                ctx.out.log.err_no_op_for_selector(src.pos);
+                Err(())
+            }
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// BinaryOp - a binary opcode, with variants dispatched by size
+
+pub struct BinaryOp<M> {
     pub opcodes:        OpTable,
     pub default_width:  u8,
     pub check_modes:    fn(Mode, Mode) -> bool,
