@@ -159,39 +159,8 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
     dst == M_Addr && mode_any(src, M_Src)
 }
 
-//// -----------------------------------------------------------------------------
-//// Evaluator
+// -----------------------------------------------------------------------------
 //
-//pub struct CodeGen<'a, W: io::Write> {
-//    out:  W,
-//    msgs: Messages<'a>,
-//}
-//
-//impl<'a, W> CodeGen<'a, W> where W: io::Write {
-//    pub fn new(out: W) -> Self {
-//        CodeGen { out: out, msgs: Messages::new() }
-//    }
-//
-//    // This is all WIP, just idea exploration.
-//
-//    pub fn visit_expr(&mut self, expr: &Expr<'a>) -> Result<Operand<'a>, ()> {
-//        match *expr {
-//            Expr::Add(ref src, ref dst, sel) => {
-//                let src = try!(self.visit_expr(src));
-//                let dst = try!(self.visit_expr(dst));
-//                self.add(&src, &dst, sel.unwrap_or(""))
-//            },
-//            Expr::Int(_) => {
-//                Ok(Operand::new(Loc::Imm(expr.clone()), INT, Pos::bof("f")))
-//            }
-//            _ => {
-//                Err(())
-//            }
-//        }
-//    }
-//
-//    pub fn add(&mut self, x: &Operand<'a>, y: &Operand<'a>, sel: &str)
-//                  -> Result<Operand<'a>, ()> {
 //        match sel {
 //            "a" => return self.adda(x, y),
 //            "d" => return self.addd(x, y),
@@ -201,9 +170,6 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
 //            _   => {}
 //        }
 //
-//        let ty = try!(self.check_types(types_eq_scalar, x, y));
-//
-//        let modes = (x.loc.mode(), y.loc.mode());
 //        match modes {
 //            (M_Imm,  M_Imm )                                    => self.addc(        x, y),
 //            (_,      M_Addr) if x.loc.is(M_Src)                 => self.op2l("adda", x, y),
@@ -213,16 +179,7 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
 //            (_,      M_Data) if x.loc.is(M_Src)                 => self.op2l("add",  x, y),
 //            _                                                   => Err(())
 //        }
-//    }
 //
-//    pub fn adda(&mut self, x: &Operand<'a>, y: &Operand<'a>)
-//                   -> Result<Operand<'a>, ()> {
-//        let modes = (x.loc.mode(), y.loc.mode());
-//        match modes {
-//            (_, M_Addr) if x.loc.is(M_Src) => self.op2l("adda", x, y),
-//            _                              => Err(())
-//        }
-//    }
 //
 //    pub fn addd(&mut self, x: &Operand<'a>, y: &Operand<'a>)
 //                   -> Result<Operand<'a>, ()> {
@@ -276,52 +233,6 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
 //        };
 //        Ok(Operand::new(Loc::Imm(expr), INT, x.pos))
 //    }
-//
-//    fn op2l(&mut self, op: &str, x: &Operand<'a>, y: &Operand<'a>)
-//               -> Result<Operand<'a>, ()> {
-//        let t = try!(self.check_types(types_eq_scalar, x, y));
-//        self.write_ins_s2(op, t, x, y);
-//        Ok(y.clone())
-//    }
-//
-//    fn write_ins_s2<A: Display, B: Display>
-//                   (&mut self, op: &str, ty: &Type, a: &A, b: &B) {
-//        let suf = Self::size_suffix(ty);
-//        writeln!(self.out, "    {}{} {}, {}", op, suf, a, b).unwrap();
-//    }
-//
-//    fn size_suffix(ty: &Type) -> &'static str {
-//        match ty.store_width() {
-//            Some(8)  => ".b",
-//            Some(16) => ".w",
-//            Some(32) => ".l",
-//            _        => ""
-//        }
-//    }
-//
-//    fn check_types<'b>
-//                  (&self,
-//                   f: fn(&'b Type<'a>, &'b Type<'a>) -> Option<&'b Type<'a>>,
-//                   x: &'b Operand<'a>,
-//                   y: &'b Operand<'a>)
-//                  -> Result<&'b Type<'a>, ()> {
-//        f(&x.ty, &y.ty).ok_or(())
-//    }
-//}
-//
-//fn types_eq_scalar<'a, 'b>
-//                  (x: &'b Type<'a>, y: &'b Type<'a>)
-//                  -> Option<&'b Type<'a>> {
-//    match (x, y) {
-//        (&Type::Int(xx), &Type::Int(yy)) => match (xx, yy) {
-//            _ if xx == yy => Some(x),
-//            (_, None)     => Some(x),
-//            (None, _)     => Some(y),
-//            _             => None
-//        },
-//        _ => None
-//    }
-//}
 //
 //#[cfg(test)]
 //mod tests {
