@@ -16,57 +16,67 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-pub trait Fmap<T, U, O> {
-    fn fmap<F: Fn(T) -> U>(self, F) -> O;
+pub trait Fmap<T, U> {
+    type Out;
+
+    fn fmap<F: Fn(T) -> U>(self, F) -> Self::Out;
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct Ctx<T, C> (pub T, pub C);
 
 // Arity 0
-impl<T, U> Fmap<T, U, ()> for ()  {
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> () {
+impl<T, U> Fmap<T, U> for () {
+    type Out = ();
+
+    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
         ()
     }
 }
 
 // Arity 1
-impl<T, U> Fmap<T, U, (U,)> for (T,)  {
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> (U,) {
+impl<T, U> Fmap<T, U> for (T,)  {
+    type Out = (U,);
+
+    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
         (f(self.0),)
     }
 }
 
 // Arity 2
-impl<T, U> Fmap<T, U, (U, U)> for (T, T)  {
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> (U, U) {
+impl<T, U> Fmap<T, U> for (T, T)  {
+    type Out = (U, U);
+
+    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
         (f(self.0), f(self.1))
     }
 }
 
 // Arity 3
-impl<T, U> Fmap<T, U, (U, U, U)> for (T, T, T)  {
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> (U, U, U) {
+impl<T, U> Fmap<T, U> for (T, T, T)  {
+    type Out = (U, U, U);
+
+    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
         (f(self.0), f(self.1), f(self.2))
     }
 }
 
 // Arity 4
-impl<T, U> Fmap<T, U, (U, U, U, U)> for (T, T, T, T)  {
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> (U, U, U, U) {
+impl<T, U> Fmap<T, U> for (T, T, T, T)  {
+    type Out = (U, U, U, U);
+
+    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
         (f(self.0), f(self.1), f(self.2), f(self.3))
     }
 }
 
-// Don't know of any instruction sets with more than 4 operands.
+// Any arity with context
+impl<T, U, M, C> Fmap<T, U> for Ctx<M, C> where M: Fmap<T, U> {
+    type Out = Ctx<M::Out, C>;
 
-// Any with context
-impl<T, U, TM, UM, C> Fmap<T, U, Ctx<UM, C>> for Ctx<TM, C>
-where TM: Fmap<T, U, UM> {
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> Ctx<UM, C> {
-        let um  = self.0.fmap(f);
-        let ctx = self.1;
-        Ctx(um, ctx)
+    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
+        let Ctx(m,         c) = self;
+            Ctx(m.fmap(f), c)
     }
 }
 
