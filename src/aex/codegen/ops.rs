@@ -140,12 +140,12 @@ pub type FormCheck =
 
 impl<M> BinaryOp<M> {
     pub fn invoke<'a, 'b, L>(
-              &self,
-              src: Operand<'a, L>,
-              dst: Operand<'a, L>,
-              ctx: &mut Context<'b, 'a>)
-              -> Result<Operand<'a, L>, ()>
-              where L: 'a + Loc<'a, M> + Display {
+                  &self,
+                  src: Operand<'a, L>,
+                  dst: Operand<'a, L>,
+                  ctx: &mut Context<'b, 'a>)
+                  -> Result<Operand<'a, L>, ()>
+                  where L: 'a + Loc<'a, M> + Display {
 
         // Mode check
         let ok = (self.check_modes)(src.loc.mode(), dst.loc.mode());
