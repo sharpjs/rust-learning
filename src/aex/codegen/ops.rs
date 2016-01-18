@@ -21,6 +21,7 @@ use std::fmt::{self, Display, Formatter};
 use aex::asm::Assembly;
 use aex::ast::Expr;
 use aex::pos::Pos;
+use aex::util::fmap::*;
 
 use super::Context;
 use super::eval::{TypeA, TypeForm, Contains};
@@ -121,11 +122,11 @@ impl<L, M: 'static, F> BinaryOpFamilyInvoke<L, M> for F
 
 // -----------------------------------------------------------------------------
 
-use aex::util::fmap::*;
+pub trait Op<'a, L, M>
+    where L: 'a + Loc<'a, M> + Display {
 
-pub trait Op<'a, L: 'a + Loc<'a, M> + Display, M> {
-    type Args : Fmap<Operand<'a, L>, M,         Out=Self::Modes>
-              + Fmap<Operand<'a, L>, TypeA<'a>, Out=Self::Types>;
+    type Args:  Fmap<Operand<'a, L>, M,         Out=Self::Modes> +
+                Fmap<Operand<'a, L>, TypeA<'a>, Out=Self::Types>;
     type Modes;
     type Types: Fmap<TypeA  <'a   >, TypeForm,  Out=Self::Forms>;
     type Forms;
