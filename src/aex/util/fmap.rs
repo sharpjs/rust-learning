@@ -1,4 +1,4 @@
-// Mapping over Functors (fmap)
+// Functors (fmap)
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -19,8 +19,15 @@
 pub trait Fmap<T, U> {
     type Out;
 
-    fn fmap<F: Fn(T) -> U>(self, F) -> Self::Out;
+    fn fmap<F: Fn(&T) -> U>(&self, F) -> Self::Out;
 }
+
+// LESSON LEARNED: Rust does not (yet) have higher-kinded types (HKT),
+// which are necessary to express Functor like it is in Haskell.
+// For now, we have to provide both the T and U types.
+//
+// Rust also does not (yet) have variadic generic tuples.  So, we have
+// to implement Fmap for every size of tuple that we need.
 
 #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct Ctx<T, C> (pub T, pub C);
@@ -29,7 +36,8 @@ pub struct Ctx<T, C> (pub T, pub C);
 impl<T, U> Fmap<T, U> for () {
     type Out = ();
 
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
+    #[inline(always)]
+    fn fmap<F: Fn(&T) -> U>(&self, f: F) -> Self::Out {
         ()
     }
 }
@@ -38,8 +46,9 @@ impl<T, U> Fmap<T, U> for () {
 impl<T, U> Fmap<T, U> for (T,)  {
     type Out = (U,);
 
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
-        (f(self.0),)
+    #[inline(always)]
+    fn fmap<F: Fn(&T) -> U>(&self, f: F) -> Self::Out {
+        (f(&self.0),)
     }
 }
 
@@ -47,8 +56,9 @@ impl<T, U> Fmap<T, U> for (T,)  {
 impl<T, U> Fmap<T, U> for (T, T)  {
     type Out = (U, U);
 
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
-        (f(self.0), f(self.1))
+    #[inline]
+    fn fmap<F: Fn(&T) -> U>(&self, f: F) -> Self::Out {
+        (f(&self.0), f(&self.1))
     }
 }
 
@@ -56,8 +66,9 @@ impl<T, U> Fmap<T, U> for (T, T)  {
 impl<T, U> Fmap<T, U> for (T, T, T)  {
     type Out = (U, U, U);
 
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
-        (f(self.0), f(self.1), f(self.2))
+    #[inline]
+    fn fmap<F: Fn(&T) -> U>(&self, f: F) -> Self::Out {
+        (f(&self.0), f(&self.1), f(&self.2))
     }
 }
 
@@ -65,18 +76,22 @@ impl<T, U> Fmap<T, U> for (T, T, T)  {
 impl<T, U> Fmap<T, U> for (T, T, T, T)  {
     type Out = (U, U, U, U);
 
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
-        (f(self.0), f(self.1), f(self.2), f(self.3))
+    #[inline]
+    fn fmap<F: Fn(&T) -> U>(&self, f: F) -> Self::Out {
+        (f(&self.0), f(&self.1), f(&self.2), f(&self.3))
     }
 }
 
 // Any arity with context
-impl<T, U, M, C> Fmap<T, U> for Ctx<M, C> where M: Fmap<T, U> {
+impl<T, U, M, C> Fmap<T, U> for Ctx<M, C>
+where M: Fmap<T, U>,
+      C: Copy {
     type Out = Ctx<M::Out, C>;
 
-    fn fmap<F: Fn(T) -> U>(self, f: F) -> Self::Out {
-        let Ctx(m,         c) = self;
-            Ctx(m.fmap(f), c)
+    #[inline]
+    fn fmap<F: Fn(&T) -> U>(&self, f: F) -> Self::Out {
+        let &Ctx(ref m,     c) = self;
+             Ctx(m.fmap(f), c)
     }
 }
 
@@ -114,6 +129,6 @@ mod tests {
         assert_eq!( Ctx((-1, -2), "a"), Ctx((1, 2), "a").fmap(negate) );
     }
 
-    fn negate(x: u8) -> i16 { -(x as i16) }
+    fn negate(x: &u8) -> i16 { -(*x as i16) }
 }
 
