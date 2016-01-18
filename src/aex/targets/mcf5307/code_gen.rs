@@ -88,8 +88,8 @@ struct BinaryOpFamily {
 }
 
 impl<'a> ops::BinaryOpFamily<Loc<'a>, Mode> for BinaryOpFamily {
-    fn by_sel(&self) -> OpBySelTable  { self.by_sel }
-    fn by_loc(&self) -> OpByLocFn<'a> { self.by_loc }
+    #[inline(always)] fn by_sel(&self) -> OpBySelTable  { self.by_sel }
+    #[inline(always)] fn by_loc(&self) -> OpByLocFn<'a> { self.by_loc }
 }
 
 static ADD: BinaryOpFamily = BinaryOpFamily {
