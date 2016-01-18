@@ -18,6 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 
+use aex::asm::Assembly;
 use aex::ast::Expr;
 use aex::pos::Pos;
 
@@ -119,7 +120,136 @@ impl<L, M: 'static, F> BinaryOpFamilyInvoke<L, M> for F
 }
 
 // -----------------------------------------------------------------------------
-// BinaryOp - a binary opcode, with variants dispatched by size
+
+use aex::util::fmap::*;
+
+pub trait Op<'a, L: 'a + Loc<'a, M> + Display, M> {
+    type Args : Fmap<Operand<'a, L>, M,         Out=Self::Modes>
+              + Fmap<Operand<'a, L>, TypeA<'a>, Out=Self::Types>;
+    type Modes;
+    type Types: Fmap<TypeA  <'a   >, TypeForm,  Out=Self::Forms>;
+    type Forms;
+
+    fn check_modes (&self, Self::Modes) -> bool;
+    fn check_types (&self, Self::Types) -> Option<TypeA<'a>>;
+    fn check_forms (&self, Self::Forms) -> Option<u8>;
+    fn select_op   (&self, u8         ) -> Option<&'static str>;
+
+    fn emit   (&mut Assembly, &str, &Self::Args);
+    fn reduce (Self::Args) -> Operand<'a, L>;
+
+    fn invoke<'b>(
+              &self,
+              args: Self::Args,
+              pos:  Pos<'a>,
+              ctx:  &mut Context<'b, 'a>)
+              -> Result<Operand<'a, L>, ()>
+    {
+        // Unpack modes
+        let modes = args.fmap(|o: &Operand<'a, L>| o.loc.mode());
+
+        // Mode check
+        let ok = self.check_modes(modes);
+        if !ok {
+            ctx.out.log.err_no_op_for_addr_modes(pos);
+            return Err(());
+        }
+
+        // Unpack types
+        let types = args .fmap(|o: &Operand<'a, L>| o.ty  );
+        let forms = types.fmap(|t: &TypeA<'a>     | t.form);
+
+        // Type check
+        let ty = self.check_types(types);
+        let ty = match ty {
+            Some(ty) => ty,
+            None     => {
+                ctx.out.log.err_incompatible_types(pos);
+                return Err(());
+            }
+        };
+
+        // Form check
+        let width = self.check_forms(forms);
+        let width = match width {
+            Some(w) => w,
+            None    => {
+                ctx.out.log.err_no_op_for_operand_types(pos);
+                return Err(());
+            }
+        };
+
+        // Opcode select
+        let op = self.select_op(width);
+        let op = match op {
+            Some(op) => op,
+            None     => {
+                ctx.out.log.err_no_op_for_operand_sizes(pos);
+                return Err(());
+            }
+        };
+
+        // Emit
+        Self::emit(&mut ctx.out.asm, op, &args);
+
+        // Reduce args into result operand
+        let ret = Operand { ty: ty, .. Self::reduce(args) };
+
+        // Value check
+        // - If result is a constant, it must fit within its type.
+        //
+        if let Some(ref expr) = ret.loc.as_const() {
+            if ret.ty.contains(expr) == Some(false) {
+                ctx.out.log.err_value_out_of_range(pos);
+                return Err(());
+            }
+        }
+
+        Ok(ret)
+    }
+}
+
+impl<'a, L, M> Op<'a, L, M> for BinaryOp<M>
+    where L: 'a + Loc<'a, M> + Display {
+
+    type Args  = (Operand<'a, L> , Operand<'a, L>);
+    type Modes = (M              , M             );
+    type Types = (TypeA<'a>      , TypeA<'a>     );
+    type Forms = (TypeForm       , TypeForm      );
+
+    #[inline(always)]
+    fn check_modes(&self, modes: Self::Modes) -> bool {
+        (self.check_modes)(modes.0, modes.1)
+    }
+
+    #[inline(always)]
+    fn check_types(&self, types: Self::Types) -> Option<TypeA<'a>> {
+        (self.check_types)(types.0, types.1)
+    }
+
+    #[inline(always)]
+    fn check_forms(&self, forms: Self::Forms) -> Option<u8> {
+        (self.check_form)(forms.1, self.default_width)
+    }
+
+    #[inline(always)]
+    fn select_op(&self, width: u8) -> Option<&'static str> {
+        select_op(width, self.opcodes)
+    }
+
+    #[inline(always)]
+    fn emit(asm: &mut Assembly, op: &str, args: &Self::Args) {
+        asm.write_op_2(op, &args.0, &args.1)
+    }
+
+    #[inline(always)]
+    fn reduce(args: Self::Args) -> Operand<'a, L> {
+        args.1
+    }
+}
+
+// -----------------------------------------------------------------------------
+// BinaryOp - an opcode with 2 operands, with variants dispatched by size
 
 pub struct BinaryOp<M> {
     pub opcodes:        OpTable,
