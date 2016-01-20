@@ -27,7 +27,7 @@ use super::eval::{TypeA, TypeForm, Contains};
 // -----------------------------------------------------------------------------
 // Loc - a machine location
 
-pub trait Loc<'a, Mode> {
+pub trait Loc<'a, Mode>: Display {
     fn mode(&self) -> Mode;
     fn as_const(&self) -> Option<&Expr<'a>>;
 }
@@ -119,19 +119,27 @@ impl<L, M: 'static, F> BinaryOpFamilyInvoke<L, M> for F
 }
 
 // -----------------------------------------------------------------------------
-// BinaryOp - an opcode with 2 operands, with variants dispatched by size
+// op! - an opcode, generic over arity
 
 macro_rules! op {
-    ($name:ident ( $($n:ident),+ ) => $write:ident, $ret:ident) => {
+    { $name:ident ( $($n:ident),+ ) => $write:ident, $ret:ident } => {
+
+        // Op - an opcode, with variants dispatched by size
         pub struct $name<M> {
             pub opcodes:       OpTable,
             pub default_width: u8,
+
             pub check_modes:
                 fn($($n: M),+) -> bool,
+
             pub check_types:
                 for<'a> fn($($n: TypeA<'a>),+) -> Option<TypeA<'a>>,
+
             pub check_form:
                 fn(/*$($n: TypeForm),+,*/ TypeForm, u8) -> Option<u8>,
+
+            //pub eval:
+            //    Option<for<'a> fn($($n: Operand<'a, L>),+) -> Operand<'a, L>>,
         }
 
         impl<M> $name<M> {
@@ -204,6 +212,115 @@ macro_rules! op {
 op! { UnaryOp   (a      ) => write_op_1, a }
 op! { BinaryOp  (a, b   ) => write_op_2, b }
 op! { TernaryOp (a, b, c) => write_op_3, c }
+
+// -----------------------------------------------------------------------------
+// same as above, but let's do it as a trait
+
+macro_rules! op_trait {
+    { $name:ident ( $($n:ident),+ ) => $write:ident, $ret:ident } => {
+
+        // $name - an opcode, with variants dispatched by size
+        pub trait $name <'a> {
+            type Loc:  'a + Loc<'a, Self::Mode>;
+            type Mode: 'static;
+
+            fn opcodes()       -> OpTable;
+            fn default_width() -> u8;
+
+            fn check_modes($($n:Self::Mode),+              ) -> bool;
+            fn check_types($($n:TypeA<'a> ),+              ) -> Option<TypeA<'a>>;
+            fn check_forms($($n:TypeForm  ),+, TypeForm, u8) -> Option<u8>;
+
+            fn invoke<'b>(
+                      &self,
+                      $($n: Operand<'a, Self::Loc>),+,
+                      pos: Pos<'a>,
+                      ctx: &mut Context<'b, 'a>)
+                      -> Result<Operand<'a, Self::Loc>, ()> {
+
+                // Mode check
+                let ok = Self::check_modes($($n.loc.mode()),+);
+                if !ok {
+                    ctx.out.log.err_no_op_for_addr_modes(pos);
+                    return Err(());
+                }
+
+                // Type check
+                let ty = Self::check_types($($n.ty),+);
+                let ty = match ty {
+                    Some(ty) => ty,
+                    None     => {
+                        ctx.out.log.err_incompatible_types(pos);
+                        return Err(());
+                    }
+                };
+
+                // Form check
+                let width = Self::check_forms($($n.ty.form),+, ty.form, Self::default_width());
+                let width = match width {
+                    Some(w) => w,
+                    None    => {
+                        ctx.out.log.err_no_op_for_operand_types(pos);
+                        return Err(());
+                    }
+                };
+
+                // Opcode select
+                let op = match select_op(width, Self::opcodes()) {
+                    Some(op) => op,
+                    None     => {
+                        ctx.out.log.err_no_op_for_operand_sizes(pos);
+                        return Err(());
+                    }
+                };
+
+                // Emit
+                ctx.out.asm.$write(op, $(&$n),+);
+
+                // Cast result operand to checked type
+                let ret = Operand { ty: ty, .. $ret };
+
+                // Value check
+                // - If result is a constant, it must fit within its type.
+                //
+                if let Some(ref expr) = ret.loc.as_const() {
+                    if ret.ty.contains(expr) == Some(false) {
+                        ctx.out.log.err_value_out_of_range(pos);
+                        return Err(());
+                    }
+                }
+
+                Ok(ret)
+            }
+
+            fn eval<'b>(
+                    $($n:Operand<'a, Self::Loc>),+,
+                    ty:    TypeA<'a>,
+                    width: u8,
+                    pos:   Pos<'a>,
+                    ctx:   &mut Context<'b, 'a>)
+                    -> Result<Operand<'a, Self::Loc>, ()> {
+
+                // Opcode select
+                let op = match select_op(width, Self::opcodes()) {
+                    Some(op) => op,
+                    None     => {
+                        ctx.out.log.err_no_op_for_operand_sizes(pos);
+                        return Err(());
+                    }
+                };
+
+                // Emit assembly
+                ctx.out.asm.$write(op, $(&$n),+);
+
+                // Cast result operand to checked type
+                Ok(Operand { ty: ty, .. $ret })
+            }
+        }
+    }
+}
+
+op_trait! { UnaryOpT   (a      ) => write_op_1, a }
 
 // -----------------------------------------------------------------------------
 // OpTable - a table mapping widths to opcodes
