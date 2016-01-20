@@ -18,10 +18,8 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use aex::asm::Assembly;
 use aex::ast::Expr;
 use aex::pos::Pos;
-use aex::util::fmap::*;
 
 use super::Context;
 use super::eval::{TypeA, TypeForm, Contains};
@@ -110,7 +108,7 @@ impl<L, M: 'static, F> BinaryOpFamilyInvoke<L, M> for F
 
         match op {
             Some(op) => {
-                op.invoke(src, dst, ctx)
+                op.invoke(src, dst, Pos::bof("?"), ctx)
             }
             None => {
                 ctx.out.log.err_no_op_for_selector(src.pos);
@@ -121,214 +119,91 @@ impl<L, M: 'static, F> BinaryOpFamilyInvoke<L, M> for F
 }
 
 // -----------------------------------------------------------------------------
-
-pub trait Op<'a, L, M>
-    where L: 'a + Loc<'a, M> + Display {
-
-    type Args:  Fmap<Operand<'a, L>, M,         Out=Self::Modes> +
-                Fmap<Operand<'a, L>, TypeA<'a>, Out=Self::Types>;
-    type Modes;
-    type Types: Fmap<TypeA  <'a   >, TypeForm,  Out=Self::Forms>;
-    type Forms;
-
-    fn check_modes (&self, Self::Modes) -> bool;
-    fn check_types (&self, Self::Types) -> Option<TypeA<'a>>;
-    fn check_forms (&self, Self::Forms) -> Option<u8>;
-    fn select_op   (&self, u8         ) -> Option<&'static str>;
-
-    fn emit   (&mut Assembly, &str, &Self::Args);
-    fn reduce (Self::Args) -> Operand<'a, L>;
-
-    fn invoke<'b>(
-              &self,
-              args: Self::Args,
-              pos:  Pos<'a>,
-              ctx:  &mut Context<'b, 'a>)
-              -> Result<Operand<'a, L>, ()>
-    {
-        // Unpack modes
-        let modes = args.fmap(|o: &Operand<'a, L>| o.loc.mode());
-
-        // Mode check
-        let ok = self.check_modes(modes);
-        if !ok {
-            ctx.out.log.err_no_op_for_addr_modes(pos);
-            return Err(());
-        }
-
-        // Unpack types
-        let types = args .fmap(|o: &Operand<'a, L>| o.ty  );
-        let forms = types.fmap(|t: &TypeA<'a>     | t.form);
-
-        // Type check
-        let ty = self.check_types(types);
-        let ty = match ty {
-            Some(ty) => ty,
-            None     => {
-                ctx.out.log.err_incompatible_types(pos);
-                return Err(());
-            }
-        };
-
-        // Form check
-        let width = self.check_forms(forms);
-        let width = match width {
-            Some(w) => w,
-            None    => {
-                ctx.out.log.err_no_op_for_operand_types(pos);
-                return Err(());
-            }
-        };
-
-        // Opcode select
-        let op = self.select_op(width);
-        let op = match op {
-            Some(op) => op,
-            None     => {
-                ctx.out.log.err_no_op_for_operand_sizes(pos);
-                return Err(());
-            }
-        };
-
-        // Emit
-        Self::emit(&mut ctx.out.asm, op, &args);
-
-        // Reduce args into result operand
-        let ret = Operand { ty: ty, .. Self::reduce(args) };
-
-        // Value check
-        // - If result is a constant, it must fit within its type.
-        //
-        if let Some(ref expr) = ret.loc.as_const() {
-            if ret.ty.contains(expr) == Some(false) {
-                ctx.out.log.err_value_out_of_range(pos);
-                return Err(());
-            }
-        }
-
-        Ok(ret)
-    }
-}
-
-impl<'a, L, M> Op<'a, L, M> for BinaryOp<M>
-    where L: 'a + Loc<'a, M> + Display {
-
-    type Args  = (Operand<'a, L> , Operand<'a, L>);
-    type Modes = (M              , M             );
-    type Types = (TypeA<'a>      , TypeA<'a>     );
-    type Forms = (TypeForm       , TypeForm      );
-
-    #[inline(always)]
-    fn check_modes(&self, modes: Self::Modes) -> bool {
-        (self.check_modes)(modes.0, modes.1)
-    }
-
-    #[inline(always)]
-    fn check_types(&self, types: Self::Types) -> Option<TypeA<'a>> {
-        (self.check_types)(types.0, types.1)
-    }
-
-    #[inline(always)]
-    fn check_forms(&self, forms: Self::Forms) -> Option<u8> {
-        (self.check_form)(forms.1, self.default_width)
-    }
-
-    #[inline(always)]
-    fn select_op(&self, width: u8) -> Option<&'static str> {
-        select_op(width, self.opcodes)
-    }
-
-    #[inline(always)]
-    fn emit(asm: &mut Assembly, op: &str, args: &Self::Args) {
-        asm.write_op_2(op, &args.0, &args.1)
-    }
-
-    #[inline(always)]
-    fn reduce(args: Self::Args) -> Operand<'a, L> {
-        args.1
-    }
-}
-
-// -----------------------------------------------------------------------------
 // BinaryOp - an opcode with 2 operands, with variants dispatched by size
 
-pub struct BinaryOp<M> {
-    pub opcodes:        OpTable,
-    pub default_width:  u8,
-    pub check_modes:    ModeCheck<M>,
-    pub check_types:    TypeCheck,
-    pub check_form:     FormCheck,
-}
-
-pub type ModeCheck<M> =
-    fn(M, M) -> bool;
-
-pub type TypeCheck =
-    for<'a> fn(TypeA<'a>, TypeA<'a>) -> Option<TypeA<'a>>;
-
-pub type FormCheck =
-    fn(TypeForm, u8) -> Option<u8>;
-
-impl<M> BinaryOp<M> {
-    pub fn invoke<'a, 'b, L>(
-                  &self,
-                  src: Operand<'a, L>,
-                  dst: Operand<'a, L>,
-                  ctx: &mut Context<'b, 'a>)
-                  -> Result<Operand<'a, L>, ()>
-                  where L: 'a + Loc<'a, M> + Display {
-
-        // Mode check
-        let ok = (self.check_modes)(src.loc.mode(), dst.loc.mode());
-        if !ok {
-            ctx.out.log.err_no_op_for_addr_modes(src.pos);
-            return Err(());
+macro_rules! op {
+    ($name:ident ( $($n:ident),+ ) => $write:ident, $ret:ident) => {
+        pub struct $name<M> {
+            pub opcodes:       OpTable,
+            pub default_width: u8,
+            pub check_modes:
+                fn($($n: M),+) -> bool,
+            pub check_types:
+                for<'a> fn($($n: TypeA<'a>),+) -> Option<TypeA<'a>>,
+            pub check_form:
+                fn(/*$($n: TypeForm),+,*/ TypeForm, u8) -> Option<u8>,
         }
 
-        // Type check
-        let ty = (self.check_types)(dst.ty, src.ty);
-        let ty = match ty {
-            Some(ty) => ty,
-            None     => {
-                ctx.out.log.err_incompatible_types(src.pos);
-                return Err(());
-            }
-        };
+        impl<M> $name<M> {
+            pub fn invoke<'a, 'b, L>(
+                          &self,
+                          $($n: Operand<'a, L>),+,
+                          pos: Pos<'a>,
+                          ctx: &mut Context<'b, 'a>)
+                          -> Result<Operand<'a, L>, ()>
+                          where L: 'a + Loc<'a, M> + Display {
 
-        // Form check
-        let width = (self.check_form)(ty.form, self.default_width);
-        let width = match width {
-            Some(w) => w,
-            None    => {
-                ctx.out.log.err_no_op_for_operand_types(src.pos);
-                return Err(());
-            }
-        };
+                // Mode check
+                let ok = (self.check_modes)($($n.loc.mode()),+);
+                if !ok {
+                    ctx.out.log.err_no_op_for_addr_modes(pos);
+                    return Err(());
+                }
 
-        // Opcode select
-        let op = match select_op(width, self.opcodes) {
-            Some(op) => op,
-            None     => {
-                ctx.out.log.err_no_op_for_operand_sizes(src.pos);
-                return Err(());
-            }
-        };
+                // Type check
+                let ty = (self.check_types)($($n.ty),+);
+                let ty = match ty {
+                    Some(ty) => ty,
+                    None     => {
+                        ctx.out.log.err_incompatible_types(pos);
+                        return Err(());
+                    }
+                };
 
-        // Value check
-        if let Some(ref expr) = src.loc.as_const() {
-            if src.ty.form.contains(expr) == Some(false) {
-                ctx.out.log.err_value_out_of_range(src.pos);
-                return Err(());
+                // Form check
+                let width = (self.check_form)(/*$($n.ty.form),+,*/ ty.form, self.default_width);
+                let width = match width {
+                    Some(w) => w,
+                    None    => {
+                        ctx.out.log.err_no_op_for_operand_types(pos);
+                        return Err(());
+                    }
+                };
+
+                // Opcode select
+                let op = match select_op(width, self.opcodes) {
+                    Some(op) => op,
+                    None     => {
+                        ctx.out.log.err_no_op_for_operand_sizes(pos);
+                        return Err(());
+                    }
+                };
+
+                // Emit
+                ctx.out.asm.$write(op, $(&$n),+);
+
+                // Cast result operand to checked type
+                let ret = Operand { ty: ty, .. $ret };
+
+                // Value check
+                // - If result is a constant, it must fit within its type.
+                //
+                if let Some(ref expr) = ret.loc.as_const() {
+                    if ret.ty.contains(expr) == Some(false) {
+                        ctx.out.log.err_value_out_of_range(pos);
+                        return Err(());
+                    }
+                }
+
+                Ok(ret)
             }
         }
-
-        // Emit
-        ctx.out.asm.write_op_2(op, &src, &dst);
-
-        // Return operand cast to checked type
-        Ok(Operand { ty: ty, .. dst })
     }
 }
+
+op! { UnaryOp   (a      ) => write_op_1, a }
+op! { BinaryOp  (a, b   ) => write_op_2, b }
+op! { TernaryOp (a, b, c) => write_op_3, c }
 
 // -----------------------------------------------------------------------------
 // OpTable - a table mapping widths to opcodes
@@ -341,6 +216,4 @@ fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
     }
     None
 }
-
-// -----------------------------------------------------------------------------
 
