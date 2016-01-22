@@ -244,8 +244,8 @@ macro_rules! ops {
                 };
 
                 // Evaluate
-                let expr = match ($($n.expr),+) {
-                    ($(Expr::Int($n)),+) => {
+                let expr = match ($($n.expr),+,) {
+                    ($(Expr::Int($n)),+,) => {
                         // Value computable now
                         // Compute value
                         let n = Self::eval_int($($n),+);
@@ -259,7 +259,7 @@ macro_rules! ops {
                         // Yield reduced expression
                         Expr::Int(n)
                     }
-                    ($($n),+) => {
+                    ($($n),+,) => {
                         // Value not computable now
                         // Leave computation to assembler/linker
                         Self::eval_expr($($n),+)
@@ -339,8 +339,9 @@ macro_rules! ops {
 
 ops! {
     // One for each arity
+    (a      ) => ConstOp1() + AsmOp1(write_op_1, a);
     (a, b   ) => ConstOp2() + AsmOp2(write_op_2, b);
-    (a, b, c) => ConstOp3() + AsmOp3(write_op_3, b);
+    (a, b, c) => ConstOp3() + AsmOp3(write_op_3, c);
 }
 
 // -----------------------------------------------------------------------------
