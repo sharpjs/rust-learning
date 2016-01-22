@@ -223,7 +223,9 @@ macro_rules! ops {
         pub trait $const_op<'a> {
             fn check_types($($n: TypeA<'a>),+) -> Option<TypeA<'a>>;
 
-            fn eval_int($($n: BigInt),+) -> BigInt;
+            fn eval_int   ($($n: BigInt  ),+) -> BigInt;
+            fn eval_float ($($n: f64     ),+) -> f64;
+            fn eval_expr  ($($n: Expr<'a>),+) -> Expr<'a>;
 
             fn invoke<'b>(
                       &self,
@@ -241,10 +243,11 @@ macro_rules! ops {
                     }
                 };
 
-                // Eval
-                match ($($n.expr),+) {
+                // Evaluate
+                let expr = match ($($n.expr),+) {
                     ($(Expr::Int($n)),+) => {
-                        // Compute result
+                        // Value computable now
+                        // Compute value
                         let n = Self::eval_int($($n),+);
 
                         // Value check
@@ -253,13 +256,18 @@ macro_rules! ops {
                             return Err(());
                         }
 
-                        // Cast to checked type
-                        Ok(ConstOperand { expr: Expr::Int(n), ty: ty })
+                        // Yield reduced expression
+                        Expr::Int(n)
                     }
-                    _ => {
-                        Err(())
+                    ($($n),+) => {
+                        // Value not computable now
+                        // Leave computation to assembler/linker
+                        Self::eval_expr($($n),+)
                     }
-                }
+                };
+
+                // Cast to checked type
+                Ok(ConstOperand { expr: expr, ty: ty })
             }
         }
 
