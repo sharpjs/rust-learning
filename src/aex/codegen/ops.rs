@@ -22,7 +22,7 @@ use aex::ast::Expr;
 use aex::pos::Pos;
 
 use super::Context;
-use super::eval::{TypeA, TypeForm, Contains};
+use super::eval::{TypeA, TypeForm, Contains, check_types_compat};
 
 // -----------------------------------------------------------------------------
 // Loc - a machine location
@@ -353,5 +353,28 @@ fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
         if op_width == ty_width { return Some(op) }
     }
     None
+}
+
+// -----------------------------------------------------------------------------
+// Constant operations
+
+struct ConstAdd;
+
+impl<'a> ConstOp2<'a> for ConstAdd {
+    fn check_types(a: TypeA<'a>, b: TypeA<'a>) -> Option<TypeA<'a>> {
+        check_types_compat(a, b)
+    }
+
+    fn eval_int(a: BigInt, b: BigInt) -> BigInt {
+        a + b
+    }
+
+    fn eval_float(a: f64, b: f64) -> f64 {
+        a + b
+    }
+
+    fn eval_expr(a: Expr<'a>, b: Expr<'a>) -> Expr<'a> {
+        Expr::Add(Box::new(a), Box::new(b), None)
+    }
 }
 
