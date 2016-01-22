@@ -262,6 +262,70 @@ macro_rules! ops {
                 }
             }
         }
+
+        // Operation on machine location(s)
+        pub trait $asm_op<'a> {
+            type Loc:  'a + Loc<'a, Self::Mode>;
+            type Mode: 'static;
+
+            fn opcodes()       -> OpTable;
+            fn default_width() -> u8;
+
+            fn check_modes($($n: Self::Mode),+              ) -> bool;
+            fn check_types($($n: TypeA<'a> ),+              ) -> Option<TypeA<'a>>;
+            fn check_forms($($n: TypeForm  ),+, TypeForm, u8) -> Option<u8>;
+
+            fn invoke<'b>(
+                      &self,
+                      $($n: Operand<'a, Self::Loc>),+,
+                      pos: Pos<'a>,
+                      ctx: &mut Context<'b, 'a>)
+                      -> Result<Operand<'a, Self::Loc>, ()> {
+
+                // Mode check
+                let ok = Self::check_modes($($n.loc.mode()),+);
+                if !ok {
+                    ctx.out.log.err_no_op_for_addr_modes(pos);
+                    return Err(());
+                }
+
+                // Type check
+                let ty = Self::check_types($($n.ty),+);
+                let ty = match ty {
+                    Some(ty) => ty,
+                    None     => {
+                        ctx.out.log.err_incompatible_types(pos);
+                        return Err(());
+                    }
+                };
+
+                // Form check
+                let width = Self::default_width();
+                let width = Self::check_forms($($n.ty.form),+, ty.form, width);
+                let width = match width {
+                    Some(w) => w,
+                    None    => {
+                        ctx.out.log.err_no_op_for_operand_types(pos);
+                        return Err(());
+                    }
+                };
+
+                // Opcode select
+                let op = match select_op(width, Self::opcodes()) {
+                    Some(op) => op,
+                    None     => {
+                        ctx.out.log.err_no_op_for_operand_sizes(pos);
+                        return Err(());
+                    }
+                };
+
+                // Emit
+                ctx.out.asm.$write(op, $(&$n),+);
+
+                // Cast result to checked type
+                Ok(Operand { ty: ty, .. $ret })
+            }
+        }
     )*}
 }
 
