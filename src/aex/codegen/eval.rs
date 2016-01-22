@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use num::BigInt;
+
 use aex::ast::*;
 use aex::scope::Scope;
 use aex::types::*;
@@ -195,7 +197,7 @@ pub trait Contains<T> {
     // None        => unknown
 }
 
-impl<'a, T, S> Contains<T> for Option<S> where S: Contains<T> {
+impl<T, S> Contains<T> for Option<S> where S: Contains<T> {
     #[inline]
     fn contains(&self, item: &T) -> Option<bool> {
         match *self {
@@ -205,21 +207,19 @@ impl<'a, T, S> Contains<T> for Option<S> where S: Contains<T> {
     }
 }
 
-impl<'a> Contains<Expr<'a>> for IntSpec {
-    fn contains(&self, expr: &Expr<'a>) -> Option<bool> {
-        match *expr {
-            Expr::Int(ref v) => {
-                let ok = *v >= self.min_value()
-                      && *v <= self.max_value();
-                Some(ok)
-            },
-            _ => None,
-        }
+impl Contains<BigInt> for IntSpec {
+    #[inline]
+    fn contains(&self, value: &BigInt) -> Option<bool> {
+        Some(
+            *value >= self.min_value() &&
+            *value <= self.max_value()
+        )
     }
 }
 
-impl<'a> Contains<Expr<'a>> for TypeForm {
-    fn contains(&self, expr: &Expr<'a>) -> Option<bool> {
+impl Contains<BigInt> for TypeForm {
+    #[inline]
+    fn contains(&self, expr: &BigInt) -> Option<bool> {
         match *self {
             TypeForm::Inty   (s) => s.contains(expr),
             TypeForm::Floaty (s) => None,           // Don't know for now
@@ -228,9 +228,9 @@ impl<'a> Contains<Expr<'a>> for TypeForm {
     }
 }
 
-impl<'a, 'b> Contains<Expr<'a>> for TypeA<'b> {
+impl<'a> Contains<BigInt> for TypeA<'a> {
     #[inline(always)]
-    fn contains(&self, item: &Expr<'a>) -> Option<bool> {
+    fn contains(&self, item: &BigInt) -> Option<bool> {
         self.form.contains(item)
     }
 }

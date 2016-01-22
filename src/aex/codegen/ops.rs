@@ -191,20 +191,8 @@ macro_rules! op {
                 // Emit
                 ctx.out.asm.$write(op, $(&$n),+);
 
-                // Cast result operand to checked type
-                let ret = Operand { ty: ty, .. $ret };
-
-                // Value check
-                // - If result is a constant, it must fit within its type.
-                //
-                if let Some(ref expr) = ret.loc.as_const() {
-                    if ret.ty.contains(expr) == Some(false) {
-                        ctx.out.log.err_value_out_of_range(pos);
-                        return Err(());
-                    }
-                }
-
-                Ok(ret)
+                // Cast result to checked type
+                Ok(Operand { ty: ty, .. $ret })
             }
         }
     }
@@ -217,38 +205,35 @@ op! { TernaryOp (a, b, c) => write_op_3, c }
 // -----------------------------------------------------------------------------
 // same as above, but let's do it as a trait
 
-macro_rules! op_trait {
-    { $name:ident ( $($n:ident),+ ) => $write:ident, $ret:ident } => {
+pub struct ConstOperand<'a> {
+    pub expr: Expr <'a>,
+    pub ty:   TypeA<'a>,
+}
 
-        // $name - an opcode, with variants dispatched by size
-        pub trait $name <'a> {
-            type Loc:  'a + Loc<'a, Self::Mode>;
-            type Mode: 'static;
+use num::BigInt;
 
-            fn opcodes()       -> OpTable;
-            fn default_width() -> u8;
+macro_rules! ops {
+    {$(
+        ($($n:ident),+)
+            => $const_op:ident ()
+            +    $asm_op:ident ($write:ident, $ret:ident);
+    )*}
+    => {$(
+        // Operation on constant expressions
+        pub trait $const_op<'a> {
+            fn check_types($($n: TypeA<'a>),+) -> Option<TypeA<'a>>;
 
-            fn check_modes($($n:Self::Mode),+              ) -> bool;
-            fn check_types($($n:TypeA<'a> ),+              ) -> Option<TypeA<'a>>;
-            fn check_forms($($n:TypeForm  ),+, TypeForm, u8) -> Option<u8>;
+            fn eval_int($($n: BigInt),+) -> BigInt;
 
             fn invoke<'b>(
                       &self,
-                      $($n: Operand<'a, Self::Loc>),+,
+                      $($n: ConstOperand<'a>),+,
                       pos: Pos<'a>,
                       ctx: &mut Context<'b, 'a>)
-                      -> Result<Operand<'a, Self::Loc>, ()> {
-
-                // Mode check
-                let ok = Self::check_modes($($n.loc.mode()),+);
-                if !ok {
-                    ctx.out.log.err_no_op_for_addr_modes(pos);
-                    return Err(());
-                }
+                      -> Result<ConstOperand<'a>, ()> {
 
                 // Type check
-                let ty = Self::check_types($($n.ty),+);
-                let ty = match ty {
+                let ty = match Self::check_types($($n.ty),+) {
                     Some(ty) => ty,
                     None     => {
                         ctx.out.log.err_incompatible_types(pos);
@@ -256,72 +241,33 @@ macro_rules! op_trait {
                     }
                 };
 
-                // Form check
-                let width = Self::check_forms($($n.ty.form),+, ty.form, Self::default_width());
-                let width = match width {
-                    Some(w) => w,
-                    None    => {
-                        ctx.out.log.err_no_op_for_operand_types(pos);
-                        return Err(());
+                // Eval
+                match ($($n.expr),+) {
+                    ($(Expr::Int($n)),+) => {
+                        // Compute result
+                        let n = Self::eval_int($($n),+);
+
+                        // Value check
+                        if ty.contains(&n) == Some(false) {
+                            ctx.out.log.err_value_out_of_range(pos);
+                            return Err(());
+                        }
+
+                        // Cast to checked type
+                        Ok(ConstOperand { expr: Expr::Int(n), ty: ty })
                     }
-                };
-
-                // Opcode select
-                let op = match select_op(width, Self::opcodes()) {
-                    Some(op) => op,
-                    None     => {
-                        ctx.out.log.err_no_op_for_operand_sizes(pos);
-                        return Err(());
-                    }
-                };
-
-                // Emit
-                ctx.out.asm.$write(op, $(&$n),+);
-
-                // Cast result operand to checked type
-                let ret = Operand { ty: ty, .. $ret };
-
-                // Value check
-                // - If result is a constant, it must fit within its type.
-                //
-                if let Some(ref expr) = ret.loc.as_const() {
-                    if ret.ty.contains(expr) == Some(false) {
-                        ctx.out.log.err_value_out_of_range(pos);
-                        return Err(());
+                    _ => {
+                        Err(())
                     }
                 }
-
-                Ok(ret)
-            }
-
-            fn eval<'b>(
-                    $($n:Operand<'a, Self::Loc>),+,
-                    ty:    TypeA<'a>,
-                    width: u8,
-                    pos:   Pos<'a>,
-                    ctx:   &mut Context<'b, 'a>)
-                    -> Result<Operand<'a, Self::Loc>, ()> {
-
-                // Opcode select
-                let op = match select_op(width, Self::opcodes()) {
-                    Some(op) => op,
-                    None     => {
-                        ctx.out.log.err_no_op_for_operand_sizes(pos);
-                        return Err(());
-                    }
-                };
-
-                // Emit assembly
-                ctx.out.asm.$write(op, $(&$n),+);
-
-                // Cast result operand to checked type
-                Ok(Operand { ty: ty, .. $ret })
             }
         }
-    }
+    )*}
 }
 
-op_trait! { UnaryOpT   (a      ) => write_op_1, a }
+ops! {
+    (a, b) => ConstOp2() + AsmOp2(write_op_2, b);
+}
 
 // -----------------------------------------------------------------------------
 // OpTable - a table mapping widths to opcodes
