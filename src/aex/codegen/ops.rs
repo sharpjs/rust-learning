@@ -338,7 +338,9 @@ macro_rules! ops {
 }
 
 ops! {
-    (a, b) => ConstOp2() + AsmOp2(write_op_2, b);
+    // One for each arity
+    (a, b   ) => ConstOp2() + AsmOp2(write_op_2, b);
+    (a, b, c) => ConstOp3() + AsmOp3(write_op_3, b);
 }
 
 // -----------------------------------------------------------------------------
