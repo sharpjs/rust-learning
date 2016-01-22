@@ -30,6 +30,7 @@ use super::eval::{TypeA, TypeForm, Contains};
 pub trait Loc<'a, Mode>: Display {
     fn mode(&self) -> Mode;
     fn as_const(&self) -> Option<&Expr<'a>>;
+    fn new_const(Expr<'a>) -> Self;
 }
 
 // -----------------------------------------------------------------------------

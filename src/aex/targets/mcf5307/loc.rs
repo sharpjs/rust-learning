@@ -146,6 +146,11 @@ impl<'a> Loc<'a> {
 
 impl<'a> ops::Loc<'a, Mode> for Loc<'a> {
     #[inline(always)]
+    fn new_const(e: Expr<'a>) -> Self {
+        Loc::Imm(e)
+    }
+
+    #[inline(always)]
     fn mode(&self) -> Mode {
         self.mode()
     }
