@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
+use num::BigInt;
 
 use aex::ast::Expr;
 use aex::pos::Pos;
@@ -29,8 +30,10 @@ use super::eval::{TypeA, TypeForm, Contains, check_types_compat};
 
 pub trait Loc<'a, Mode>: Display {
     fn mode(&self) -> Mode;
-    fn as_const(&self) -> Option<&Expr<'a>>;
+
     fn new_const(Expr<'a>) -> Self;
+    fn is_const(&self) -> bool;
+    fn to_const( self) -> Expr<'a>;
 }
 
 // -----------------------------------------------------------------------------
@@ -210,32 +213,98 @@ pub struct ConstOperand<'a> {
     pub ty:   TypeA<'a>,
 }
 
-use num::BigInt;
+pub type OpBySelTable_<Op> =
+    &'static [(
+        &'static str,
+        &'static Op
+    )];
 
 macro_rules! ops {
     {$(
         ($($n:ident),+)
-            => $const_op:ident ()
-            +    $asm_op:ident ($write:ident, $ret:ident);
+            =>  $family:ident ()
+            + $const_op:ident ()
+            +   $asm_op:ident ($write:ident, $ret:ident);
     )*}
     => {$(
-        // Operation on constant expressions
-        pub trait $const_op<'a> {
-            fn check_types($($n: TypeA<'a>),+) -> Option<TypeA<'a>>;
+        pub trait $family<'a>: 'static {
+            type Loc:  'a + Loc<'a, Self::Mode>;
+            type Mode: 'static;
 
-            fn eval_int   ($($n: BigInt  ),+) -> BigInt;
-            fn eval_float ($($n: f64     ),+) -> f64;
-            fn eval_expr  ($($n: Expr<'a>),+) -> Expr<'a>;
+            fn const_op(&self)
+                -> &$const_op;
+
+            fn asm_ops_by_sel(&self)
+                -> OpBySelTable_<$asm_op<Self::Mode>>;
+
+            fn asm_op_by_loc(&self, $($n: &Self::Loc),+)
+                -> Option<&'static $asm_op<Self::Mode>>;
 
             fn invoke<'b>(
                       &self,
-                      $($n: ConstOperand<'a>),+,
+                      sel: Option<&str>,
+                      $($n: Operand<'a, Self::Loc>),+,
                       pos: Pos<'a>,
                       ctx: &mut Context<'b, 'a>)
-                      -> Result<ConstOperand<'a>, ()> {
+                      -> Result<Operand<'a, Self::Loc>, ()> {
+
+                let op = match sel {
+                    Some(sel) => {
+                        self.asm_ops_by_sel()
+                            .iter()
+                            .find(|e| e.0 == sel)
+                            .map(|&(_, op)| op)
+                    },
+                    _ => {
+                        if true $(&& $n.loc.is_const())+ {
+                            let ($($n),+,) = ($(ConstOperand {
+                                expr: $n.loc.to_const(),
+                                ty:   $n.ty,
+                            }),+,);
+                            let o = try!(
+                                self.const_op().invoke($($n),+, pos, ctx)
+                            );
+                            return Ok(Operand {
+                                loc: Self::Loc::new_const(o.expr),
+                                ty:  o.ty,
+                                pos: pos,
+                            });
+                        } else {
+                            self.asm_op_by_loc($(&$n.loc),+)
+                        }
+                    },
+                };
+
+                match op {
+                    Some(op) => {
+                        op.invoke($($n),+, pos, ctx)
+                    }
+                    None => {
+                        ctx.out.log.err_no_op_for_selector(pos);
+                        Err(())
+                    }
+                }
+            }
+        }
+
+        // Operation on constant expressions
+        pub struct $const_op {
+            pub check_types: for<'a> fn($($n: TypeA<'a>),+) -> Option<TypeA<'a>>,
+            pub eval_int:            fn($($n: BigInt   ),+) -> BigInt,
+            pub eval_float:          fn($($n: f64      ),+) -> f64,
+            pub eval_expr:   for<'a> fn($($n: Expr<'a> ),+) -> Expr<'a>,
+        }
+
+        impl $const_op {
+            pub fn invoke<'a, 'b>(
+                          &self,
+                          $($n: ConstOperand<'a>),+,
+                          pos: Pos<'a>,
+                          ctx: &mut Context<'b, 'a>)
+                          -> Result<ConstOperand<'a>, ()> {
 
                 // Type check
-                let ty = match Self::check_types($($n.ty),+) {
+                let ty = match (self.check_types)($($n.ty),+) {
                     Some(ty) => ty,
                     None     => {
                         ctx.out.log.err_incompatible_types(pos);
@@ -248,7 +317,7 @@ macro_rules! ops {
                     ($(Expr::Int($n)),+,) => {
                         // Value computable now
                         // Compute value
-                        let n = Self::eval_int($($n),+);
+                        let n = (self.eval_int)($($n),+);
 
                         // Value check
                         if ty.contains(&n) == Some(false) {
@@ -262,7 +331,7 @@ macro_rules! ops {
                     ($($n),+,) => {
                         // Value not computable now
                         // Leave computation to assembler/linker
-                        Self::eval_expr($($n),+)
+                        (self.eval_expr)($($n),+)
                     }
                 };
 
@@ -272,33 +341,38 @@ macro_rules! ops {
         }
 
         // Operation on machine location(s)
-        pub trait $asm_op<'a> {
-            type Loc:  'a + Loc<'a, Self::Mode>;
-            type Mode: 'static;
+        pub struct $asm_op<M: 'static> {
+            pub opcodes:       OpTable,
+            pub default_width: u8,
 
-            fn opcodes()       -> OpTable;
-            fn default_width() -> u8;
+            pub check_modes:
+                fn($($n: M),+) -> bool,
 
-            fn check_modes($($n: Self::Mode),+              ) -> bool;
-            fn check_types($($n: TypeA<'a> ),+              ) -> Option<TypeA<'a>>;
-            fn check_forms($($n: TypeForm  ),+, TypeForm, u8) -> Option<u8>;
+            pub check_types:
+                for<'a> fn($($n: TypeA<'a>),+) -> Option<TypeA<'a>>,
 
-            fn invoke<'b>(
+            pub check_forms:
+                fn($($n: TypeForm),+, TypeForm, u8) -> Option<u8>,
+        }
+
+        impl<M: 'static> $asm_op<M> {
+            pub fn invoke<'a, 'b, L>(
                       &self,
-                      $($n: Operand<'a, Self::Loc>),+,
+                      $($n: Operand<'a, L>),+,
                       pos: Pos<'a>,
                       ctx: &mut Context<'b, 'a>)
-                      -> Result<Operand<'a, Self::Loc>, ()> {
+                      -> Result<Operand<'a, L>, ()>
+                      where L: 'a + Loc<'a, M> {
 
                 // Mode check
-                let ok = Self::check_modes($($n.loc.mode()),+);
+                let ok = (self.check_modes)($($n.loc.mode()),+);
                 if !ok {
                     ctx.out.log.err_no_op_for_addr_modes(pos);
                     return Err(());
                 }
 
                 // Type check
-                let ty = Self::check_types($($n.ty),+);
+                let ty = (self.check_types)($($n.ty),+);
                 let ty = match ty {
                     Some(ty) => ty,
                     None     => {
@@ -308,8 +382,8 @@ macro_rules! ops {
                 };
 
                 // Form check
-                let width = Self::default_width();
-                let width = Self::check_forms($($n.ty.form),+, ty.form, width);
+                let width = self.default_width;
+                let width = (self.check_forms)($($n.ty.form),+, ty.form, width);
                 let width = match width {
                     Some(w) => w,
                     None    => {
@@ -319,7 +393,7 @@ macro_rules! ops {
                 };
 
                 // Opcode select
-                let op = match select_op(width, Self::opcodes()) {
+                let op = match select_op(width, self.opcodes) {
                     Some(op) => op,
                     None     => {
                         ctx.out.log.err_no_op_for_operand_sizes(pos);
@@ -339,9 +413,9 @@ macro_rules! ops {
 
 ops! {
     // One for each arity
-    (a      ) => ConstOp1() + AsmOp1(write_op_1, a);
-    (a, b   ) => ConstOp2() + AsmOp2(write_op_2, b);
-    (a, b, c) => ConstOp3() + AsmOp3(write_op_3, c);
+    (a      ) => OpFamily1() + ConstOp1() + AsmOp1(write_op_1, a);
+    (a, b   ) => OpFamily2() + ConstOp2() + AsmOp2(write_op_2, b);
+    (a, b, c) => OpFamily3() + ConstOp3() + AsmOp3(write_op_3, c);
 }
 
 // -----------------------------------------------------------------------------
@@ -359,23 +433,16 @@ fn select_op(ty_width: u8, ops: OpTable) -> Option<&'static str> {
 // -----------------------------------------------------------------------------
 // Constant operations
 
-struct ConstAdd;
+use std::ops::Add;
 
-impl<'a> ConstOp2<'a> for ConstAdd {
-    fn check_types(a: TypeA<'a>, b: TypeA<'a>) -> Option<TypeA<'a>> {
-        check_types_compat(a, b)
-    }
+pub static ADD_CONST: ConstOp2 = ConstOp2 {
+    check_types: check_types_compat,
+    eval_int:    BigInt::add,
+    eval_float:  f64   ::add,
+    eval_expr:   expr_add,
+};
 
-    fn eval_int(a: BigInt, b: BigInt) -> BigInt {
-        a + b
-    }
-
-    fn eval_float(a: f64, b: f64) -> f64 {
-        a + b
-    }
-
-    fn eval_expr(a: Expr<'a>, b: Expr<'a>) -> Expr<'a> {
-        Expr::Add(Box::new(a), Box::new(b), None)
-    }
+fn expr_add<'a>(a: Expr<'a>, b: Expr<'a>) -> Expr<'a> {
+    Expr::Add(Box::new(a), Box::new(b), None)
 }
 

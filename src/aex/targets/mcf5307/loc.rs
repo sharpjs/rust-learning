@@ -146,20 +146,28 @@ impl<'a> Loc<'a> {
 
 impl<'a> ops::Loc<'a, Mode> for Loc<'a> {
     #[inline(always)]
-    fn new_const(e: Expr<'a>) -> Self {
-        Loc::Imm(e)
-    }
-
-    #[inline(always)]
     fn mode(&self) -> Mode {
         self.mode()
     }
 
+    #[inline(always)]
+    fn new_const(e: Expr<'a>) -> Self {
+        Loc::Imm(e)
+    }
+
     #[inline]
-    fn as_const(&self) -> Option<&Expr<'a>> {
+    fn is_const(&self) -> bool {
         match *self {
-            Loc::Imm(ref e) => Some(e),
-            _               => None,
+            Loc::Imm(_) => true,
+            _           => false,
+        }
+    }
+
+    #[inline]
+    fn to_const(self) -> Expr<'a> {
+        match self {
+            Loc::Imm(e) => e,
+            _           => panic!(),
         }
     }
 }
