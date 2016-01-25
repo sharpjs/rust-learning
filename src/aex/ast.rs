@@ -96,6 +96,12 @@ pub enum Expr<'a> {
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Cond<'a> (pub &'a str, pub Option<Box<Expr<'a>>>);
 
+impl<'a> Expr<'a> {
+    pub fn add<'b>(a: Expr<'b>, b: Expr<'b>) -> Expr<'b> {
+        Expr::Add(Box::new(a), Box::new(b), None)
+    }
+}
+
 impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {

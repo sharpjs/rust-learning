@@ -439,10 +439,6 @@ pub static ADD_CONST: ConstOp2 = ConstOp2 {
     check_types: check_types_compat,
     eval_int:    BigInt::add,
     eval_float:  f64   ::add,
-    eval_expr:   expr_add,
+    eval_expr:   Expr  ::add,
 };
-
-fn expr_add<'a>(a: Expr<'a>, b: Expr<'a>) -> Expr<'a> {
-    Expr::Add(Box::new(a), Box::new(b), None)
-}
 
