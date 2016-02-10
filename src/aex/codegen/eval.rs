@@ -160,21 +160,25 @@ pub fn check_types_extend<'a>
     }
 }
 
-pub fn check_form_inty(form: TypeForm, default_width: u8) -> Option<u8> {
-    match form {
+pub fn check_forms_inty(_a: TypeForm,
+                        _b: TypeForm,
+                        out: TypeForm,
+                        default_width: u8)
+                       -> Option<u8> {
+    match out {
         TypeForm::Inty(None)    => Some(default_width),
         TypeForm::Inty(Some(s)) => Some(s.store_width),
         _                       => None
     }
 }
 
-pub fn check_form_inty_extend(src: TypeForm,
-                              dst: TypeForm,
-                              default_width: u8)
-                              -> Option<u8> {
+pub fn check_forms_inty_extend(src: TypeForm,
+                               dst: TypeForm,
+                               default_width: u8)
+                               -> Option<u8> {
 
-    let sw = check_form_inty(src, default_width);
-    let dw = check_form_inty(dst, default_width);
+    let sw = check_forms_inty(src, dst, src, default_width);
+    let dw = check_forms_inty(src, dst, dst, default_width);
 
     // We encode a pair of widths into a single number by addition.
     // This is not lossy, because widths are powers of 2.

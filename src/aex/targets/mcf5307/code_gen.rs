@@ -18,140 +18,150 @@
 
 #![allow(non_upper_case_globals)]
 
-use aex::ast::*;
-use aex::codegen::Context;
+//use aex::ast::*;
+//use aex::codegen::Context;
 use aex::codegen::eval::*;
 use aex::codegen::ops;
-use aex::codegen::ops::BinaryOpFamilyInvoke;
 
 use super::loc::*;
 
-type BinaryOp       = ops::BinaryOp     <             Mode>;
-type OpBySelTable   = ops::OpBySelTable <             Mode>;
-type OpByLocFn <'a> = ops::OpByLocFn    <    Loc<'a>, Mode>;
-type Operand   <'a> = ops::Operand      <'a, Loc<'a>      >;
-type OpTable        = ops::OpTable;
+type AsmOp2         = ops::AsmOp2<Mode>;
+//type BinaryOp       = ops::AsmOp2     <             Mode>;
+//type OpBySelTable   = ops::OpBySelTable <             Mode>;
+////type OpByLocFn <'a> = ops::OpByLocFn    <    Loc<'a>, Mode>;
+//type Operand   <'a> = ops::Operand      <'a, Loc<'a>      >;
+//type OpTable        = ops::OpTable;
 
 const BYTE: u8 =  8;
 const WORD: u8 = 16;
 const LONG: u8 = 32;
 
+//// -----------------------------------------------------------------------------
+//
+//pub struct Evaluator;
+//
+//impl Eval for Evaluator {
+//    #[inline]
+//    #[allow(unused_must_use)]
+//    fn eval<'cg, 'str>(
+//            &self,
+//            expr: &Expr<'str>,
+//            ctx:  &mut Context<'cg, 'str>) {
+//
+//        // Delegate to the real `eval` and ignore its result.
+//        Self::eval(expr, ctx);
+//    }
+//}
+//
+//impl Evaluator {
+//    fn eval<'cg, 'str>(
+//            expr: &Expr<'str>,
+//            ctx:  &mut Context<'cg, 'str>)
+//            ->    Result<Operand<'str>, ()> {
+//
+//        macro_rules! op {
+//            ($op:ident [$sel:ident] $($arg:ident),*) => {{
+//                $(
+//                    let $arg = try!(Self::eval($arg, ctx));
+//                )*
+//                $op.invoke($sel, $($arg),*, ctx)
+//            }};
+//        }
+//
+//        match *expr {
+//            Expr::Add      (ref d, ref s, k) => op!(ADD [k] s, d),
+//            Expr::Subtract (ref d, ref s, k) => op!(SUB [k] s, d),
+//            _ => {
+//                // TODO: Pos in expression
+//                //ctx.out.log.err_no_op_for_expression(pos);
+//                Err(())
+//            }
+//        }
+//    }
+//}
+//
+//// -----------------------------------------------------------------------------
+//
+//struct BinaryOpFamily {
+//    asm_ops_by_sel: OpBySelTable,
+//    asm_ops_by_loc: fn(&Loc, &Loc) -> &'static AsmOp2,
+//}
+//
+//impl<'a> ops::OpFamily2<Loc<'a>, Mode> for BinaryOpFamily {
+//    #[inline(always)] fn by_sel(&self) -> OpBySelTable  { self.by_sel }
+//    #[inline(always)] fn by_loc(&self) -> OpByLocFn<'a> { self.by_loc }
+//}
+//
+//static ADD: BinaryOpFamily = BinaryOpFamily {
+//    by_sel: &[("a", &ADDA)],
+//    by_loc: choose_add,
+//};
+//
+//static SUB: BinaryOpFamily = BinaryOpFamily {
+//    by_sel: &[("a", &SUBA)],
+//    by_loc: choose_sub,
+//};
+//
+//fn choose_add(s: &Loc, d: &Loc) -> &'static AsmOp2 {
+//    match (s.mode(), d.mode()) {
+//        (M_Imm,  M_Imm )                            => &ADDA,
+//        (_,      M_Addr) if s.is(M_Src)             => &ADDA,
+//        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &ADDA,
+//        (M_Imm,  M_Data)                            => &ADDA,
+//        (M_Data, _     ) if d.is(M_Dst)             => &ADDA,
+//        (_,      M_Data) if s.is(M_Src)             => &ADDA,
+//        _                                           => &ADDA,
+//    }
+//}
+//
+//fn choose_sub(s: &Loc, d: &Loc) -> &'static AsmOp2 {
+//    match (s.mode(), d.mode()) {
+//        (M_Imm,  M_Imm )                            => &SUBA,
+//        (_,      M_Addr) if s.is(M_Src)             => &SUBA,
+//        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &SUBA,
+//        (M_Imm,  M_Data)                            => &SUBA,
+//        (M_Data, _     ) if d.is(M_Dst)             => &SUBA,
+//        (_,      M_Data) if s.is(M_Src)             => &SUBA,
+//        _                                           => &SUBA,
+//    }
+//}
+
 // -----------------------------------------------------------------------------
 
-pub struct Evaluator;
-
-impl Eval for Evaluator {
-    #[inline]
-    #[allow(unused_must_use)]
-    fn eval<'cg, 'str>(
-            &self,
-            expr: &Expr<'str>,
-            ctx:  &mut Context<'cg, 'str>) {
-
-        // Delegate to the real `eval` and ignore its result.
-        Self::eval(expr, ctx);
-    }
-}
-
-impl Evaluator {
-    fn eval<'cg, 'str>(
-            expr: &Expr<'str>,
-            ctx:  &mut Context<'cg, 'str>)
-            ->    Result<Operand<'str>, ()> {
-
-        macro_rules! op {
-            ($op:ident [$sel:ident] $($arg:ident),*) => {{
-                $(
-                    let $arg = try!(Self::eval($arg, ctx));
-                )*
-                $op.invoke($sel, $($arg),*, ctx)
-            }};
-        }
-
-        match *expr {
-            Expr::Add      (ref d, ref s, k) => op!(ADD [k] s, d),
-            Expr::Subtract (ref d, ref s, k) => op!(SUB [k] s, d),
-            _ => {
-                // TODO: Pos in expression
-                //ctx.out.log.err_no_op_for_expression(pos);
-                Err(())
-            }
-        }
-    }
-}
-
-// -----------------------------------------------------------------------------
-
-struct BinaryOpFamily {
-    by_sel: OpBySelTable,
-    by_loc: fn(&Loc, &Loc) -> &'static BinaryOp,
-}
-
-impl<'a> ops::BinaryOpFamily<Loc<'a>, Mode> for BinaryOpFamily {
-    #[inline(always)] fn by_sel(&self) -> OpBySelTable  { self.by_sel }
-    #[inline(always)] fn by_loc(&self) -> OpByLocFn<'a> { self.by_loc }
-}
-
-static ADD: BinaryOpFamily = BinaryOpFamily {
-    by_sel: &[("a", &ADDA)],
-    by_loc: choose_add,
-};
-
-static SUB: BinaryOpFamily = BinaryOpFamily {
-    by_sel: &[("a", &SUBA)],
-    by_loc: choose_sub,
-};
-
-fn choose_add(s: &Loc, d: &Loc) -> &'static BinaryOp {
-    match (s.mode(), d.mode()) {
-        (M_Imm,  M_Imm )                            => &ADDA,
-        (_,      M_Addr) if s.is(M_Src)             => &ADDA,
-        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &ADDA,
-        (M_Imm,  M_Data)                            => &ADDA,
-        (M_Data, _     ) if d.is(M_Dst)             => &ADDA,
-        (_,      M_Data) if s.is(M_Src)             => &ADDA,
-        _                                           => &ADDA,
-    }
-}
-
-fn choose_sub(s: &Loc, d: &Loc) -> &'static BinaryOp {
-    match (s.mode(), d.mode()) {
-        (M_Imm,  M_Imm )                            => &SUBA,
-        (_,      M_Addr) if s.is(M_Src)             => &SUBA,
-        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &SUBA,
-        (M_Imm,  M_Data)                            => &SUBA,
-        (M_Data, _     ) if d.is(M_Dst)             => &SUBA,
-        (_,      M_Data) if s.is(M_Src)             => &SUBA,
-        _                                           => &SUBA,
-    }
-}
-
-// -----------------------------------------------------------------------------
-
-static ADDA: BinaryOp = BinaryOp {
+static ADDA: AsmOp2 = AsmOp2 {
     opcodes:        &[(LONG, "adda.l")],
     default_width:  LONG,
     check_modes:    check_modes_src_addr,
     check_types:    check_types_compat,
-    check_form:     check_form_inty,
+    check_forms:    check_forms_inty,
 };
 
-static SUBA: BinaryOp = BinaryOp {
+static SUBA: AsmOp2 = AsmOp2 {
     opcodes:        &[(LONG, "suba.l")],
     default_width:  LONG,
     check_modes:    check_modes_src_addr,
     check_types:    check_types_compat,
-    check_form:     check_form_inty,
+    check_forms:    check_forms_inty,
 };
 
-static MOVEA: BinaryOp = BinaryOp {
+static MOVEA: AsmOp2 = AsmOp2 {
     opcodes:        &[(LONG, "movea.l"),
                       (WORD, "movea.w")],
     default_width:  LONG,
     check_modes:    check_modes_src_addr,
     check_types:    check_types_compat,
-    check_form:     check_form_inty,
+    check_forms:    check_forms_inty,
 };
+
+//static EXT: UnaryOp = UnaryOp {
+//    opcodes:        &[(LONG, "ext.l" ),  // word -> long
+//                      (WORD, "ext.w" ),  // byte -> word
+//                      (BYTE, "extb.l")], // byte -> long
+//    default_width:  LONG,
+//    check_modes:    check_modes_src_addr,
+//    check_types:    check_types_compat,
+//    check_form:     check_form_inty_extend,
+//};
 
 // -----------------------------------------------------------------------------
 
