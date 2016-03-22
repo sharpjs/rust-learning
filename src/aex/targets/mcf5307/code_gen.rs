@@ -25,7 +25,10 @@ use aex::codegen::ops;
 
 use super::loc::*;
 
+type AsmOp1         = ops::AsmOp1<Mode>;
 type AsmOp2         = ops::AsmOp2<Mode>;
+type AsmOp3         = ops::AsmOp3<Mode>;
+
 //type BinaryOp       = ops::AsmOp2     <             Mode>;
 //type OpBySelTable   = ops::OpBySelTable <             Mode>;
 ////type OpByLocFn <'a> = ops::OpByLocFn    <    Loc<'a>, Mode>;
@@ -79,52 +82,39 @@ const LONG: u8 = 32;
 //        }
 //    }
 //}
-//
-//// -----------------------------------------------------------------------------
-//
-//struct BinaryOpFamily {
-//    asm_ops_by_sel: OpBySelTable,
-//    asm_ops_by_loc: fn(&Loc, &Loc) -> &'static AsmOp2,
-//}
-//
-//impl<'a> ops::OpFamily2<Loc<'a>, Mode> for BinaryOpFamily {
-//    #[inline(always)] fn by_sel(&self) -> OpBySelTable  { self.by_sel }
-//    #[inline(always)] fn by_loc(&self) -> OpByLocFn<'a> { self.by_loc }
-//}
-//
-//static ADD: BinaryOpFamily = BinaryOpFamily {
-//    by_sel: &[("a", &ADDA)],
-//    by_loc: choose_add,
-//};
-//
-//static SUB: BinaryOpFamily = BinaryOpFamily {
-//    by_sel: &[("a", &SUBA)],
-//    by_loc: choose_sub,
-//};
-//
-//fn choose_add(s: &Loc, d: &Loc) -> &'static AsmOp2 {
-//    match (s.mode(), d.mode()) {
-//        (M_Imm,  M_Imm )                            => &ADDA,
-//        (_,      M_Addr) if s.is(M_Src)             => &ADDA,
-//        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &ADDA,
-//        (M_Imm,  M_Data)                            => &ADDA,
-//        (M_Data, _     ) if d.is(M_Dst)             => &ADDA,
-//        (_,      M_Data) if s.is(M_Src)             => &ADDA,
-//        _                                           => &ADDA,
-//    }
-//}
-//
-//fn choose_sub(s: &Loc, d: &Loc) -> &'static AsmOp2 {
-//    match (s.mode(), d.mode()) {
-//        (M_Imm,  M_Imm )                            => &SUBA,
-//        (_,      M_Addr) if s.is(M_Src)             => &SUBA,
-//        (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => &SUBA,
-//        (M_Imm,  M_Data)                            => &SUBA,
-//        (M_Data, _     ) if d.is(M_Dst)             => &SUBA,
-//        (_,      M_Data) if s.is(M_Src)             => &SUBA,
-//        _                                           => &SUBA,
-//    }
-//}
+
+// -----------------------------------------------------------------------------
+
+struct AddFamily;
+
+impl<'a> ops::OpFamily2<'a> for AddFamily {
+    type Loc  = Loc<'a>;
+    type Mode = Mode;
+
+    fn const_op(&self) -> &ops::ConstOp2 {
+        &ops::ADD_CONST
+    }
+
+    fn asm_ops_by_sel(&self) -> ops::OpBySelTable<AsmOp2> {
+        ADD_BY_SEL
+    }
+
+    fn asm_op_by_loc(&self, s: &Loc<'a>, d: &Loc<'a>) -> Option<&'static AsmOp2> {
+        match (s.mode(), d.mode()) {
+            (M_Imm,  M_Imm )                            => Some(&ADDA),
+            (_,      M_Addr) if s.is(M_Src)             => Some(&ADDA),
+            (M_Imm,  _     ) if d.is(M_Dst) && s.is_q() => Some(&ADDA),
+            (M_Imm,  M_Data)                            => Some(&ADDA),
+            (M_Data, _     ) if d.is(M_Dst)             => Some(&ADDA),
+            (_,      M_Data) if s.is(M_Src)             => Some(&ADDA),
+            _                                           => Some(&ADDA),
+        }
+    }
+}
+
+static ADD_BY_SEL: ops::OpBySelTable<AsmOp2> = &[
+    ("a", &ADDA)
+];
 
 // -----------------------------------------------------------------------------
 
@@ -243,9 +233,9 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
 //        };
 //        Ok(Operand::new(Loc::Imm(expr), INT, x.pos))
 //    }
-//
-//#[cfg(test)]
-//mod tests {
+
+#[cfg(test)]
+mod tests {
 //    use super::*;
 //
 //    use std::io;
@@ -269,5 +259,5 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
 //
 //        assert_eq!(dst, res);
 //    }
-//}
+}
 
