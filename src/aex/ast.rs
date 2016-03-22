@@ -24,7 +24,7 @@ use aex::types::*;
 
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Stmt<'a> {
-    // Meta
+    // Composite
     Block   (Pos<'a>, Vec<Stmt<'a>>),
 
     // Declaration
