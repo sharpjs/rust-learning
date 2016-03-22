@@ -1281,7 +1281,17 @@ mod tests {
 
     #[test]
     fn keywords() {
-        lex("type", |it| { it.yields(KwType).yields(Eof); });
+        lex("type"    , |it| { it.yields(KwType    ).yields(Eof); });
+        lex("struct"  , |it| { it.yields(KwStruct  ).yields(Eof); });
+        lex("union"   , |it| { it.yields(KwUnion   ).yields(Eof); });
+        lex("if"      , |it| { it.yields(KwIf      ).yields(Eof); });
+        lex("else"    , |it| { it.yields(KwElse    ).yields(Eof); });
+        lex("loop"    , |it| { it.yields(KwLoop    ).yields(Eof); });
+        lex("while"   , |it| { it.yields(KwWhile   ).yields(Eof); });
+        lex("break"   , |it| { it.yields(KwBreak   ).yields(Eof); });
+        lex("continue", |it| { it.yields(KwContinue).yields(Eof); });
+        lex("return"  , |it| { it.yields(KwReturn  ).yields(Eof); });
+        lex("jump"    , |it| { it.yields(KwJump    ).yields(Eof); });
     }
 
     #[test]
