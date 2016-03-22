@@ -32,7 +32,7 @@ type AsmOp3         = ops::AsmOp3<Mode>;
 //type BinaryOp       = ops::AsmOp2     <             Mode>;
 //type OpBySelTable   = ops::OpBySelTable <             Mode>;
 ////type OpByLocFn <'a> = ops::OpByLocFn    <    Loc<'a>, Mode>;
-//type Operand   <'a> = ops::Operand      <'a, Loc<'a>      >;
+pub type Operand   <'a> = ops::Operand      <'a, Loc<'a>      >;
 //type OpTable        = ops::OpTable;
 
 const BYTE: u8 =  8;
@@ -85,7 +85,7 @@ const LONG: u8 = 32;
 
 // -----------------------------------------------------------------------------
 
-struct AddFamily;
+pub struct AddFamily;
 
 impl<'a> ops::OpFamily2<'a> for AddFamily {
     type Loc  = Loc<'a>;
@@ -236,28 +236,33 @@ fn check_modes_src_addr(src: Mode, dst: Mode) -> bool {
 
 #[cfg(test)]
 mod tests {
-//    use super::*;
-//
-//    use std::io;
-//    use num::bigint::ToBigInt;
-//
-//    use aex::ast::Expr;
-//    use aex::pos::Pos;
-//    use aex::targets::mcf5307::loc::*;
-//    use aex::targets::mcf5307::loc::DataReg::*;
-//  //use aex::targets::mcf5307::loc::AddrReg::*;
-//    use aex::types::*;
-//
-//    #[test]
-//    fn foo() {
-//        let n   = 4u8.to_bigint().unwrap();
-//        let src = Operand::new(Loc::Imm(Expr::Int(n)), U8, Pos::bof("f"));
-//        let dst = Operand::new(Loc::Data(D3),          U8, Pos::bof("f"));
-//
-//        let mut gen = CodeGen::new(io::stdout());
-//        let res = gen.add(&src, &dst, "").unwrap();
-//
-//        assert_eq!(dst, res);
-//    }
+    use num::bigint::ToBigInt;
+
+    use aex::ast::Expr;
+    use aex::codegen::Context;
+    use aex::codegen::eval::*;
+    use aex::codegen::ops::OpFamily2;
+    use aex::output::Output;
+    use aex::pos::Pos;
+    use aex::scope::Scope;
+    use aex::targets::mcf5307::loc::*;
+    use aex::targets::mcf5307::loc::DataReg::*;
+    use aex::types::*;
+    use super::*;
+
+    #[test]
+    fn foo() {
+        let mut out = Output::new();
+        let mut ctx = Context { scope: Scope::new(), out: &mut out };
+
+        let ta  = analyze_type(U8, &ctx.scope).unwrap();
+        let pos = Pos::bof("f");
+
+        let n   = 4u8.to_bigint().unwrap();
+        let src = Operand::new(Loc::Imm(Expr::Int(n)), ta, pos);
+        let dst = Operand::new(Loc::Data(D3),          ta, pos);
+
+        //AddFamily.invoke(None, src, dst, pos, &mut ctx);
+    }
 }
 
