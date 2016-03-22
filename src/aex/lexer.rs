@@ -18,81 +18,80 @@
 
 use std::collections::HashMap;
 use std::mem;
-use std::rc::Rc;
 
-use interner::*;
-use message::Messages;
-use util::Pos;
+use aex::mem::interner::*;
+use aex::message::Messages;
+use aex::pos::Pos;
 
 // -----------------------------------------------------------------------------
 // Tokens
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Token {
-    Raw  (StrId),   // Raw output
-    Id   (StrId),   // Identifier
-    Flag (StrId),   // Condition flag
+pub enum Token<'a> {
+    Raw  (&'a str),     // Raw output
+    Id   (&'a str),     // Identifier
+    Flag (&'a str),     // Condition flag
 
-    Int  (u64),     // Literal: integer
-    Char (char),    // Literal: character
-    Str  (StrId),   // Literal: string
+    Int  (u64),         // Literal: integer
+    Char (char),        // Literal: character
+    Str  (&'a str),     // Literal: string
 
-    KwType,         // Keyword: type
-    KwStruct,       // Keyword: struct
-    KwUnion,        // Keyword: union
-    KwIf,           // Keyword: if
-    KwElse,         // Keyword: else
-    KwLoop,         // Keyword: loop
-    KwWhile,        // Keyword: while
-    KwBreak,        // Keyword: break
-    KwContinue,     // Keyword: continue
-    KwReturn,       // Keyword: return
-    KwJump,         // Keyword: jump
+    KwType,             // Keyword: type
+    KwStruct,           // Keyword: struct
+    KwUnion,            // Keyword: union
+    KwIf,               // Keyword: if
+    KwElse,             // Keyword: else
+    KwLoop,             // Keyword: loop
+    KwWhile,            // Keyword: while
+    KwBreak,            // Keyword: break
+    KwContinue,         // Keyword: continue
+    KwReturn,           // Keyword: return
+    KwJump,             // Keyword: jump
 
-    BraceL,         // {
-    BraceR,         // }
-    ParenL,         // (
-    ParenR,         // )
-    BracketL,       // [
-    BracketR,       // ]
-    Dot,            // .
-    At,             // @
-    PlusPlus,       // ++
-    MinusMinus,     // --
-    Bang,           // !
-    Tilde,          // ~
-    Star,           // *
-    Slash,          // /
-    Percent,        // %
-    Plus,           // +
-    Minus,          // -
-    LessLess,       // <<
-    MoreMore,       // >>
-    Ampersand,      // &
-    Caret,          // ^
-    Pipe,           // |
-    DotTilde,       // .~
-    DotBang,        // .!
-    DotEqual,       // .=
-    DotQuestion,    // .?
-    Question,       // ?
-    LessMore,       // <>
-    EqualEqual,     // ==
-    BangEqual,      // !=
-    Less,           // <
-    More,           // >
-    LessEqual,      // <=
-    MoreEqual,      // >=
-    EqualArrow,     // =>
-    MinusArrow,     // ->
-    Equal,          // =
-    Colon,          // :
-    Comma,          // ,
+    BraceL,             // {
+    BraceR,             // }
+    ParenL,             // (
+    ParenR,             // )
+    BracketL,           // [
+    BracketR,           // ]
+    Dot,                // .
+    At,                 // @
+    PlusPlus,           // ++
+    MinusMinus,         // --
+    Bang,               // !
+    Tilde,              // ~
+    Star,               // *
+    Slash,              // /
+    Percent,            // %
+    Plus,               // +
+    Minus,              // -
+    LessLess,           // <<
+    MoreMore,           // >>
+    Ampersand,          // &
+    Caret,              // ^
+    Pipe,               // |
+    DotTilde,           // .~
+    DotBang,            // .!
+    DotEqual,           // .=
+    DotQuestion,        // .?
+    Question,           // ?
+    LessMore,           // <>
+    EqualEqual,         // ==
+    BangEqual,          // !=
+    Less,               // <
+    More,               // >
+    LessEqual,          // <=
+    MoreEqual,          // >=
+    EqualArrow,         // =>
+    MinusArrow,         // ->
+    Equal,              // =
+    Colon,              // :
+    Comma,              // ,
 
-    Eos,            // End of statement
-    Eof,            // End of file
+    Eos,                // End of statement
+    Eof,                // End of file
 
-    Error           // Lexical error
+    Error               // Lexical error
 }
 use self::Token::*;
 
@@ -113,121 +112,113 @@ enum State {
 }
 use self::State::*;
 
-type TransitionSet = (
-    [u8; 128],          // Map from 7-bit char to transition index
-    &'static [(         // Array of transitions:
-        State,          //   - next state
-        Action          //   - custom action
-    )]
-);
-
 // -----------------------------------------------------------------------------
 // Action Codes
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum Action {
-    Start,
-    Skip,
-    SkipEol,
+    Start,              //
+    Skip,               //
+    SkipEol,            //
 
-    YieldEos,
-    YieldEosEol,
-    YieldEof,
+    YieldEos,           //
+    YieldEosEol,        //
+    YieldEof,           //
 
-    AccumNumDec,
-    AccumNumHexDig,
-    AccumNumHexUc,
-    AccumNumHexLc,
-    AccumNumOct,
-    AccumNumBin,
-    YieldNum,
+    AccumNumDec,        //
+    AccumNumHexDig,     //
+    AccumNumHexUc,      //
+    AccumNumHexLc,      //
+    AccumNumOct,        //
+    AccumNumBin,        //
+    YieldNum,           //
 
-    AccumStr,
-    YieldChar,
-    YieldStr,
-    YieldRaw,
-    YieldIdOrKw,
+    AccumStr,           //
+    YieldChar,          //
+    YieldStr,           //
+    YieldRaw,           //
+    YieldIdOrKw,        //
 
-    StartEsc,
-    YieldEscNul,
-    YieldEscLf,
-    YieldEscCr,
-    YieldEscTab,
-    YieldEscChar,
-    YieldEscNum,
-    YieldEscHexDig,
-    YieldEscHexUc,
-    YieldEscHexLc,
+    StartEsc,           //
+    YieldEscNul,        //
+    YieldEscLf,         //
+    YieldEscCr,         //
+    YieldEscTab,        //
+    YieldEscChar,       //
+    YieldEscNum,        //
+    YieldEscHexDig,     //
+    YieldEscHexUc,      //
+    YieldEscHexLc,      //
 
-    YieldBraceL,
-    YieldBraceR,
-    YieldParenL,
-    YieldParenR,
-    YieldBracketL,
-    YieldBracketR,
-    YieldDot,
-    YieldAt,
-    YieldPlusPlus,
-    YieldMinusMinus,
-    YieldBang,
-    YieldBang2,
-    YieldTilde,
-    YieldQuestion,
-    YieldStar,
-    YieldSlash,
-    YieldPercent,
-    YieldPlus,
-    YieldMinus,
-    YieldLessLess,
-    YieldMoreMore,
-    YieldAmpersand,
-    YieldCaret,
-    YieldPipe,
-    YieldDotTilde,
-    YieldDotBang,
-    YieldDotEqual,
-    YieldDotQuestion,
-    YieldLessMore,
-    YieldEqualEqual,
-    YieldBangEqual,
-    YieldLess,
-    YieldMore,
-    YieldLessEqual,
-    YieldMoreEqual,
-    YieldEqualArrow,
-    YieldMinusArrow,
-    YieldEqual,
-    YieldColon,
-    YieldComma,
+    YieldBraceL,        //
+    YieldBraceR,        //
+    YieldParenL,        //
+    YieldParenR,        //
+    YieldBracketL,      //
+    YieldBracketR,      //
+    YieldDot,           //
+    YieldAt,            //
+    YieldPlusPlus,      //
+    YieldMinusMinus,    //
+    YieldBang,          //
+    YieldBang2,         //
+    YieldTilde,         //
+    YieldQuestion,      //
+    YieldStar,          //
+    YieldSlash,         //
+    YieldPercent,       //
+    YieldPlus,          //
+    YieldMinus,         //
+    YieldLessLess,      //
+    YieldMoreMore,      //
+    YieldAmpersand,     //
+    YieldCaret,         //
+    YieldPipe,          //
+    YieldDotTilde,      //
+    YieldDotBang,       //
+    YieldDotEqual,      //
+    YieldDotQuestion,   //
+    YieldLessMore,      //
+    YieldEqualEqual,    //
+    YieldBangEqual,     //
+    YieldLess,          //
+    YieldMore,          //
+    YieldLessEqual,     //
+    YieldMoreEqual,     //
+    YieldEqualArrow,    //
+    YieldMinusArrow,    //
+    YieldEqual,         //
+    YieldColon,         //
+    YieldComma,         //
 
-    ErrorInvalid,
-    ErrorInvalidNum,
-    ErrorInvalidEsc,
-    ErrorUntermChar,
-    ErrorUntermStr,
-    ErrorUntermRaw,
-    ErrorUntermEsc,
-    ErrorLengthChar,
+    ErrorInvalid,       //
+    ErrorInvalidNum,    //
+    ErrorInvalidEsc,    //
+    ErrorUntermChar,    //
+    ErrorUntermStr,     //
+    ErrorUntermRaw,     //
+    ErrorUntermEsc,     //
+    ErrorLengthChar,    //
 }
 use self::Action::*;
 
 // -----------------------------------------------------------------------------
 // Lexer
 
-pub struct Lexer<I>
+pub struct Lexer<'a, I>
 where I: Iterator<Item=char>
 {
     iter:       I,                      // remaining chars
     ch:         Option<char>,           // char  after previous token
     state:      State,                  // state after previous token
-    context:    Context                 // context object give to actions
+    context:    Context<'a>             // context object give to actions
 }
 
-impl<I> Lexer<I>
+impl<'a, I> Lexer<'a, I>
 where I: Iterator<Item=char>
 {
-    pub fn new(strings: Rc<Interner>, mut iter: I) -> Self {
+    pub fn new(strings: &'a StringInterner<'a>, mut iter: I) -> Self {
         let ch = iter.next();
 
         Lexer {
@@ -238,11 +229,11 @@ where I: Iterator<Item=char>
         }
     }
 
-    pub fn strings(&self) -> &Interner {
+    pub fn strings(&self) -> &StringInterner<'a> {
         &self.context.strings
     }
 
-    pub fn lex(&mut self) -> (Pos, Token, Pos) {
+    pub fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>) {
         let mut ch    =      self.ch;
         let mut state =      self.state;
         let     iter  = &mut self.iter;
@@ -388,6 +379,14 @@ where I: Iterator<Item=char>
 
 // -----------------------------------------------------------------------------
 // State Transition Table
+
+type TransitionSet = (
+    [u8; 128],          // Map from 7-bit char to transition index
+    &'static [(         // Array of transitions:
+        State,          //   - next state
+        Action          //   - custom action
+    )]
+);
 
 #[inline]
 fn lookup(entry: &TransitionSet, ch: Option<char>) -> (char, (State, Action))
@@ -962,7 +961,7 @@ const STATES: &'static [TransitionSet] = &[
 // -----------------------------------------------------------------------------
 // Keywords
 
-const KEYWORDS: &'static [(&'static str, Token)] = &[
+const KEYWORDS: &'static [(&'static str, Token<'static>)] = &[
     ( "type"     , KwType     ),
     ( "struct"   , KwStruct   ),
     ( "union"    , KwUnion    ),
@@ -979,26 +978,26 @@ const KEYWORDS: &'static [(&'static str, Token)] = &[
 // -----------------------------------------------------------------------------
 // Context
 
-struct Context {
-    start:      Pos,                    // position of token start
-    current:    Pos,                    // position of current character
-    number:     u64,                    // number builder
-    buffer:     String,                 // string builder
-    strings:    Rc<Interner>,           // string interner
-    keywords:   HashMap<StrId, Token>,  // keyword table
-    messages:   Messages                // messages collector
+struct Context<'a> {
+    start:      Pos<'a>,                        // position of token start
+    current:    Pos<'a>,                        // position of current character
+    number:     u64,                            // number builder
+    buffer:     String,                         // string builder
+    strings:    &'a StringInterner<'a>,         // string interner
+    keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
+    messages:   Messages<'a>                    // messages collector
 }
 
-impl Context {
-    fn new(strings: Rc<Interner>) -> Self {
+impl<'a> Context<'a> {
+    fn new(strings: &'a StringInterner<'a>) -> Self {
         let mut keywords = HashMap::new();
         for &(k, t) in KEYWORDS {
-            keywords.insert(strings.intern(k), t);
+            keywords.insert(strings.intern_ref(k), t);
         }
 
         Context {
-            start:    Pos { byte: 0, line: 1, column: 1 },
-            current:  Pos { byte: 0, line: 1, column: 1 },
+            start:    Pos { file: "", byte: 0, line: 1, column: 1 },
+            current:  Pos { file: "", byte: 0, line: 1, column: 1 },
             buffer:   String::with_capacity(128),
             number:   0,
             strings:  strings,
@@ -1021,37 +1020,37 @@ impl Context {
     // Number actions
 
     #[inline]
-    fn num_add_dec(&mut self, c: char) -> Option<Token> {
+    fn num_add_dec(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add(10, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add_hex_dig(&mut self, c: char) -> Option<Token> {
+    fn num_add_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add(16, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add_hex_uc(&mut self, c: char) -> Option<Token> {
+    fn num_add_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add(16, int_from_hex_uc(c))
     }
 
     #[inline]
-    fn num_add_hex_lc(&mut self, c: char) -> Option<Token> {
+    fn num_add_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add(16, int_from_hex_lc(c))
     }
 
     #[inline]
-    fn num_add_oct(&mut self, c: char) -> Option<Token> {
+    fn num_add_oct(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add(8, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add_bin(&mut self, c: char) -> Option<Token> {
+    fn num_add_bin(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add(2, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add(&mut self, base: u8, digit: u8) -> Option<Token> {
+    fn num_add(&mut self, base: u8, digit: u8) -> Option<Token<'a>> {
         let mut n = self.number;
 
         n = match n.checked_mul(base as u64) {
@@ -1069,7 +1068,7 @@ impl Context {
     }
 
     #[inline]
-    fn num_get(&mut self) -> Token {
+    fn num_get(&mut self) -> Token<'a> {
         let n = self.number;
         self.number = 0;
         Int(n)
@@ -1083,7 +1082,7 @@ impl Context {
     }
 
     #[inline]
-    fn str_add_esc(&mut self) -> Option<Token> {
+    fn str_add_esc(&mut self) -> Option<Token<'a>> {
         let n = self.number as u32;
         if  n > UNICODE_MAX { return self.err_overflow_esc() }
         let c = unsafe { mem::transmute(n) };
@@ -1092,49 +1091,49 @@ impl Context {
     }
 
     #[inline]
-    fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token> {
+    fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add_hex_dig(c)
             .or_else(|| self.str_add_esc())
     }
 
     #[inline]
-    fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token> {
+    fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add_hex_uc(c)
             .or_else(|| self.str_add_esc())
     }
 
     #[inline]
-    fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token> {
+    fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add_hex_lc(c)
             .or_else(|| self.str_add_esc())
     }
 
     #[inline]
-    fn str_intern(&mut self) -> StrId {
-        let id = self.strings.intern(&self.buffer);
+    fn str_intern(&mut self) -> &'a str {
+        let id = self.strings.intern(self.buffer.clone());
         self.buffer.clear();
         id
     }
 
     #[inline]
-    fn str_get_char(&mut self) -> Token {
+    fn str_get_char(&mut self) -> Token<'a> {
         let c = self.buffer.chars().next().unwrap();
         self.buffer.clear();
         Char(c)
     }
 
     #[inline]
-    fn str_get_str(&mut self) -> Token {
+    fn str_get_str(&mut self) -> Token<'a> {
         Str(self.str_intern())
     }
 
     #[inline]
-    fn str_get_raw(&mut self) -> Token {
+    fn str_get_raw(&mut self) -> Token<'a> {
         Raw(self.str_intern())
     }
 
     #[inline]
-    fn str_get_id_or_keyword(&mut self) -> Token {
+    fn str_get_id_or_keyword(&mut self) -> Token<'a> {
         let id = self.str_intern();
 
         match self.keywords.get(&id) {
@@ -1145,12 +1144,12 @@ impl Context {
 
     // Error Actions
 
-    fn err_overflow_num(&mut self) -> Option<Token> {
+    fn err_overflow_num(&mut self) -> Option<Token<'a>> {
         self.messages.err_overflow_num(self.start);
         Some(Error)
     }
 
-    fn err_overflow_esc(&mut self) -> Option<Token> {
+    fn err_overflow_esc(&mut self) -> Option<Token<'a>> {
         self.messages.err_overflow_esc(self.start);
         Some(Error)
     }
@@ -1183,118 +1182,117 @@ mod tests {
 
     #[test]
     fn empty() {
-        lex("").yields(Eof);
+        lex("", |it| { it.yields(Eof); });
     }
 
     #[test]
     fn space() {
-        lex( " \r\t" ).yields(Eof);
-        lex( " \r\t1").yields(Int(1)).yields(Eof);
-        lex("1 \r\t" ).yields(Int(1)).yields(Eof);
-        lex("1 \r\t2").yields(Int(1)).yields(Int(2)).yields(Eof);
+        lex( " \r\t" , |it| { it                              .yields(Eof); });
+        lex( " \r\t1", |it| { it.yields(Int(1))               .yields(Eof); });
+        lex("1 \r\t" , |it| { it.yields(Int(1))               .yields(Eof); });
+        lex("1 \r\t2", |it| { it.yields(Int(1)).yields(Int(2)).yields(Eof); });
     }
 
     #[test]
     fn eos() {
-        lex(";"         ).yields(Eos).yields(Eof);
-        lex("\n"        ).yields(Eos).yields(Eof);
-        lex(";1"        ).yields(Eos).yields(Int(1)).yields(Eof);
-        lex("\n1"       ).yields(Eos).yields(Int(1)).yields(Eof);
-        lex("; \r\t\n;" ).yields(Eos).yields(Eof);
-        lex("\n \r\t\n;").yields(Eos).yields(Eof);
+        lex(";"         , |it| { it.yields(Eos)               .yields(Eof); });
+        lex("\n"        , |it| { it.yields(Eos)               .yields(Eof); });
+        lex(";1"        , |it| { it.yields(Eos).yields(Int(1)).yields(Eof); });
+        lex("\n1"       , |it| { it.yields(Eos).yields(Int(1)).yields(Eof); });
+        lex("; \r\t\n;" , |it| { it.yields(Eos)               .yields(Eof); });
+        lex("\n \r\t\n;", |it| { it.yields(Eos)               .yields(Eof); });
     }
 
     #[test]
     fn id() {
-        lex("a" ).yields_id("a").yields(Eof);
-        lex("a ").yields_id("a").yields(Eof);
-        lex("abcdefghijklmnopqrstuvwxyz").yields_id("abcdefghijklmnopqrstuvwxyz").yields(Eof);
-        lex("ABCDEFGHIJKLMNOPQRSTUVWXYZ").yields_id("ABCDEFGHIJKLMNOPQRSTUVWXYZ").yields(Eof);
-        lex("_0123456789")               .yields_id("_0123456789")               .yields(Eof);
+        lex("a"                         , |it| { it.yields(Id("a"))                         .yields(Eof); });
+        lex("a "                        , |it| { it.yields(Id("a"))                         .yields(Eof); });
+        lex("abcdefghijklmnopqrstuvwxyz", |it| { it.yields(Id("abcdefghijklmnopqrstuvwxyz")).yields(Eof); });
+        lex("ABCDEFGHIJKLMNOPQRSTUVWXYZ", |it| { it.yields(Id("ABCDEFGHIJKLMNOPQRSTUVWXYZ")).yields(Eof); });
+        lex("_0123456789"               , |it| { it.yields(Id("_0123456789"))               .yields(Eof); });
     }
 
     #[test]
     fn num() {
-        lex( "123456789").yields(Int( 123456789)).yields(Eof);
-        lex("0x01234567").yields(Int(0x01234567)).yields(Eof);
-        lex("0x89ABCDEF").yields(Int(0x89ABCDEF)).yields(Eof);
-        lex("0x89abcdef").yields(Int(0x89ABCDEF)).yields(Eof);
-        lex("0o01234567").yields(Int(0o01234567)).yields(Eof);
-        lex(      "0b01").yields(Int(      0b01)).yields(Eof);
-        lex(       "012").yields(Int(        12)).yields(Eof);
-        lex(         "0").yields(Int(         0)).yields(Eof);
-        lex(    "1__2__").yields(Int(        12)).yields(Eof);
-        lex("0x__1__2__").yields(Int(      0x12)).yields(Eof);
-        lex(       "0__").yields(Int(         0)).yields(Eof);
-        lex(     "0b1  ").yields(Int(         1)).yields(Eof);
-        lex(      "0b1;").yields(Int(         1)).yields(Eos).yields(Eof);
-
-        lex("0b19z").yields_error();
+        lex( "123456789", |it| { it.yields(Int( 123456789)).yields(Eof); });
+        lex("0x01234567", |it| { it.yields(Int(0x01234567)).yields(Eof); });
+        lex("0x89ABCDEF", |it| { it.yields(Int(0x89ABCDEF)).yields(Eof); });
+        lex("0x89abcdef", |it| { it.yields(Int(0x89ABCDEF)).yields(Eof); });
+        lex("0o01234567", |it| { it.yields(Int(0o01234567)).yields(Eof); });
+        lex(      "0b01", |it| { it.yields(Int(      0b01)).yields(Eof); });
+        lex(       "012", |it| { it.yields(Int(        12)).yields(Eof); });
+        lex(         "0", |it| { it.yields(Int(         0)).yields(Eof); });
+        lex(    "1__2__", |it| { it.yields(Int(        12)).yields(Eof); });
+        lex("0x__1__2__", |it| { it.yields(Int(      0x12)).yields(Eof); });
+        lex(       "0__", |it| { it.yields(Int(         0)).yields(Eof); });
+        lex(     "0b1  ", |it| { it.yields(Int(         1)).yields(Eof); });
+        lex(      "0b1;", |it| { it.yields(Int(         1)).yields(Eos).yields(Eof); });
+        lex(     "0b19z", |it| { it.yields_error(); });
     }
 
     #[test]
     fn char() {
-        lex("'a'") .yields(Char('a')).yields(Eof);
-        lex("'a")  .yields_error();
-        lex("''")  .yields_error();
-        lex("'aa'").yields_error();
+        lex("'a'" , |it| { it.yields(Char('a')).yields(Eof); });
+        lex("'a"  , |it| { it.yields_error(); });
+        lex("''"  , |it| { it.yields_error(); });
+        lex("'aa'", |it| { it.yields_error(); });
     }
 
     #[test]
     fn str() {
-        lex("\"\"")  .yields_str("")  .yields(Eof);
-        lex("\"aa\"").yields_str("aa").yields(Eof);
-        lex("\"a")   .yields_error();
+        lex("\"\""  , |it| { it.yields(Str(""  )).yields(Eof); });
+        lex("\"aa\"", |it| { it.yields(Str("aa")).yields(Eof); });
+        lex("\"a"   , |it| { it.yields_error(); });
     }
 
     #[test]
     fn char_escape() {
-        lex("'\\0'" ).yields(Char('\0')).yields(Eof);
-        lex("'\\n'" ).yields(Char('\n')).yields(Eof);
-        lex("'\\r'" ).yields(Char('\r')).yields(Eof);
-        lex("'\\t'" ).yields(Char('\t')).yields(Eof);
-        lex("'\\\\'").yields(Char('\\')).yields(Eof);
-        lex("'\\\''").yields(Char('\'')).yields(Eof);
-        lex("'\\\"'").yields(Char('\"')).yields(Eof);
-        lex("'\\a'" ).yields_error();
+        lex("'\\0'" , |it| { it.yields(Char('\0')).yields(Eof); });
+        lex("'\\n'" , |it| { it.yields(Char('\n')).yields(Eof); });
+        lex("'\\r'" , |it| { it.yields(Char('\r')).yields(Eof); });
+        lex("'\\t'" , |it| { it.yields(Char('\t')).yields(Eof); });
+        lex("'\\\\'", |it| { it.yields(Char('\\')).yields(Eof); });
+        lex("'\\\''", |it| { it.yields(Char('\'')).yields(Eof); });
+        lex("'\\\"'", |it| { it.yields(Char('\"')).yields(Eof); });
+        lex("'\\a'" , |it| { it.yields_error(); });
     }
 
     #[test]
     fn char_escape_hex() {
-        lex("'\\x5A'" ).yields(Char('\u{5A}')).yields(Eof);
-        lex("'\\xA5'" ).yields(Char('\u{A5}')).yields(Eof); // TODO: Is this a byte?
-        lex("'\\x"    ).yields_error();
-        lex("'\\x'"   ).yields_error();
-        lex("'\\x5"   ).yields_error();
-        lex("'\\x5'"  ).yields_error();
-        lex("'\\x5Ax'").yields_error();
+        lex("'\\x5A'" , |it| { it.yields(Char('\u{5A}')).yields(Eof); });
+        lex("'\\xA5'" , |it| { it.yields(Char('\u{A5}')).yields(Eof); }); // TODO: Is this a byte?
+        lex("'\\x"    , |it| { it.yields_error(); });
+        lex("'\\x'"   , |it| { it.yields_error(); });
+        lex("'\\x5"   , |it| { it.yields_error(); });
+        lex("'\\x5'"  , |it| { it.yields_error(); });
+        lex("'\\x5Ax'", |it| { it.yields_error(); });
     }
 
     #[test]
     fn char_escape_uni() {
-        lex("'\\u"       ).yields_error();
-        lex("'\\u'"      ).yields_error();
-        lex("'\\u{"      ).yields_error();
-        lex("'\\u{'"     ).yields_error();
-        lex("'\\u{}'"    ).yields(Char('\u{000}')).yields(Eof);
-        lex("'\\u{1Fe}'" ).yields(Char('\u{1Fe}')).yields(Eof);
-        lex("'\\u{1Fe}x'").yields_error();
+        lex("'\\u"       , |it| { it.yields_error(); });
+        lex("'\\u'"      , |it| { it.yields_error(); });
+        lex("'\\u{"      , |it| { it.yields_error(); });
+        lex("'\\u{'"     , |it| { it.yields_error(); });
+        lex("'\\u{}'"    , |it| { it.yields(Char('\u{000}')).yields(Eof); });
+        lex("'\\u{1Fe}'" , |it| { it.yields(Char('\u{1Fe}')).yields(Eof); });
+        lex("'\\u{1Fe}x'", |it| { it.yields_error(); });
     }
 
     #[test]
     fn keywords() {
-        lex("type").yields(KwType).yields(Eof);
+        lex("type", |it| { it.yields(KwType).yields(Eof); });
     }
 
     #[test]
     fn raw() {
-        lex("`a`") .yields_raw("a");
+        lex("`a`", |it| { it.yields(Raw("a")); });
     }
 
     #[test]
     fn punctuation() {
         lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - << >> & ^ | .~ .! .= .? \
-             <> == != < > <= >= => -> = : ,")
+             <> == != < > <= >= => -> = : ,", |it| { it
             .yields(BraceL)     .yields(BraceR)     .yields(ParenL)    .yields(ParenR)
             .yields(BracketL)   .yields(BracketR)   .yields(Dot)       .yields(At)
             .yields(PlusPlus)   .yields(MinusMinus)
@@ -1309,22 +1307,25 @@ mod tests {
             .yields(EqualArrow) .yields(MinusArrow) .yields(Equal)
             .yields(Colon)      .yields(Comma)
             .yields(Eof);
+        });
     }
 
     // Test Harness
 
-    use std::rc::Rc;
     use std::str::Chars;
-    use ::interner::*;
+    use aex::mem::interner::*;
 
-    struct LexerHarness<'a> (Lexer<Chars<'a>>);
-
-    fn lex(input: &str) -> LexerHarness {
-        let chars   = input.chars();
-        let strings = Rc::new(Interner::new());
-        let lexer   = Lexer::new(strings, chars);
-        LexerHarness(lexer)
+    fn lex<'a, F>(input: &'a str, assert: F)
+                 where F: FnOnce(&mut LexerHarness)
+    {
+        let     strings = StringInterner::new();
+        let     chars   = input.chars();
+        let     lexer   = Lexer::new(&strings, chars);
+        let mut harness = LexerHarness(lexer);
+        assert(&mut harness)
     }
+
+    struct LexerHarness<'a> (Lexer<'a, Chars<'a>>);
 
     impl<'a> LexerHarness<'a> {
         fn yields(&mut self, token: Token) -> &mut Self {
@@ -1332,40 +1333,8 @@ mod tests {
             self
         }
 
-        fn yields_id(&mut self, name: &str) -> &mut Self {
-            let token = self.0.lex().1;
-            match token {
-                Id(n) => assert_eq!(name, *self.0.context.strings.get(n)),
-                _     => panic!("lex() did not yield an identifier.")
-            };
-            self
-        }
-
-        fn yields_str(&mut self, expected: &str) -> &mut Self {
-            let token = self.0.lex().1;
-            match token {
-                Str(n) => assert_eq!(expected, *self.0.context.strings.get(n)),
-                _      => panic!("lex() did not yield a string.")
-            };
-            self
-        }
-
-        fn yields_raw(&mut self, name: &str) -> &mut Self {
-            let token = self.0.lex().1;
-            match token {
-                Raw(n) => assert_eq!(name, *self.0.context.strings.get(n)),
-                _      => panic!("lex() did not yield a raw output block.")
-            };
-            self
-        }
-
         fn yields_error(&mut self) -> &mut Self {
-            let token = self.0.lex().1;
-            match token {
-                Error => {}, // expected
-                _     => panic!("lex() did not yield an error.")
-            };
-            self
+            self.yields(Error)
         }
     }
 }

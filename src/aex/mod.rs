@@ -16,6 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+// Recently visited
+mod lexer;
+//mod parser;
+
+// Not recently visigted
 mod analyze;
 mod ast;
 mod asm;
@@ -29,7 +34,4 @@ mod symbol;
 mod targets;
 mod types;
 mod util;
-
-//mod lexer;
-//mod parser;
 
