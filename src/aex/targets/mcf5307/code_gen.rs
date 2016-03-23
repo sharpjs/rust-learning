@@ -256,14 +256,18 @@ mod tests {
         let mut out = Output::new();
         let mut ctx = Context { scope: Scope::new(), out: &mut out };
 
-        let ta  = analyze_type(U8, &ctx.scope).unwrap();
+        let ta  = analyze_type(U32, &ctx.scope).unwrap();
         let pos = Pos::bof("f");
 
         let n   = 4u8.to_bigint().unwrap();
         let src = Operand::new(Loc::Imm(Expr::Int(n)), ta, pos);
-        let dst = Operand::new(Loc::Data(D3),          ta, pos);
+        let dst = Operand::new(Loc::Addr(A3),          ta, pos);
+        let exp = Operand::new(Loc::Addr(A3),          ta, pos);
 
-        let o = AddFamily.invoke(None, src, dst, pos, &mut ctx);
+        let res = AddFamily.invoke(None, src, dst, pos, &mut ctx);
+
+        println!("{:#?}", ctx.out);
+        assert_eq!(res, Ok(exp));
     }
 }
 
