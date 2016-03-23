@@ -19,6 +19,7 @@
 use aex::asm::Assembly;
 use aex::message::Messages;
 
+#[derive(Clone, Debug)]
 pub struct Output<'str> {
     pub asm: Assembly,
     pub log: Messages<'str>,

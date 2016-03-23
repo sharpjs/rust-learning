@@ -25,7 +25,7 @@ use aex::pos::Pos;
 use self::MessageId::*;
 use self::MessageLevel::*;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Messages<'a> {
     messages:    Vec<Message<'a>>,
     error_count: usize
