@@ -53,7 +53,7 @@ pub enum TypeForm {
 pub fn analyze_type
     <'a>
     (ty:    &'a Type <'a>,
-     scope: &'a Scope<'a>)
+     scope: &   Scope<'a>)
     -> Result<TypeA<'a>, &'a str> {
 
     let res = try!(resolve_type_form(ty, scope));
@@ -63,8 +63,8 @@ pub fn analyze_type
 
 fn resolve_type_form
     <'a>
-    (ty:    &'a Type  <'a>,
-     scope: &'a Scope <'a>)
+    (ty:    &Type <'a>,
+     scope: &Scope<'a>)
     -> Result<TypeForm, &'a str> {
 
     match *ty {

@@ -262,7 +262,7 @@ mod tests {
         let src = Operand::new(Loc::Imm(Expr::Int(n)), ta, pos);
         let dst = Operand::new(Loc::Data(D3),          ta, pos);
 
-        //AddFamily.invoke(None, src, dst, pos, &mut ctx);
+        let o = AddFamily.invoke(None, src, dst, pos, &mut ctx);
     }
 }
 
