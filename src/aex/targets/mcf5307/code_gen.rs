@@ -25,9 +25,9 @@ use aex::codegen::ops;
 
 use super::loc::*;
 
-type AsmOp1         = ops::AsmOp1<Mode>;
-type AsmOp2         = ops::AsmOp2<Mode>;
-type AsmOp3         = ops::AsmOp3<Mode>;
+pub type AsmOp1         = ops::AsmOp1<Mode>;
+pub type AsmOp2         = ops::AsmOp2<Mode>;
+pub type AsmOp3         = ops::AsmOp3<Mode>;
 
 //type BinaryOp       = ops::AsmOp2     <             Mode>;
 //type OpBySelTable   = ops::OpBySelTable <             Mode>;
@@ -246,7 +246,8 @@ mod tests {
     use aex::pos::Pos;
     use aex::scope::Scope;
     use aex::targets::mcf5307::loc::*;
-    use aex::targets::mcf5307::loc::DataReg::*;
+    use aex::targets::mcf5307::loc::AddrReg::*;
+  //use aex::targets::mcf5307::loc::DataReg::*;
     use aex::types::*;
     use super::*;
 
