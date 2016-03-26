@@ -17,15 +17,15 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 // Recently visited
+mod mem;
 mod lexer;
-//mod parser;
+mod util;
 
-// Not recently visigted
+// Not recently visited
 mod analyze;
 mod ast;
 mod asm;
 mod codegen;
-mod mem;
 mod message;
 mod output;
 mod pos;
@@ -33,5 +33,7 @@ mod scope;
 mod symbol;
 mod targets;
 mod types;
-mod util;
+
+// Not implemented
+//mod parser;
 
