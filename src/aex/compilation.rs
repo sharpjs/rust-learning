@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use aex::asm::Assembly;
+use aex::lexer::Lexer;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
 
@@ -35,8 +36,9 @@ impl<'me> Compilation<'me> {
         }
     }
 
-    pub fn compile<I>(&self, input: I, filename: &str)
+    pub fn compile<I>(&mut self, mut input: I, filename: &str)
     where I: Iterator<Item=char> {
+        //let lexer = Lexer::new(self, input);
         println!("Hi");
     }
 }

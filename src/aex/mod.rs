@@ -29,17 +29,17 @@ pub use aex::compilation::*;
 
 // Not recently visited
 
-mod analyze;
-mod ast;
+//mod analyze;
+//mod ast;
 mod asm;
-mod codegen;
+//mod codegen;
 mod message;
-mod output;
+//mod output;
 mod pos;
-mod scope;
-mod symbol;
-mod targets;
-mod types;
+//mod scope;
+//mod symbol;
+//mod targets;
+//mod types;
 
 // Not implemented
 //mod parser;

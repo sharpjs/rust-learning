@@ -19,7 +19,8 @@
 use std::collections::HashMap;
 use std::mem;
 
-use aex::mem::interner::*;
+use aex::Compilation;
+use aex::mem::interner::StringInterner;
 use aex::message::Messages;
 use aex::pos::Pos;
 
@@ -218,14 +219,14 @@ where I: Iterator<Item=char>
 impl<'a, I> Lexer<'a, I>
 where I: Iterator<Item=char>
 {
-    pub fn new(strings: &'a StringInterner<'a>, mut iter: I) -> Self {
+    pub fn new(compilation: &'a mut Compilation<'a>, mut iter: I) -> Self {
         let ch = iter.next();
 
         Lexer {
             iter:    iter,
             ch:      ch,
             state:   match ch { Some(_) => Initial, None => AtEof },
-            context: Context::new(strings)
+            context: Context::new(compilation)
         }
     }
 
@@ -985,11 +986,13 @@ struct Context<'a> {
     buffer:     String,                         // string builder
     strings:    &'a StringInterner<'a>,         // string interner
     keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
-    messages:   Messages<'a>                    // messages collector
+    messages:   &'a mut Messages<'a>            // messages collector
 }
 
 impl<'a> Context<'a> {
-    fn new(strings: &'a StringInterner<'a>) -> Self {
+    fn new(compilation: &'a mut Compilation<'a>) -> Self {
+        let strings = &compilation.strings;
+
         let mut keywords = HashMap::new();
         for &(k, t) in KEYWORDS {
             keywords.insert(strings.intern_ref(k), t);
@@ -1002,7 +1005,7 @@ impl<'a> Context<'a> {
             number:   0,
             strings:  strings,
             keywords: keywords,
-            messages: Messages::new()
+            messages: &mut compilation.log
         }
     }
 
