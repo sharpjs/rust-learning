@@ -17,12 +17,18 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 // Recently visited
-pub mod compilation;
-mod mem;
-mod lexer;
+
+#[macro_use]
 mod util;
 
+mod compilation;
+mod mem;
+mod lexer;
+
+pub use aex::compilation::*;
+
 // Not recently visited
+
 mod analyze;
 mod ast;
 mod asm;

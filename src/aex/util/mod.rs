@@ -16,6 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-
-// Nothing here any more.  Maybe later.
+// Returns true if the value matches any of the given patterns.
+//
+#[macro_export]
+macro_rules! is {
+    { $val:expr => $( $pat:pat ),* } => {
+        match $val {
+            $( $pat => true ),* ,
+            _ => false
+        }
+    };
+    { $val:expr => $( $pat:pat if $cond:expr ),* } => {
+        match $val {
+            $( $pat if $cond => true ),* ,
+            _ => false
+        }
+    };
+}
 

@@ -19,36 +19,19 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-// Returns true if the value matches any of the given patterns.
-//
-macro_rules! is {
-    { $val:expr => $( $pat:pat ),* } => {
-        match $val {
-            $( $pat => true ),* ,
-            _ => false
-        }
-    };
-    { $val:expr => $( $pat:pat if $cond:expr ),* } => {
-        match $val {
-            $( $pat if $cond => true ),* ,
-            _ => false
-        }
-    };
-}
-
 extern crate num;
 
 pub mod aex;
 
 use std::io::{self, Read};
-use aex::compilation::Compilation;
+use aex::Compilation;
 
 fn main() {
     let mut input = String::new();
 
     match io::stdin().read_to_string(&mut input) {
-        Ok(_)  => {},
-        Err(e) => panic!("I/O error: {}", e)
+        Ok(_)  => (),
+        Err(e) => panic!("error reading stdin: {}", e)
     }
 
     Compilation::new().compile(input.chars(), "(stdin)");
