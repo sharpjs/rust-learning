@@ -21,25 +21,26 @@ use aex::lexer::Lexer;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
 
-pub struct Compilation<'me> {
-    pub strings: StringInterner<'me>,
-    pub code:    Assembly,
-    pub log:     Messages<'me>,
+pub fn compile<I>(input: I, filename: &str)
+where I: Iterator<Item=char> {
+    let mut compilation = Compilation::new();
+    let mut lexer       = Lexer::new(&mut compilation, input);
+    lexer.lex();
 }
 
-impl<'me> Compilation<'me> {
-    pub fn new() -> Self {
+pub struct Compilation<'a> {
+    pub strings: StringInterner<'a>,
+    pub code:    Assembly,
+    pub log:     Messages<'a>,
+}
+
+impl<'a> Compilation<'a> {
+    fn new() -> Self {
         Compilation {
             strings: StringInterner::new(),
             code:    Assembly::new(),
             log:     Messages::new(),
         }
-    }
-
-    pub fn compile<I>(&mut self, mut input: I, filename: &str)
-    where I: Iterator<Item=char> {
-        //let lexer = Lexer::new(self, input);
-        println!("Hi");
     }
 }
 

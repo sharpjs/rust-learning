@@ -25,7 +25,7 @@ mod compilation;
 mod mem;
 mod lexer;
 
-pub use aex::compilation::*;
+pub use aex::compilation::compile;
 
 // Not recently visited
 

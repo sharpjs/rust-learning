@@ -19,7 +19,7 @@
 use std::collections::HashMap;
 use std::mem;
 
-use aex::Compilation;
+use aex::compilation::Compilation;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
 use aex::pos::Pos;
