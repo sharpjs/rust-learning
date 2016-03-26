@@ -1,4 +1,4 @@
-// Aex Root Module
+// Compilation State
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,25 +16,28 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// Recently visited
-pub mod compilation;
-mod mem;
-mod lexer;
-mod util;
+use aex::asm::Assembly;
+use aex::mem::interner::StringInterner;
+use aex::message::Messages;
 
-// Not recently visited
-mod analyze;
-mod ast;
-mod asm;
-mod codegen;
-mod message;
-mod output;
-mod pos;
-mod scope;
-mod symbol;
-mod targets;
-mod types;
+pub struct Compilation<'me> {
+    pub strings: StringInterner<'me>,
+    pub code:    Assembly,
+    pub log:     Messages<'me>,
+}
 
-// Not implemented
-//mod parser;
+impl<'me> Compilation<'me> {
+    pub fn new() -> Self {
+        Compilation {
+            strings: StringInterner::new(),
+            code:    Assembly::new(),
+            log:     Messages::new(),
+        }
+    }
+
+    pub fn compile<I>(&self, input: I, filename: &str)
+    where I: Iterator<Item=char> {
+        println!("Hi");
+    }
+}
 

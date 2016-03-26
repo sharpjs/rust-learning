@@ -38,7 +38,19 @@ macro_rules! is {
 
 extern crate num;
 
-mod aex;
+pub mod aex;
 
-fn main() {}
+use std::io::{self, Read};
+use aex::compilation::Compilation;
+
+fn main() {
+    let mut input = String::new();
+
+    match io::stdin().read_to_string(&mut input) {
+        Ok(_)  => {},
+        Err(e) => panic!("I/O error: {}", e)
+    }
+
+    Compilation::new().compile(input.chars(), "(stdin)");
+}
 
