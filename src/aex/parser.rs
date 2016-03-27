@@ -28,10 +28,7 @@
 use aex::ast::{Stmt};
 use aex::lexer::{Lex, Token};
 use aex::pos::Pos;
-
-//type T       = Token;
-//type One <T> = Result<    Box<T>,  ()>;
-//type Many<T> = Result<Vec<Box<T>>, ()>;
+use aex::types::Type;
 
 pub fn parse<'a, L: Lex<'a>>(mut lexer: L) -> Stmt<'a> {
     let mut parser = Parser::new(&mut lexer);
@@ -52,10 +49,19 @@ struct Parser<'p, 'a: 'p, L: 'p + Lex<'a>> {
 // Helpers
 
 macro_rules! peek {
+    ( $parser:ident ) => {
+        $parser.token
+    };
     ( $parser:ident, $( $token:pat )|+ ) => {
         match $parser.token {
             $( $token )|+ => true,
             _             => false
+        }
+    };
+    ( $parser:ident, $( $token:pat )|+ => $e:expr ) => {
+        match $parser.token {
+            $( $token )|+ => $e,
+            _             => return Err(())
         }
     };
 }
@@ -74,12 +80,21 @@ macro_rules! advance {
 
 macro_rules! expect {
     ( $parser:ident, $( $token:pat )|+ ) => {
-        match $parser.token {
-            $( $token )|+ => $parser._advance(),
+        match peek!($parser) {
+            $( $token )|+ => { $parser._advance(); true },
+            _             => return Err(())
+        }
+    };
+    ( $parser:ident, $( $token:pat )|+ => $e:expr ) => {
+        match peek!($parser) {
+            $( $token )|+ => { $parser._advance(); $e },
             _             => return Err(())
         }
     };
 }
+
+type One <T> = Result<    Box<T>,  ()>;
+type Many<T> = Result<Vec<Box<T>>, ()>;
 
 impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     fn new(lexer: &'p mut L) -> Self {
@@ -114,13 +129,33 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 //        }
 //    }
 
-//    // stmt:
-//    //   expr
-//    //
-//    fn parse_stmt(&mut self) -> One<Stmt> {
-//        let e = try!(self.parse_expr());
-//        Ok(Box::new(Eval(e)))
-//    }
+    // stmt:
+    //   typedef
+    //   expr
+    //
+    fn parse_stmt(&mut self) -> One<Stmt> {
+        match peek!(self) {
+            Token::KwType => self.parse_typedef(),
+            _ => return Err(())
+        }
+        //let e = try!(self.parse_expr());
+        //Ok(Box::new(Eval(e)))
+    }
+
+    // typedef:
+    //   'type' id '=' id
+    //
+    fn parse_typedef(&mut self) -> One<Stmt> {
+        let pos  = self.span.0;
+                   expect!(self, Token::KwType    );
+        let name = expect!(self, Token::Id(n) => n);
+                   expect!(self, Token::Equal     );
+        let def  = expect!(self, Token::Id(n) => n); // TODO: type
+
+        peek!(self, Token::Eos => return Ok(Box::new(
+                    Stmt::TypeDef(pos, name, Box::new(Type::Ref(def)))
+        )));
+    }
 
 //    // expr:
 //    //   INT
