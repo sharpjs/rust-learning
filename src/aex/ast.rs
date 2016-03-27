@@ -22,10 +22,12 @@ use num::{BigInt, ToPrimitive};
 use aex::pos::*;
 use aex::types::*;
 
+pub type Ast<'a> = Vec<Box<Stmt<'a>>>;
+
 #[derive(Clone, Hash, Eq, PartialEq, Debug)]
 pub enum Stmt<'a> {
     // Composite
-    Block   (Pos<'a>, Vec<Stmt<'a>>),
+    Block   (Pos<'a>, Vec<Box<Stmt<'a>>>),
 
     // Declaration
     TypeDef (Pos<'a>, &'a str, Box<Type<'a>>),
@@ -48,7 +50,7 @@ pub enum Expr<'a> {
     Ident      (&'a str),
     Str        (&'a str),
     Int        (BigInt),
-    Deref      (Vec<Expr<'a>>),
+    Deref      (Vec<Box<Expr<'a>>>),
 
     // Right Unary
     Member     (Box<Expr<'a>>, &'a str),

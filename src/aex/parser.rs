@@ -25,18 +25,20 @@
 //use interner::Interner;
 //use message::*;
 
-use aex::ast::{Stmt};
+use aex::ast::{Ast, Stmt};
 use aex::lexer::{Lex, Token};
 use aex::pos::Pos;
 use aex::types::Type;
 
-pub fn parse<'a, L: Lex<'a>>(mut lexer: L) -> Stmt<'a> {
+type One <T> = Result<    Box<T>,  ()>;
+type Many<T> = Result<Vec<Box<T>>, ()>;
+
+pub fn parse<'a, L: Lex<'a>> (mut lexer: L) -> Result<Ast<'a>, ()> {
     println!("parse: begin");
-    let mut parser = Parser::new(&mut lexer);
-    parser.parse_stmt();
-    //self.parse_stmts_until(Token::Eof);
+    let stmts = Parser::new(&mut lexer)
+        .parse_stmts_until(Token::Eof, "end of statement or EOF");
     println!("parse: end");
-    Stmt::Block(Pos::bof("f"), vec![])
+    stmts
 }
 
 struct Parser<'p, 'a: 'p, L: 'p + Lex<'a>> {
@@ -53,9 +55,6 @@ macro_rules! expected {
         return Err(())
     }};
 }
-
-type One <T> = Result<    Box<T>,  ()>;
-type Many<T> = Result<Vec<Box<T>>, ()>;
 
 impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     fn new(lexer: &'p mut L) -> Self {
@@ -81,25 +80,45 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
         //self.compilation.log.err_expected(self.span.0, description);
     }
 
-//    // stmts:
-//    //   EOS? ( stmt EOS )* stmt? end
-//    //
-//    fn parse_stmts_until(&mut self, end: Token) -> Many<Stmt> {
-//        let mut stmts = vec![];
-//        advance!(self, Token::Eos);
-//        loop {
-//            if self.token == end { return Ok(stmts); }
-//            stmts.push(try!(self.parse_stmt()));
-//            if self.token == end { return Ok(stmts); }
-//            expect!(self, Token::Eos);
-//        }
-//    }
+    // stmts:
+    //   EOS? ( stmt EOS )* stmt? end
+    //
+    //   Note: Lexer will not return consecutive EOS.
+    //
+    fn parse_stmts_until(&mut self,
+                         end: Token<'a>,
+                         description: &str
+                        ) -> Many<Stmt<'a>> {
+        let pos = self.span.0;
+        let mut stmts = vec![];
+
+        // EOS?
+        if self.token == Token::Eos { self.advance() }
+
+        // ( stmt EOS )* stmt? end
+        loop {
+            // end?
+            if self.token == end { return Ok(stmts); }
+
+            // stmt
+            stmts.push(try!(self.parse_stmt()));
+
+            // end?
+            if self.token == end { return Ok(stmts); }
+
+            // EOS => loop
+            match self.token {
+                Token::Eos => self.advance(),
+                _          => expected!(self, description)
+            }
+        }
+    }
 
     // stmt:
     //   typedef
-    //   expr
+    //   expr     (later)
     //
-    fn parse_stmt(&mut self) -> One<Stmt> {
+    fn parse_stmt(&mut self) -> One<Stmt<'a>> {
         match self.token {
             Token::KwType => self.parse_typedef(),
             _             => expected!(self, "statement")
@@ -109,7 +128,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     // typedef:
     //   'type' id '=' id  // TODO: needs to be type, not id
     //
-    fn parse_typedef(&mut self) -> One<Stmt> {
+    fn parse_typedef(&mut self) -> One<Stmt<'a>> {
         let pos = self.span.0;
 
         match self.token {
