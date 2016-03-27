@@ -21,17 +21,18 @@
 #[macro_use]
 mod util;
 
+mod ast;
 mod compilation;
 mod mem;
 mod lexer;
 mod parser;
+mod types;
 
 pub use aex::compilation::compile;
 
 // Not recently visited
 
 //mod analyze;
-//mod ast;
 mod asm;
 //mod codegen;
 mod message;
@@ -40,7 +41,6 @@ mod pos;
 //mod scope;
 //mod symbol;
 //mod targets;
-//mod types;
 
 // Not implemented
 
