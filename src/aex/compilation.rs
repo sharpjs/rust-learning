@@ -25,8 +25,8 @@ use aex::parser::parse;
 pub fn compile<I>(input: I, filename: &str)
 where I: Iterator<Item=char> {
     let mut compilation = Compilation::new();
-    let mut lexer       = Lexer::new(&mut compilation, input);
-    parse(lexer);
+    let     lexer       = Lexer::new(&mut compilation, input);
+    parse(lexer).unwrap();
 }
 
 pub struct Compilation<'a> {
@@ -36,7 +36,7 @@ pub struct Compilation<'a> {
 }
 
 impl<'a> Compilation<'a> {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Compilation {
             strings: StringInterner::new(),
             code:    Assembly::new(),

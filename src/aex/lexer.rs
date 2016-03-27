@@ -1330,15 +1330,14 @@ mod tests {
     // Test Harness
 
     use std::str::Chars;
-    use aex::mem::interner::*;
+    use aex::compilation::Compilation;
 
     fn lex<'a, F>(input: &'a str, assert: F)
                  where F: FnOnce(&mut LexerHarness)
     {
-        let     strings = StringInterner::new();
-        let     chars   = input.chars();
-        let     lexer   = Lexer::new(&strings, chars);
-        let mut harness = LexerHarness(lexer);
+        let mut compilation = Compilation::new();
+        let     lexer       = Lexer::new(&mut compilation, input.chars());
+        let mut harness     = LexerHarness(lexer);
         assert(&mut harness)
     }
 
