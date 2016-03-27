@@ -229,12 +229,16 @@ where I: Iterator<Item=char>
             context: Context::new(compilation)
         }
     }
+}
 
-    pub fn strings(&self) -> &StringInterner<'a> {
-        &self.context.strings
-    }
+pub trait Lex<'a> {
+    fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>);
+}
 
-    pub fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>) {
+impl<'a, I> Lex<'a> for Lexer<'a, I>
+where I: Iterator<Item=char>
+{
+    fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>) {
         let mut ch    =      self.ch;
         let mut state =      self.state;
         let     iter  = &mut self.iter;

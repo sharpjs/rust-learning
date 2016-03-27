@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use aex::asm::Assembly;
-use aex::lexer::Lexer;
+use aex::lexer::{Lexer, Lex};
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
 

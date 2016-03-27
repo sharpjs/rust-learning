@@ -24,6 +24,7 @@ mod util;
 mod compilation;
 mod mem;
 mod lexer;
+mod parser;
 
 pub use aex::compilation::compile;
 
@@ -42,5 +43,4 @@ mod pos;
 //mod types;
 
 // Not implemented
-//mod parser;
 
