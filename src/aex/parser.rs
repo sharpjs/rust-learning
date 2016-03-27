@@ -31,12 +31,11 @@ use aex::pos::Pos;
 use aex::types::Type;
 
 pub fn parse<'a, L: Lex<'a>>(mut lexer: L) -> Stmt<'a> {
-    let mut parser = Parser::new(&mut lexer);
-
     println!("parse: begin");
+    let mut parser = Parser::new(&mut lexer);
+    parser.parse_stmt();
     //self.parse_stmts_until(Token::Eof);
     println!("parse: end");
-
     Stmt::Block(Pos::bof("f"), vec![])
 }
 
@@ -48,49 +47,11 @@ struct Parser<'p, 'a: 'p, L: 'p + Lex<'a>> {
 
 // Helpers
 
-macro_rules! peek {
-    ( $parser:ident ) => {
-        $parser.token
-    };
-    ( $parser:ident, $( $token:pat )|+ ) => {
-        match $parser.token {
-            $( $token )|+ => true,
-            _             => false
-        }
-    };
-    ( $parser:ident, $( $token:pat )|+ => $e:expr ) => {
-        match $parser.token {
-            $( $token )|+ => $e,
-            _             => return Err(())
-        }
-    };
-}
-
-macro_rules! advance {
-    ( $parser:ident ) => {
-        $parser._advance()
-    };
-    ( $parser:ident, $( $token:pat )|+ ) => {
-        match $parser.token {
-            $( $token )|+ => { $parser._advance(); true },
-            _             => false
-        }
-    };
-}
-
-macro_rules! expect {
-    ( $parser:ident, $( $token:pat )|+ ) => {
-        match peek!($parser) {
-            $( $token )|+ => { $parser._advance(); true },
-            _             => return Err(())
-        }
-    };
-    ( $parser:ident, $( $token:pat )|+ => $e:expr ) => {
-        match peek!($parser) {
-            $( $token )|+ => { $parser._advance(); $e },
-            _             => return Err(())
-        }
-    };
+macro_rules! expected {
+    ( $parser:ident, $e:expr ) => {{
+        // TODO: Add error message here
+        return Err(())
+    }};
 }
 
 type One <T> = Result<    Box<T>,  ()>;
@@ -108,7 +69,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
     // Primitives - used by helpers; don't use directly
 
-    fn _advance(&mut self) {
+    fn advance(&mut self) {
         println!("parser: advancing");
         let (l, tok, r) = self.lexer.lex();
         self.token = tok;
@@ -134,7 +95,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     //   expr
     //
     fn parse_stmt(&mut self) -> One<Stmt> {
-        match peek!(self) {
+        match self.token {
             Token::KwType => self.parse_typedef(),
             _ => return Err(())
         }
@@ -143,18 +104,39 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     }
 
     // typedef:
-    //   'type' id '=' id
+    //   'type' id '=' id  // TODO: needs to be type, not id
     //
     fn parse_typedef(&mut self) -> One<Stmt> {
-        let pos  = self.span.0;
-                   expect!(self, Token::KwType    );
-        let name = expect!(self, Token::Id(n) => n);
-                   expect!(self, Token::Equal     );
-        let def  = expect!(self, Token::Id(n) => n); // TODO: type
+        let pos = self.span.0;
 
-        peek!(self, Token::Eos => return Ok(Box::new(
-                    Stmt::TypeDef(pos, name, Box::new(Type::Ref(def)))
-        )));
+        match self.token {
+            Token::KwType => self.advance(),
+            _             => expected!(self, "'type' keyword")
+        };
+
+        let name = match self.token {
+            Token::Id(n) => { self.advance(); n },
+            _            => expected!(self, "identifier")
+        };
+
+        match self.token {
+            Token::Equal => self.advance(),
+            _            => expected!(self, "'='")
+        };
+
+        let def = match self.token {
+            Token::Id(n) => { self.advance(); n },
+            _            => expected!(self, "type")
+        };
+
+        match self.token {
+            Token::Eos => {},
+            _          => expected!(self, "end of statement")
+        };
+        
+        Ok(Box::new(
+            Stmt::TypeDef(pos, name, Box::new(Type::Ref(def)))
+        ))
     }
 
 //    // expr:
@@ -165,12 +147,12 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 //        match self.token {
 //            // INT
 //            Token::Int(x) => {
-//                self._advance();
+//                self.advance();
 //                Ok(Box::new(int(x)))
 //            },
 //            // '(' expr ')'
 //            Token::ParenL => {
-//                self._advance();
+//                self.advance();
 //                let e = self.parse_expr();
 //                expect!(self, Token::ParenR);
 //                e
