@@ -49,7 +49,7 @@ struct Parser<'p, 'a: 'p, L: 'p + Lex<'a>> {
 
 macro_rules! expected {
     ( $parser:ident, $e:expr ) => {{
-        // TODO: Add error message here
+        $parser.expected($e);
         return Err(())
     }};
 }
@@ -67,13 +67,18 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
         }
     }
 
-    // Primitives - used by helpers; don't use directly
+    // Primitives
 
     fn advance(&mut self) {
         println!("parser: advancing");
         let (l, tok, r) = self.lexer.lex();
         self.token = tok;
         self.span  = (l, r);
+    }
+
+    fn expected(&mut self, description: &str) {
+        println!("parser: ERROR: expected: {}", description);
+        //self.compilation.log.err_expected(self.span.0, description);
     }
 
 //    // stmts:
@@ -97,10 +102,8 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     fn parse_stmt(&mut self) -> One<Stmt> {
         match self.token {
             Token::KwType => self.parse_typedef(),
-            _ => return Err(())
+            _             => expected!(self, "statement")
         }
-        //let e = try!(self.parse_expr());
-        //Ok(Box::new(Eval(e)))
     }
 
     // typedef:

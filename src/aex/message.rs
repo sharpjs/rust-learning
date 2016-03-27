@@ -59,7 +59,7 @@ pub enum MessageId {
     OverflowEsc,
 
     // Parser Messages
-    //   (none yet)
+    Expected,
 
     // Declaration Analysis Messages
     TypeRedefined,
@@ -161,6 +161,12 @@ impl<'a> Messages<'a> {
             "Overflow in Unicode escape sequence. \
              The maximum permitted is \\u{10FFFF}."
         );
+    }
+
+    pub fn err_expected(&mut self, p: Pos<'a>, description: &str) {
+        self.add(p, Error, Expected, format!(
+            "Expected: {}", description
+        ));
     }
 
     pub fn err_type_redefined(&mut self, p: &Pos<'a>, name: &str) {
