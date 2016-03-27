@@ -17,15 +17,16 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use aex::asm::Assembly;
-use aex::lexer::{Lexer, Lex};
+use aex::lexer::Lexer;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
+use aex::parser::parse;
 
 pub fn compile<I>(input: I, filename: &str)
 where I: Iterator<Item=char> {
     let mut compilation = Compilation::new();
     let mut lexer       = Lexer::new(&mut compilation, input);
-    lexer.lex();
+    parse(lexer);
 }
 
 pub struct Compilation<'a> {

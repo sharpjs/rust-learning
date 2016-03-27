@@ -25,6 +25,7 @@
 //use interner::Interner;
 //use message::*;
 
+use aex::ast::{Stmt};
 use aex::lexer::{Lex, Token};
 use aex::pos::Pos;
 
@@ -32,24 +33,20 @@ use aex::pos::Pos;
 //type One <T> = Result<    Box<T>,  ()>;
 //type Many<T> = Result<Vec<Box<T>>, ()>;
 
-//pub struct ParseResult {
-//    pub ast:      Result<Vec<Box<Stmt>>, ()>, // abstract syntax tree, if parse succeeded
-//    pub strings:  Rc<Interner>,               // interned strings
-//    pub messages: Vec<Message>,               // messages (errors, warnings, etc.)
-//}
-//
-//pub fn parse<I: Iterator<Item=char>>(input: I) -> ParseResult {
-//    Parser::new(input).parse().result
-//}
+pub fn parse<'a, L: Lex<'a>>(mut lexer: L) -> Stmt<'a> {
+    let mut parser = Parser::new(&mut lexer);
 
-//pub trait Parse {
-//    fn parse(&self) -> ParseResult;
-//}
+    println!("parse: begin");
+    //self.parse_stmts_until(Token::Eof);
+    println!("parse: end");
 
-struct Parser<'a, L: Lex<'a>> {
+    Stmt::Block(Pos::bof("f"), vec![])
+}
+
+struct Parser<'p, 'a: 'p, L: 'p + Lex<'a>> {
     token:  Token<'a>,
     span:   (Pos<'a>, Pos<'a>),
-    lexer:  L,
+    lexer:  &'p mut L,
 }
 
 // Helpers
@@ -84,8 +81,8 @@ macro_rules! expect {
     };
 }
 
-impl<'a, L: Lex<'a>> Parser<'a, L> {
-    fn new(mut lexer: L) -> Self {
+impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
+    fn new(lexer: &'p mut L) -> Self {
         let (l, token, r) = lexer.lex();
         Parser {
             token:  token,
@@ -100,15 +97,8 @@ impl<'a, L: Lex<'a>> Parser<'a, L> {
         println!("parser: advancing");
         let (l, tok, r) = self.lexer.lex();
         self.token = tok;
-        self.span = (l, r);
+        self.span  = (l, r);
     }
-
-//    fn parse(mut self) -> Self {
-//        println!("parse: begin");
-//        self.result.ast = self.parse_stmts_until(Token::Eof);
-//        println!("parse: end");
-//        self
-//    }
 
 //    // stmts:
 //    //   EOS? ( stmt EOS )* stmt? end
