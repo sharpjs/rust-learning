@@ -49,6 +49,41 @@ struct Parser<'p, 'a: 'p, L: 'p + Lex<'a>> {
 
 // Helpers
 
+macro_rules! expect {
+    ( $parser:ident>, $desc:expr, $( $( $token:pat )|+ ),+ ) => {
+        match $parser.token {
+            $(
+                $( $token )|+ => $parser.advance(),
+            ),+
+            _ => expected!($parser, $desc)
+        }
+    };
+    ( $parser:ident@, $desc:expr, $( $( $token:pat )|+ ),+ ) => {
+        match $parser.token {
+            $(
+                $( $token )|+ => {},
+            ),+
+            _ => expected!($parser, $desc)
+        }
+    };
+    ( $parser:ident>, $desc:expr, $( $( $token:pat )|+ => $e:expr ),+ ) => {
+        match $parser.token {
+            $(
+                $( $token )|+ => { $parser.advance(); $e },
+            ),+
+            _ => expected!($parser, $desc)
+        }
+    };
+    ( $parser:ident@, $desc:expr, $( $( $token:pat )|+ => $e:expr ),+ ) => {
+        match $parser.token {
+            $(
+                $( $token )|+ => $e,
+            ),+
+            _ => expected!($parser, $desc)
+        }
+    };
+}
+
 macro_rules! expected {
     ( $parser:ident, $e:expr ) => {{
         $parser.expected($e);
@@ -131,15 +166,9 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     fn parse_typedef(&mut self) -> One<Stmt<'a>> {
         let pos = self.span.0;
 
-        match self.token {
-            Token::KwType => self.advance(),
-            _             => expected!(self, "'type' keyword")
-        };
-
-        let name = match self.token {
-            Token::Id(n) => { self.advance(); n },
-            _            => expected!(self, "identifier")
-        };
+        expect!(self>, "'type' keyword", Token::KwType);
+        let name =
+        expect!(self>, "identifier", Token::Id(n) => n);
 
         match self.token {
             Token::Equal => self.advance(),
