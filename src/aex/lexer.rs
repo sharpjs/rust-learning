@@ -18,6 +18,7 @@
 
 use std::collections::HashMap;
 use std::mem;
+use num::{self, BigInt, ToPrimitive};
 
 use aex::compilation::Compilation;
 use aex::mem::interner::StringInterner;
@@ -986,7 +987,7 @@ const KEYWORDS: &'static [(&'static str, Token<'static>)] = &[
 struct Context<'a> {
     start:      Pos<'a>,                        // position of token start
     current:    Pos<'a>,                        // position of current character
-    number:     u64,                            // number builder
+    number:     BigInt,                         // number builder
     buffer:     String,                         // string builder
     strings:    &'a StringInterner<'a>,         // string interner
     keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
@@ -1006,7 +1007,7 @@ impl<'a> Context<'a> {
             start:    Pos { file: "", byte: 0, line: 1, column: 1 },
             current:  Pos { file: "", byte: 0, line: 1, column: 1 },
             buffer:   String::with_capacity(128),
-            number:   0,
+            number:   num::zero(),
             strings:  strings,
             keywords: keywords,
             messages: &mut compilation.log
@@ -1058,26 +1059,18 @@ impl<'a> Context<'a> {
 
     #[inline]
     fn num_add(&mut self, base: u8, digit: u8) -> Option<Token<'a>> {
-        let mut n = self.number;
-
-        n = match n.checked_mul(base as u64) {
-            Some(n) => n,
-            None    => return self.err_overflow_num()
-        };
-
-        n = match n.checked_add(digit as u64) {
-            Some(n) => n,
-            None    => return self.err_overflow_num()
-        };
-
-        self.number = n;
+        self.number = self.number.clone()
+            * BigInt::from(base)
+            + BigInt::from(digit);
         None
     }
 
     #[inline]
     fn num_get(&mut self) -> Token<'a> {
-        let n = self.number;
-        self.number = 0;
+        // TODO: Need to convert Int(n) to use BigInt, but this requires us to
+        // remove the Copy trait, which has collateral changes.
+        let n = self.number.to_u64().unwrap();
+        self.number = num::zero();
         Int(n)
     }
 
@@ -1090,8 +1083,10 @@ impl<'a> Context<'a> {
 
     #[inline]
     fn str_add_esc(&mut self) -> Option<Token<'a>> {
-        let n = self.number as u32;
-        if  n > UNICODE_MAX { return self.err_overflow_esc() }
+        let n = match self.number.to_u32() {
+            Some(n) if n <= UNICODE_MAX => n,
+            _                           => return self.err_overflow_esc()
+        };
         let c = unsafe { mem::transmute(n) };
         self.buffer.push(c);
         None
