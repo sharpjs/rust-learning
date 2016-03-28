@@ -17,7 +17,6 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use std::rc::Rc;
-//use num::bigint::ToBigInt;
 
 //use ast::*;
 //use ast::Stmt::*;
@@ -25,7 +24,9 @@
 //use interner::Interner;
 //use message::*;
 
-use aex::ast::{Ast, Stmt};
+use num::BigInt;
+
+use aex::ast::{Ast, Stmt, Expr};
 use aex::lexer::{Lex, Token};
 use aex::pos::Pos;
 use aex::types::Type;
@@ -190,27 +191,30 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
         ))
     }
 
-//    // expr:
-//    //   INT
-//    //   '(' expr ')'
-//    //
-//    pub fn parse_expr(&mut self) -> One<Expr> {
-//        match self.token {
-//            // INT
-//            Token::Int(x) => {
-//                self.advance();
-//                Ok(Box::new(int(x)))
-//            },
-//            // '(' expr ')'
-//            Token::ParenL => {
-//                self.advance();
-//                let e = self.parse_expr();
-//                expect!(self, Token::ParenR);
-//                e
-//            },
-//            _ => Err(())
-//        }
-//    }
+    // expr-atom:
+    //   INT
+    //   '(' expr ')'  (future)
+    //
+    fn parse_expr_atom(&mut self) -> One<Expr<'a>> {
+        match self.token {
+            // INT
+            Token::Int(x) => {
+                self.advance();
+                Ok(Box::new(Expr::Int(BigInt::from(x))))
+            },
+            //// '(' expr ')'
+            //Token::ParenL => {
+            //    self.advance();
+            //    let e = self.parse_expr();
+            //    match self.token {
+            //        Token::ParenR => self.advance(),
+            //        _             => expected!(self, "')'")
+            //    };
+            //    e
+            //},
+            _ => expected!(self, "expression")
+        }
+    }
 }
 
 // Convenience
