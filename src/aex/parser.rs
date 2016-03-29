@@ -284,6 +284,9 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
             //Token::At         => (11, Right, Infix   (Expr::Add)       ),
 
+            Token::PlusPlus     => (10, Left,  Postfix (Expr::Increment) ),
+            Token::MinusMinus   => (10, Left,  Postfix (Expr::Decrement) ),
+
             // (prefix operators)
 
             Token::Star         => ( 8, Left,  Infix   (Expr::Multiply)  ),
