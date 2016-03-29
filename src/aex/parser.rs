@@ -31,6 +31,9 @@ use aex::lexer::{Lex, Token};
 use aex::pos::Pos;
 use aex::types::Type;
 
+use self::Assoc::*;
+use self::Fix::*;
+
 type One <T> = Result<    Box<T>,  ()>;
 type Many<T> = Result<Vec<Box<T>>, ()>;
 
@@ -191,31 +194,148 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
         ))
     }
 
-    // expr-atom:
+    // expr:
+    //   expr INFIX-OP expr
+    //   expr POSTFIX-OP
+    //   primary-expr
+    //
+    // Precedence Climbing Algorithm
+    //   + support for postfix operators
+    //
+    // http://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
+    // http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
+    //
+    fn parse_expr_binary(&mut self, min_prec: u8) -> One<Expr<'a>> {
+
+        let mut expr = try!(self.parse_expr_primary());
+
+        loop {
+            // Is token a binary operator?
+            let (prec, assoc, fix) = match Self::op_info(&self.token) {
+                Some(i) => i,
+                None    => break
+            };
+
+            // Is operator's precedence at least minimum?
+            if prec < min_prec {
+                break
+            }
+
+            // Consume operator
+            self.advance();
+
+            // Construct expression
+            match fix {
+                Infix(ctor) => {
+                    // Parse right operand
+                    let rhs = try!(self.parse_expr_binary(match assoc {
+                        Left  => prec + 1,
+                        Right => prec
+                    }));
+
+                    // Append to expression
+                    expr = Box::new(ctor(expr, rhs, None));
+                },
+                Postfix(ctor) => {
+                    // Append to expression
+                    expr = Box::new(ctor(expr, None))
+                },
+            }
+        }
+
+        Ok(expr)
+    }
+
+    // primary-expr:
+    //   UNARY expr
     //   INT
     //   '(' expr ')'  (future)
     //
-    fn parse_expr_atom(&mut self) -> One<Expr<'a>> {
+    fn parse_expr_primary(&mut self) -> One<Expr<'a>> {
+
+        // Unary operator
+        if let Some(prec) = Self::prefix_op_info(&self.token) {
+            self.advance();
+            let expr = try!(self.parse_expr_binary(prec));
+            return Ok(Box::new(Expr::Clear(expr, None)));
+        }
+
+        // Atom
         match self.token {
             // INT
             Token::Int(x) => {
                 self.advance();
                 Ok(Box::new(Expr::Int(BigInt::from(x))))
             },
-            //// '(' expr ')'
-            //Token::ParenL => {
-            //    self.advance();
-            //    let e = self.parse_expr();
-            //    match self.token {
-            //        Token::ParenR => self.advance(),
-            //        _             => expected!(self, "')'")
-            //    };
-            //    e
-            //},
+            // '(' expr ')'
+            Token::ParenL => {
+                self.advance();
+                let expr = try!(self.parse_expr_binary(0));
+                expect!(self>, "')'", Token::ParenR);
+                Ok(expr)
+            },
             _ => expected!(self, "expression")
         }
     }
+
+    fn op_info(token: &Token<'a>) -> Option<(u8, Assoc, Fix<'a>)> {
+        Some(match *token {             //ARITY PREC ASSOC
+            Token::Dot          => (11, Left,  Infix   (Expr::Add)       ),
+
+            Token::At           => (10, Right, Infix   (Expr::Add)       ),
+
+            // (prefix operators)
+
+            Token::Star         => ( 8, Left,  Infix   (Expr::Multiply)  ),
+            Token::Slash        => ( 8, Left,  Infix   (Expr::Divide)    ),
+            Token::Percent      => ( 8, Left,  Infix   (Expr::Modulo)    ),
+
+            Token::Plus         => ( 7, Left,  Infix   (Expr::Add)       ),
+            Token::Minus        => ( 7, Left,  Infix   (Expr::Subtract)  ),
+
+            Token::LessLess     => ( 6, Left,  Infix   (Expr::ShiftL)    ),
+            Token::MoreMore     => ( 6, Left,  Infix   (Expr::ShiftR)    ),
+
+            Token::Ampersand    => ( 5, Left,  Infix   (Expr::BitAnd)    ),
+
+            Token::Caret        => ( 4, Left,  Infix   (Expr::BitXor)    ),
+
+            Token::Pipe         => ( 3, Left,  Infix   (Expr::BitOr)     ),
+
+            Token::DotTilde     => ( 2, Left,  Infix   (Expr::BitChange) ),
+            Token::DotBang      => ( 2, Left,  Infix   (Expr::BitClear)  ),
+            Token::DotEqual     => ( 2, Left,  Infix   (Expr::BitSet)    ),
+            Token::DotQuestion  => ( 2, Left,  Infix   (Expr::BitTest)   ),
+
+            Token::Question     => ( 1, Left,  Postfix (Expr::Test)      ),
+            Token::LessMore     => ( 1, Left,  Infix   (Expr::Compare)   ),
+
+            Token::Equal        => ( 0, Right, Infix   (Expr::Move)      ),
+            _                   => return None
+        })
+    }
+
+    fn prefix_op_info(token: &Token<'a>) -> Option<u8> {
+        match *token {
+            Token::Bang         => Some(9), // ! clear
+            Token::Tilde        => Some(9), // ~ not (1's complement)
+            Token::Plus         => Some(9), // + ignored
+            Token::Minus        => Some(9), // - negate (2's complement)
+            Token::Ampersand    => Some(9), // & address-of
+            _                   => None
+        }
+    }
 }
+
+#[derive(Clone, Copy, Debug)]
+enum Assoc { Left, Right }
+
+#[derive(Clone, Copy, Debug)]
+enum Fix<'a> {
+    Infix   (fn(Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>) -> Expr<'a>),
+    Postfix (fn(Box<Expr<'a>>,                Option<&'a str>) -> Expr<'a>),
+}
+
 
 // Convenience
 

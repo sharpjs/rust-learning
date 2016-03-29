@@ -92,7 +92,7 @@ pub enum Expr<'a> {
 
     // Assignment
     Move       (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    MoveCond   (Box<Expr<'a>>, Box<Cond<'a>>, Option<&'a str>),
+    MoveCond   (Box<Expr<'a>>, Box<Cond<'a>>, Option<&'a str>), // TODO: Make Cond an atom
 }
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
