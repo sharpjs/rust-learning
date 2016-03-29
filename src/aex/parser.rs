@@ -254,10 +254,10 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     fn parse_expr_primary(&mut self) -> One<Expr<'a>> {
 
         // Unary operator
-        if let Some(prec) = Self::prefix_op_info(&self.token) {
+        if let Some((prec, ctor)) = Self::prefix_op_info(&self.token) {
             self.advance();
             let expr = try!(self.parse_expr_binary(prec));
-            return Ok(Box::new(Expr::Clear(expr, None)));
+            return Ok(Box::new(ctor(expr, None)));
         }
 
         // Atom
@@ -315,15 +315,15 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
         })
     }
 
-    fn prefix_op_info(token: &Token<'a>) -> Option<u8> {
-        match *token {
-            Token::Bang         => Some(9), // ! clear
-            Token::Tilde        => Some(9), // ~ not (1's complement)
-            Token::Plus         => Some(9), // + ignored
-            Token::Minus        => Some(9), // - negate (2's complement)
-            Token::Ampersand    => Some(9), // & address-of
-            _                   => None
-        }
+    fn prefix_op_info(token: &Token<'a>) -> Option<(u8, Unary<'a>)> {
+        Some(match *token {
+            Token::Bang         => (9, Expr::Clear     ),
+            Token::Tilde        => (9, Expr::Complement),
+            Token::Plus         => (9, pass_through    ),
+            Token::Minus        => (9, Expr::Negate    ),
+            //Token::Ampersand  => (9, Expr::???       ),
+            _                   => return None
+        })
     }
 }
 
@@ -332,10 +332,16 @@ enum Assoc { Left, Right }
 
 #[derive(Clone, Copy, Debug)]
 enum Fix<'a> {
-    Infix   (fn(Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>) -> Expr<'a>),
-    Postfix (fn(Box<Expr<'a>>,                Option<&'a str>) -> Expr<'a>),
+      Infix (Binary<'a>),
+    Postfix ( Unary<'a>),
 }
 
+type Binary<'a> = fn(Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>) -> Expr<'a>;
+type  Unary<'a> = fn(Box<Expr<'a>>,                Option<&'a str>) -> Expr<'a>;
+
+fn pass_through<'a>(expr: Box<Expr<'a>>, _: Option<&'a str>) -> Expr<'a> {
+    *expr
+}
 
 // Convenience
 
