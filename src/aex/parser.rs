@@ -158,9 +158,15 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     //   expr     (later)
     //
     fn parse_stmt(&mut self) -> One<Stmt<'a>> {
+        let pos = self.span.0;
         match self.token {
             Token::KwType => self.parse_typedef(),
-            _             => expected!(self, "statement")
+            _ => {
+                match self.parse_expr() {
+                    Ok(expr) => Ok(Box::new(Stmt::Eval(pos, expr))),
+                    _        => expected!(self, "statement or expression")
+                }
+            }
         }
     }
 
@@ -195,20 +201,27 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     }
 
     // expr:
-    //   expr INFIX-OP expr
-    //   expr POSTFIX-OP
+    //   expr INFIX expr
+    //   expr POSTFIX
     //   primary-expr
     //
+    #[inline(always)]
+    fn parse_expr(&mut self) -> One<Expr<'a>> {
+        self.parse_expr_prec(0)
+    }
+
     // Precedence Climbing Algorithm
     //   + support for postfix operators
     //
     // http://www.engr.mun.ca/~theo/Misc/exp_parsing.htm
     // http://eli.thegreenplace.net/2012/08/02/parsing-expressions-by-precedence-climbing
     //
-    fn parse_expr_binary(&mut self, min_prec: u8) -> One<Expr<'a>> {
+    fn parse_expr_prec(&mut self, min_prec: u8) -> One<Expr<'a>> {
 
+        // Parse initial left operand
         let mut expr = try!(self.parse_expr_primary());
 
+        // Parse operators and right operands
         loop {
             // Is token a binary operator?
             let (prec, assoc, fix) = match Self::op_info(&self.token) {
@@ -228,7 +241,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             match fix {
                 Infix(ctor) => {
                     // Parse right operand
-                    let rhs = try!(self.parse_expr_binary(match assoc {
+                    let rhs = try!(self.parse_expr_prec(match assoc {
                         Left  => prec + 1,
                         Right => prec
                     }));
@@ -247,7 +260,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     }
 
     // primary-expr:
-    //   UNARY expr
+    //   PREFIX expr
     //   INT
     //   '(' expr ')'  (future)
     //
@@ -256,7 +269,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
         // Unary operator
         if let Some((prec, ctor)) = Self::prefix_op_info(&self.token) {
             self.advance();
-            let expr = try!(self.parse_expr_binary(prec));
+            let expr = try!(self.parse_expr_prec(prec));
             return Ok(Box::new(ctor(expr, None)));
         }
 
@@ -270,7 +283,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             // '(' expr ')'
             Token::ParenL => {
                 self.advance();
-                let expr = try!(self.parse_expr_binary(0));
+                let expr = try!(self.parse_expr());
                 expect!(self>, "')'", Token::ParenR);
                 Ok(expr)
             },
@@ -287,7 +300,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             Token::PlusPlus     => (10, Left,  Postfix (Expr::Increment) ),
             Token::MinusMinus   => (10, Left,  Postfix (Expr::Decrement) ),
 
-            // (prefix operators)
+            // (prefix operators not shown)
 
             Token::Star         => ( 8, Left,  Infix   (Expr::Multiply)  ),
             Token::Slash        => ( 8, Left,  Infix   (Expr::Divide)    ),
