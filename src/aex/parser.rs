@@ -280,9 +280,9 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
     fn op_info(token: &Token<'a>) -> Option<(u8, Assoc, Fix<'a>)> {
         Some(match *token {             //ARITY PREC ASSOC
-            Token::Dot          => (11, Left,  Infix   (Expr::Add)       ),
+            //Token::Dot        => (12, Left,  Infix   (Expr::Add)       ),
 
-            Token::At           => (10, Right, Infix   (Expr::Add)       ),
+            //Token::At         => (11, Right, Infix   (Expr::Add)       ),
 
             // (prefix operators)
 
