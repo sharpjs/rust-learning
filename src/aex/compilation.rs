@@ -26,7 +26,9 @@ pub fn compile<I>(input: I, filename: &str)
 where I: Iterator<Item=char> {
     let mut compilation = Compilation::new();
     let     lexer       = Lexer::new(&mut compilation, input);
-    parse(lexer).unwrap();
+    let ast = parse(lexer);
+
+    println!("{:#?}", ast);
 }
 
 pub struct Compilation<'a> {

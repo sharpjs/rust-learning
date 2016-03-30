@@ -275,6 +275,11 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
         // Atom
         match self.token {
+            // ID
+            Token::Id(x) => {
+                self.advance();
+                Ok(Box::new(Expr::Ident(x)))
+            },
             // INT
             Token::Int(x) => {
                 self.advance();
