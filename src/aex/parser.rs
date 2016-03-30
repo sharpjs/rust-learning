@@ -16,14 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::rc::Rc;
-
-//use ast::*;
-//use ast::Stmt::*;
-//use ast::Expr::*;
-//use interner::Interner;
-//use message::*;
-
 use num::BigInt;
 
 use aex::ast::{Ast, Stmt, Expr};
@@ -370,23 +362,11 @@ fn pass_through<'a>(expr: Box<Expr<'a>>, _: Option<&'a str>) -> Expr<'a> {
     *expr
 }
 
-// Convenience
+// -----------------------------------------------------------------------------
+// Tests
 
-//#[inline]
-//fn eval(e: Expr) -> Box<Stmt> {
-//    Box::new(Eval(Box::new(e)))
-//}
-
-//#[inline]
-//fn int(n: u64) -> Expr {
-//    Int(n.to_bigint().unwrap())
-//}
-
-//// -----------------------------------------------------------------------------
-//// Tests
-//
-//#[cfg(test)]
-//mod tests {
+#[cfg(test)]
+mod tests {
 //    use super::*;
 //    use super::eval;
 //    use super::int;
@@ -416,5 +396,5 @@ fn pass_through<'a>(expr: Box<Expr<'a>>, _: Option<&'a str>) -> Expr<'a> {
 //
 //    // Atomic Expressions
 //    #[test] fn parens() { assert_parse!( "(4)", eval(int(4)) ); }
-//}
-//
+}
+
