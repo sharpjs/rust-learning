@@ -25,6 +25,7 @@ mod ast;
 mod compilation;
 mod mem;
 mod lexer;
+mod operator;
 mod parser;
 mod types;
 
