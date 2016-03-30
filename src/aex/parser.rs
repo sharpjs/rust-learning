@@ -330,6 +330,12 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
             Token::Question     => ( 1, Left,  Postfix (Expr::Test)      ),
             Token::LessMore     => ( 1, Left,  Infix   (Expr::Compare)   ),
+            Token::EqualEqual   => ( 1, Left,  Infix   (Expr::CompareEq) ),
+            Token::BangEqual    => ( 1, Left,  Infix   (Expr::CompareNe) ),
+            Token::Less         => ( 1, Left,  Infix   (Expr::CompareLt) ),
+            Token::LessEqual    => ( 1, Left,  Infix   (Expr::CompareLe) ),
+            Token::More         => ( 1, Left,  Infix   (Expr::CompareGt) ),
+            Token::MoreEqual    => ( 1, Left,  Infix   (Expr::CompareGe) ),
 
             Token::Equal        => ( 0, Right, Infix   (Expr::Move)      ),
             _                   => return None

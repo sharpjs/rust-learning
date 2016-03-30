@@ -88,6 +88,12 @@ pub enum Expr<'a> {
 
     // Comparison
     Compare    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    CompareEq  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    CompareNe  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    CompareLt  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    CompareLe  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    CompareGt  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
+    CompareGe  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
     Test       (Box<Expr<'a>>,                Option<&'a str>),
 
     // Assignment
