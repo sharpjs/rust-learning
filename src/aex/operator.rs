@@ -86,29 +86,29 @@ static OPS: &'static [Op] = &[
     Op { chars: "--", prec: 10, assoc: Left,  fix: Postfix },
 
     // Prefix Unary
-    Op { chars: "!" , prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "~" , prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "-" , prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "+" , prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "&" , prec:  9, assoc: Right, fix: Prefix  },
+    Op { chars: "!",  prec:  9, assoc: Right, fix: Prefix  },
+    Op { chars: "~",  prec:  9, assoc: Right, fix: Prefix  },
+    Op { chars: "-",  prec:  9, assoc: Right, fix: Prefix  },
+    Op { chars: "+",  prec:  9, assoc: Right, fix: Prefix  },
+    Op { chars: "&",  prec:  9, assoc: Right, fix: Prefix  },
 
     // Multiplicative
-    Op { chars: "*" , prec:  8, assoc: Left,  fix: Infix   },
-    Op { chars: "/" , prec:  8, assoc: Left,  fix: Infix   },
-    Op { chars: "%" , prec:  8, assoc: Left,  fix: Infix   },
+    Op { chars: "*",  prec:  8, assoc: Left,  fix: Infix   },
+    Op { chars: "/",  prec:  8, assoc: Left,  fix: Infix   },
+    Op { chars: "%",  prec:  8, assoc: Left,  fix: Infix   },
 
     // Additive
-    Op { chars: "+" , prec:  7, assoc: Left,  fix: Infix   },
-    Op { chars: "-" , prec:  7, assoc: Left,  fix: Infix   },
+    Op { chars: "+",  prec:  7, assoc: Left,  fix: Infix   },
+    Op { chars: "-",  prec:  7, assoc: Left,  fix: Infix   },
 
     // Bitwise Shift
     Op { chars: "<<", prec:  6, assoc: Left,  fix: Infix   },
     Op { chars: ">>", prec:  6, assoc: Left,  fix: Infix   },
 
     // Bitwise Boolean
-    Op { chars: "&" , prec:  5, assoc: Left,  fix: Infix   },
-    Op { chars: "^" , prec:  4, assoc: Left,  fix: Infix   },
-    Op { chars: "|" , prec:  3, assoc: Left,  fix: Infix   },
+    Op { chars: "&",  prec:  5, assoc: Left,  fix: Infix   },
+    Op { chars: "^",  prec:  4, assoc: Left,  fix: Infix   },
+    Op { chars: "|",  prec:  3, assoc: Left,  fix: Infix   },
 
     // Bitwise Manipulation
     Op { chars: ".~", prec:  2, assoc: Left,  fix: Infix   },
@@ -117,7 +117,7 @@ static OPS: &'static [Op] = &[
     Op { chars: ".?", prec:  2, assoc: Left,  fix: Infix   },
 
     // Comparison
-    Op { chars: "?" , prec:  1, assoc: Left,  fix: Postfix },
+    Op { chars: "?",  prec:  1, assoc: Left,  fix: Postfix },
     Op { chars: "<>", prec:  1, assoc: Left,  fix: Infix   },
     Op { chars: "==", prec:  1, assoc: Left,  fix: Infix   },
     Op { chars: "!=", prec:  1, assoc: Left,  fix: Infix   },
