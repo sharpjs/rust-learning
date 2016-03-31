@@ -23,6 +23,7 @@ use num::{self, BigInt, ToPrimitive};
 use aex::compilation::Compilation;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
+use aex::operator;
 use aex::pos::Pos;
 
 // -----------------------------------------------------------------------------
@@ -56,6 +57,9 @@ pub enum Token<'a> {
     ParenR,             // )
     BracketL,           // [
     BracketR,           // ]
+
+    Op(&'a operator::Op), // any of: .@!~*/%+-&^|<=>? (how about #$ ?)
+
     Dot,                // .
     At,                 // @
     PlusPlus,           // ++
@@ -87,6 +91,7 @@ pub enum Token<'a> {
     EqualArrow,         // =>
     MinusArrow,         // ->
     Equal,              // =
+
     Colon,              // :
     Comma,              // ,
 

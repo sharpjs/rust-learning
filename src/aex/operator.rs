@@ -34,7 +34,7 @@ pub struct OpTable {
     prefix:    HashMap<&'static str, Op>, // prefix ops
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Op {
     pub chars: &'static str,
     pub prec:  u8,
@@ -43,10 +43,10 @@ pub struct Op {
   //pub eval:  &'static Any,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Assoc { Left, Right }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Fix { Prefix, Infix, Postfix }
 
 impl OpTable {

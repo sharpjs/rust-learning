@@ -19,12 +19,13 @@
 use std::fmt::{self, Display, Formatter, Write};
 use num::{BigInt, ToPrimitive};
 
+use aex::operator::Op;
 use aex::pos::*;
 use aex::types::*;
 
 pub type Ast<'a> = Vec<Box<Stmt<'a>>>;
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt<'a> {
     // Composite
     Block   (Pos<'a>, Vec<Box<Stmt<'a>>>),
@@ -44,13 +45,17 @@ pub enum Stmt<'a> {
     While   (Pos<'a>, Cond<'a>, Box<Stmt<'a>>),
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Expr<'a> {
     // Atoms
     Ident      (&'a str),
     Str        (&'a str),
     Int        (BigInt),
     Deref      (Vec<Box<Expr<'a>>>),
+
+    // Composites
+    UnaryOp    (&'a Op, Option<&'a str>, Box<Expr<'a>>),
+    BinaryOp   (&'a Op, Option<&'a str>, Box<Expr<'a>>, Box<Expr<'a>>),
 
     // Right Unary
     Member     (Box<Expr<'a>>, &'a str),
@@ -101,7 +106,7 @@ pub enum Expr<'a> {
     MoveCond   (Box<Expr<'a>>, Box<Cond<'a>>, Option<&'a str>), // TODO: Make Cond an atom
 }
 
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Cond<'a> (pub &'a str, pub Option<Box<Expr<'a>>>);
 
 impl<'a> Expr<'a> {
