@@ -237,6 +237,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
     // primary-expr:
     //   PREFIX expr
+    //   ID
     //   INT
     //   '(' expr ')'  (future)
     //
