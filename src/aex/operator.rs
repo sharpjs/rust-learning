@@ -74,7 +74,8 @@ impl OpTable {
     }
 }
 
-fn create_op_table() -> OpTable {
+// For now.  Eventually, targets should provide their available operators.
+pub fn create_op_table() -> OpTable {
     let mut table = OpTable::new();
     for &op in OPS { table.add(op) }
     table

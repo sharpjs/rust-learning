@@ -20,6 +20,7 @@ use aex::asm::Assembly;
 use aex::lexer::Lexer;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
+use aex::operator::{self, OpTable};
 use aex::parser::parse;
 
 pub fn compile<I>(input: I, filename: &str)
@@ -35,6 +36,10 @@ pub struct Compilation<'a> {
     pub strings: StringInterner<'a>,
     pub code:    Assembly,
     pub log:     Messages<'a>,
+    pub ops:     OpTable,
+    // target
+    //  > builtin scope
+    //  > operators
 }
 
 impl<'a> Compilation<'a> {
@@ -43,6 +48,7 @@ impl<'a> Compilation<'a> {
             strings: StringInterner::new(),
             code:    Assembly::new(),
             log:     Messages::new(),
+            ops:     operator::create_op_table()
         }
     }
 }
