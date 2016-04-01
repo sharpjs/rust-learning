@@ -138,10 +138,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             if self.token == end { return Ok(stmts); }
 
             // EOS => loop
-            match self.token {
-                Token::Eos => self.advance(),
-                _          => expected!(self, description)
-            }
+            expect!(self>, description, Token::Eos);
         }
     }
 
@@ -168,27 +165,14 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     fn parse_typedef(&mut self) -> One<Stmt<'a>> {
         let pos = self.span.0;
 
-        expect!(self>, "'type' keyword", Token::KwType);
-        let name =
-        expect!(self>, "identifier", Token::Id(n) => n);
-
-        match self.token {
-            Token::Equal => self.advance(),
-            _            => expected!(self, "'='")
-        };
-
-        let def = match self.token {
-            Token::Id(n) => { self.advance(); n },
-            _            => expected!(self, "type")
-        };
-
-        match self.token {
-            Token::Eos => {},
-            _          => expected!(self, "end of statement")
-        };
+                    expect!(self>, "'type' keyword",   Token::KwType);
+        let name =  expect!(self>, "identifier",       Token::Id(n) => n);
+                    expect!(self>, "'=' operator",     Token::Equal);
+        let ty =    expect!(self>, "type",             Token::Id(n) => n);
+                    expect!(self@, "end of statement", Token::Eos);
         
         Ok(Box::new(
-            Stmt::TypeDef(pos, name, Box::new(Type::Ref(def)))
+            Stmt::TypeDef(pos, name, Box::new(Type::Ref(ty)))
         ))
     }
 
