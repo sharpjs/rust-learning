@@ -23,7 +23,7 @@ use num::{self, BigInt, ToPrimitive};
 use aex::compilation::Compilation;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
-use aex::operator;
+use aex::operator::{self, OpTable};
 use aex::pos::Pos;
 
 // -----------------------------------------------------------------------------
@@ -996,6 +996,7 @@ struct Context<'a> {
     buffer:     String,                         // string builder
     strings:    &'a StringInterner<'a>,         // string interner
     keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
+    operators:  &'a OpTable,                    // operator table
     messages:   &'a mut Messages<'a>            // messages collector
 }
 
@@ -1009,13 +1010,14 @@ impl<'a> Context<'a> {
         }
 
         Context {
-            start:    Pos { file: "", byte: 0, line: 1, column: 1 },
-            current:  Pos { file: "", byte: 0, line: 1, column: 1 },
-            buffer:   String::with_capacity(128),
-            number:   num::zero(),
-            strings:  strings,
-            keywords: keywords,
-            messages: &mut compilation.log
+            start:     Pos { file: "", byte: 0, line: 1, column: 1 },
+            current:   Pos { file: "", byte: 0, line: 1, column: 1 },
+            buffer:    String::with_capacity(128),
+            number:    num::zero(),
+            strings:   strings,
+            keywords:  keywords,
+            operators: &    compilation.ops,
+            messages:  &mut compilation.log
         }
     }
 
