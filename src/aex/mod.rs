@@ -23,6 +23,7 @@ mod util;
 
 mod ast;
 mod compilation;
+mod codegen;
 mod mem;
 mod lexer;
 mod operator;
@@ -35,13 +36,11 @@ pub use aex::compilation::compile;
 
 // Not recently visited
 
-//mod analyze;
 mod asm;
-//mod codegen;
 mod message;
-//mod output;
 mod pos;
-//mod targets;
 
-// Not implemented
+//mod analyze;
+//mod output;
+//mod targets;
 
