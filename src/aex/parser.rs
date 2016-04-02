@@ -159,6 +159,9 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
         }
     }
 
+    // stmt:
+    //   '{' stmts '}'
+    //
     fn parse_block(&mut self) -> One<Stmt<'a>> {
         let pos = self.span.0;
 
