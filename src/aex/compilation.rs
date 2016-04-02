@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use aex::asm::Assembly;
+use aex::codegen::CodeGenerator;
 use aex::lexer::Lexer;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
@@ -33,6 +34,8 @@ where I: Iterator<Item=char> {
         let mut lexer = Lexer::new(&mut compilation, input);
         parse(&mut lexer)
     };
+
+    let generator = CodeGenerator::new(&mut compilation);
 
     println!("{:#?}", ast);
 }

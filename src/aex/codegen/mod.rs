@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use aex::compilation::Compilation;
+use aex::scope::Scope;
+
 //use aex::analyze::*;
 //use aex::ast::*;
 //use aex::output::*;
@@ -25,10 +28,24 @@
 //
 //pub mod eval;
 //pub mod ops;
-//
-//// -----------------------------------------------------------------------------
-//// Code Generator
-//
+
+// -----------------------------------------------------------------------------
+// Code Generator
+
+pub struct CodeGenerator<'g, 'c: 'g> {
+    compile: &'g mut Compilation<'c>,
+    scope:   Scope<'c>,
+}
+
+impl<'g, 'c: 'g> CodeGenerator<'g, 'c> {
+    pub fn new(compile: &'g mut Compilation<'c>) -> Self {
+        CodeGenerator {
+            compile: compile,
+            scope:   Scope::new(),
+        }
+    }
+}
+
 //pub struct CodeGenerator<'me, 'str: 'me> {
 //    context:   Context<'me, 'str>,
 //    evaluator: &'me Eval,
