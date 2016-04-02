@@ -18,9 +18,9 @@
 
 use std::collections::HashMap;
 
-use aex::mem::arena::*;
-use aex::symbol::*;
-use aex::types::*;
+use aex::mem::arena::Arena;
+use aex::symbol::Symbol;
+use aex::types::Type;
 
 // -----------------------------------------------------------------------------
 

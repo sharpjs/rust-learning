@@ -27,6 +27,8 @@ mod mem;
 mod lexer;
 mod operator;
 mod parser;
+mod scope;
+mod symbol;
 mod types;
 
 pub use aex::compilation::compile;
@@ -39,8 +41,6 @@ mod asm;
 mod message;
 //mod output;
 mod pos;
-//mod scope;
-//mod symbol;
 //mod targets;
 
 // Not implemented

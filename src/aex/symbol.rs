@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use aex::types::*;
+use aex::types::Type;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Symbol<'a> {
