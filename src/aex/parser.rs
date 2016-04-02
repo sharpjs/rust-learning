@@ -29,9 +29,9 @@ use self::Fix::*;
 type One <T> = Result<    Box<T>,  ()>;
 type Many<T> = Result<Vec<Box<T>>, ()>;
 
-pub fn parse<'a, L: Lex<'a>> (mut lexer: L) -> Result<Ast<'a>, ()> {
+pub fn parse<'a, L: Lex<'a>> (lexer: &mut L) -> Result<Ast<'a>, ()> {
     println!("parse: begin");
-    let stmts = Parser::new(&mut lexer)
+    let stmts = Parser::new(lexer)
         .parse_stmts_until(Token::Eof, "end of statement or EOF");
     println!("parse: end");
     stmts

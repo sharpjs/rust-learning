@@ -213,19 +213,19 @@ use self::Action::*;
 // -----------------------------------------------------------------------------
 // Lexer
 
-pub struct Lexer<'a, I>
+pub struct Lexer<'l, 'a: 'l, I>
 where I: Iterator<Item=char>
 {
     iter:       I,                      // remaining chars
     ch:         Option<char>,           // char  after previous token
     state:      State,                  // state after previous token
-    context:    Context<'a>             // context object give to actions
+    context:    Context<'l, 'a>         // context object give to actions
 }
 
-impl<'a, I> Lexer<'a, I>
+impl<'l, 'a: 'l, I> Lexer<'l, 'a, I>
 where I: Iterator<Item=char>
 {
-    pub fn new(compilation: &'a mut Compilation<'a>, mut iter: I) -> Self {
+    pub fn new(compilation: &'l mut Compilation<'a>, mut iter: I) -> Self {
         let ch = iter.next();
 
         Lexer {
@@ -241,7 +241,7 @@ pub trait Lex<'a> {
     fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>);
 }
 
-impl<'a, I> Lex<'a> for Lexer<'a, I>
+impl<'l, 'a: 'l, I> Lex<'a> for Lexer<'l, 'a, I>
 where I: Iterator<Item=char>
 {
     fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>) {
@@ -989,20 +989,20 @@ const KEYWORDS: &'static [(&'static str, Token<'static>)] = &[
 // -----------------------------------------------------------------------------
 // Context
 
-struct Context<'a> {
+struct Context<'l, 'a: 'l> {
     start:      Pos<'a>,                        // position of token start
     current:    Pos<'a>,                        // position of current character
     number:     BigInt,                         // number builder
     buffer:     String,                         // string builder
     strings:    &'a StringInterner<'a>,         // string interner
     keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
-    operators:  &'a OpTable,                    // operator table
-    messages:   &'a mut Messages<'a>            // messages collector
+    operators:  &'l OpTable,                    // operator table
+    messages:   &'l mut Messages<'a>            // messages collector
 }
 
-impl<'a> Context<'a> {
-    fn new(compilation: &'a mut Compilation<'a>) -> Self {
-        let strings = &compilation.strings;
+impl<'l, 'a: 'l> Context<'l, 'a> {
+    fn new(compilation: &'l mut Compilation<'a>) -> Self {
+        let strings = compilation.strings;
 
         let mut keywords = HashMap::new();
         for &(k, t) in KEYWORDS {
@@ -1333,19 +1333,22 @@ mod tests {
 
     use std::str::Chars;
     use aex::compilation::Compilation;
+    use aex::mem::interner::StringInterner;
 
     fn lex<'a, F>(input: &'a str, assert: F)
-                 where F: FnOnce(&mut LexerHarness)
-    {
-        let mut compilation = Compilation::new();
+                 where F: FnOnce(&mut LexerHarness) {
+
+        let     strings     = StringInterner::new();
+        let mut compilation = Compilation::new(&strings);
         let     lexer       = Lexer::new(&mut compilation, input.chars());
         let mut harness     = LexerHarness(lexer);
+
         assert(&mut harness)
     }
 
-    struct LexerHarness<'a> (Lexer<'a, Chars<'a>>);
+    struct LexerHarness<'l, 'a: 'l> (Lexer<'l, 'a, Chars<'a>>);
 
-    impl<'a> LexerHarness<'a> {
+    impl<'l, 'a: 'l> LexerHarness<'l, 'a> {
         fn yields(&mut self, token: Token) -> &mut Self {
             assert_eq!(token, self.0.lex().1);
             self

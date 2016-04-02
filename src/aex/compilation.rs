@@ -25,15 +25,20 @@ use aex::parser::parse;
 
 pub fn compile<I>(input: I, filename: &str)
 where I: Iterator<Item=char> {
-    let mut compilation = Compilation::new();
-    let     lexer       = Lexer::new(&mut compilation, input);
-    let ast = parse(lexer);
+
+    let strings = StringInterner::new();
+    let mut compilation = Compilation::new(&strings);
+
+    let ast = {
+        let mut lexer = Lexer::new(&mut compilation, input);
+        parse(&mut lexer)
+    };
 
     println!("{:#?}", ast);
 }
 
 pub struct Compilation<'a> {
-    pub strings: StringInterner<'a>,
+    pub strings: &'a StringInterner<'a>,
     pub code:    Assembly,
     pub log:     Messages<'a>,
     pub ops:     OpTable,
@@ -43,9 +48,9 @@ pub struct Compilation<'a> {
 }
 
 impl<'a> Compilation<'a> {
-    pub fn new() -> Self {
+    pub fn new(strings: &'a StringInterner<'a>) -> Self {
         Compilation {
-            strings: StringInterner::new(),
+            strings: strings,
             code:    Assembly::new(),
             log:     Messages::new(),
             ops:     operator::create_op_table()
