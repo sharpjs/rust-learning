@@ -149,14 +149,30 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     fn parse_stmt(&mut self) -> One<Stmt<'a>> {
         let pos = self.span.0;
         match self.token {
+            Token::BraceL => self.parse_block(),
             Token::KwType => self.parse_typedef(),
-            _ => {
-                match self.parse_expr() {
-                    Ok(expr) => Ok(Box::new(Stmt::Eval(pos, expr))),
-                    _        => expected!(self, "statement or expression")
-                }
+
+            _ => match self.parse_expr() {
+                Ok(expr) => Ok(Box::new(Stmt::Eval(pos, expr))),
+                _        => expected!(self, "statement or expression")
             }
         }
+    }
+
+    fn parse_block(&mut self) -> One<Stmt<'a>> {
+        let pos = self.span.0;
+
+        expect!(self>, "block", Token::BraceL);
+
+        let stmts = try!(self
+            .parse_stmts_until(Token::BraceR, "end-of-statement or '}'")
+        );
+
+        expect!(self>, "'}'", Token::BraceR);
+
+        Ok(Box::new(
+            Stmt::Block(pos, stmts)
+        ))
     }
 
     // typedef:
