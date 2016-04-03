@@ -32,22 +32,28 @@ use aex::pos::Pos;
 //use super::Context;
 
 // -----------------------------------------------------------------------------
-// Eval - interface to an evaluator
-
-//pub trait Eval {
-//    fn eval<'g, 'c>
-//           (self: &    Self,
-//            expr: &    Expr   <    'c>,
-//            ctx:  &mut Context<'g, 'c>);
-//}
+// Evaluator
 
 pub struct Evaluator<'g, 'c: 'g, L> {
     cg: CodeGenerator<'g, 'c>,
     _l: PhantomData<L>,
 }
 
+pub trait Eval<'c> {
+    fn eval(&self, expr: &Expr<'c>);
+}
+
+impl<'g, 'c: 'g, L> Eval<'c> for Evaluator<'g, 'c, L> {
+    #[inline]
+    #[allow(unused_must_use)]
+    fn eval(&self, expr: &Expr<'c>) {
+        // Delegate to the real `eval` and ignore its result.
+        self.eval(expr);
+    }
+}
+
 impl<'g, 'c: 'g, L> Evaluator<'g, 'c, L> {
-    fn eval(expr: &Expr<'c>) -> Result<Value<'c, L>, ()> {
+    fn eval(&self, expr: &Expr<'c>) -> Result<Value<'c, L>, ()> {
         panic!();
     }
 }
