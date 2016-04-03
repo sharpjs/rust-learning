@@ -32,18 +32,21 @@ use aex::pos::Pos;
 //use super::Context;
 
 // -----------------------------------------------------------------------------
-// Evaluator
-
-pub struct Evaluator<'g, 'c: 'g, L> {
-    cg: CodeGenerator<'g, 'c>,
-    _l: PhantomData<L>,
-}
+// Eval - external interface to evaluator
 
 pub trait Eval<'c> {
     fn eval(&self, expr: &Expr<'c>);
 }
 
-impl<'g, 'c: 'g, L> Eval<'c> for Evaluator<'g, 'c, L> {
+// -----------------------------------------------------------------------------
+// Evaluator
+
+pub struct Evaluator<'g, 'c: 'g, T> {
+    cg: CodeGenerator<'g, 'c>,
+    _t: PhantomData<T>,
+}
+
+impl<'g, 'c: 'g, T> Eval<'c> for Evaluator<'g, 'c, T> {
     #[inline]
     #[allow(unused_must_use)]
     fn eval(&self, expr: &Expr<'c>) {
@@ -52,8 +55,8 @@ impl<'g, 'c: 'g, L> Eval<'c> for Evaluator<'g, 'c, L> {
     }
 }
 
-impl<'g, 'c: 'g, L> Evaluator<'g, 'c, L> {
-    fn eval(&self, expr: &Expr<'c>) -> Result<Value<'c, L>, ()> {
+impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> {
+    fn eval(&self, expr: &Expr<'c>) -> Result<Value<'c, T>, ()> {
         panic!();
     }
 }
@@ -62,16 +65,16 @@ impl<'g, 'c: 'g, L> Evaluator<'g, 'c, L> {
 // Value - an evaluated expression
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Value<'c, L> {
-    pub loc: L,
-    pub ty:  TypeA<'c>,
-    pub pos: Pos<'c>,
+pub struct Value<'c, T> {
+    pub data: T,
+    pub ty:   TypeA<'c>,
+    pub pos:  Pos<'c>,
 }
 
-impl<'c, L: Display> Display for Value<'c, L> {
+impl<'c, T: Display> Display for Value<'c, T> {
     #[inline(always)]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&self.loc, f)
+        Display::fmt(&self.data, f)
     }
 }
 
