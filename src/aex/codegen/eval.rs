@@ -41,12 +41,12 @@ pub trait Eval<'c> {
 // -----------------------------------------------------------------------------
 // Evaluator
 
-pub struct Evaluator<'g, 'c: 'g, T> {
+pub struct Evaluator<'g, 'c: 'g, T: Term<'c>> {
     cg: CodeGenerator<'g, 'c>,
     _t: PhantomData<T>,
 }
 
-impl<'g, 'c: 'g, T> Eval<'c> for Evaluator<'g, 'c, T> {
+impl<'g, 'c: 'g, T: Term<'c>> Eval<'c> for Evaluator<'g, 'c, T> {
     #[inline]
     #[allow(unused_must_use)]
     fn eval(&self, expr: &Expr<'c>) {
@@ -55,7 +55,7 @@ impl<'g, 'c: 'g, T> Eval<'c> for Evaluator<'g, 'c, T> {
     }
 }
 
-impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> {
+impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
     fn eval(&self, expr: &Expr<'c>) -> Result<Value<'c, T>, ()> {
         panic!();
     }
@@ -65,16 +65,30 @@ impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> {
 // Value - an evaluated expression
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Value<'c, T> {
-    pub data: T,
+pub struct Value<'c, T: Term<'c>> {
+    pub term: T,
     pub ty:   TypeA<'c>,
     pub pos:  Pos<'c>,
 }
 
-impl<'c, T: Display> Display for Value<'c, T> {
+impl<'c, T: Term<'c>> Display for Value<'c, T> {
     #[inline(always)]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&self.data, f)
+        Display::fmt(&self.term, f)
     }
+}
+
+// -----------------------------------------------------------------------------
+// Term - a "term" (operand, location, etc.) in the target architecture
+
+pub trait Term<'c>: Display {
+    // The Mode identifies what kind of term this is.
+    type Mode;
+    fn mode(&self) -> Self::Mode;
+
+    // A term must be able to hold a constant expression.
+    fn is_const(&self) -> bool;
+    fn to_const(&self) -> &Expr<'c>;
+    fn from_const(Expr<'c>) -> Self;
 }
 
