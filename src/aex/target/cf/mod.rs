@@ -1,4 +1,4 @@
-// MCF5307 Target
+// Freescale ColdFire Target
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -20,15 +20,15 @@ mod loc;
 mod code_gen;
 
 use aex::types::*;
-use aex::targets::*;
+use aex::target::Target;
 
-pub struct Mcf5307 {
+pub struct ColdFire {
     ptr_type: Type<'static>
 }
 
-impl Mcf5307 {
+impl ColdFire {
     pub fn new() -> Self {
-        Mcf5307 {
+        ColdFire {
             ptr_type: Type::Ptr(
                 Box::new(Type::Ref("int")),
                 Box::new(Type::Ref("u8" ))
@@ -37,12 +37,12 @@ impl Mcf5307 {
     }
 }
 
-impl Default for Mcf5307 {
+impl Default for ColdFire {
     #[inline]
     fn default() -> Self { Self::new() }
 }
 
-impl Target for Mcf5307 {
+impl Target for ColdFire {
     #[inline]
     fn label_type(&self) -> &Type<'static> { &self.ptr_type }
 }

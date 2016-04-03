@@ -245,9 +245,9 @@ mod tests {
     use aex::output::Output;
     use aex::pos::Pos;
     use aex::scope::Scope;
-    use aex::targets::mcf5307::loc::*;
-    use aex::targets::mcf5307::loc::AddrReg::*;
-  //use aex::targets::mcf5307::loc::DataReg::*;
+    use aex::target::cf::loc::*;
+    use aex::target::cf::loc::AddrReg::*;
+  //use aex::target::cf::loc::DataReg::*;
     use aex::types::*;
     use super::*;
 

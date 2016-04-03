@@ -42,5 +42,5 @@ mod pos;
 
 //mod analyze;
 //mod output;
-//mod targets;
+//mod target;
 
