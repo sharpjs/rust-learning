@@ -16,8 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+mod eval;
+mod typea;
+
 use aex::compilation::Compilation;
 use aex::scope::Scope;
+
+//use self::eval::Eval;
 
 //use aex::analyze::*;
 //use aex::ast::*;
@@ -28,6 +33,27 @@ use aex::scope::Scope;
 //
 //pub mod eval;
 //pub mod ops;
+
+
+// TERMS:
+//
+// Expression       AST node for an expression (atomic, unary, binary)
+//
+// Evaluator \__    Generates code for an expression
+// Reducer   /
+//
+// Term             vague ... just what doc ordered?
+//
+// Operand          "operand of operator" vs "operand of instruction"
+//                      maybe things BECOME an operand only when used, like arguments
+//
+// Location         not all expressions yield a real location
+//
+// Value            not all expressions yield a numeric value
+//
+//              ??  Operand in target architecture
+//
+//              ??  Above, plus analyzed type and source position
 
 // -----------------------------------------------------------------------------
 // Code Generator
