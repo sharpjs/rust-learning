@@ -22,7 +22,7 @@ use std::marker::PhantomData;
 
 use aex::ast::Expr;
 use aex::codegen::CodeGenerator;
-use aex::codegen::typea::TypeA;
+use aex::codegen::types::ResolvedType;
 use aex::pos::Pos;
 
 //use aex::ast::*;
@@ -67,7 +67,7 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Value<'c, T: Term<'c>> {
     pub term: T,
-    pub ty:   TypeA<'c>,
+    pub ty:   ResolvedType<'c>,
     pub pos:  Pos<'c>,
 }
 

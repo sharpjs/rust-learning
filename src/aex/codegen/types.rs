@@ -1,4 +1,4 @@
-// Type Analysis
+// Type Resolution and Checks
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,13 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use aex::types::*;
+use aex::types::{Type, IntSpec, FloatSpec};
+use aex::scope::Scope;
 
 // -----------------------------------------------------------------------------
-// TypeA - an analyzed type
+// ResolvedType
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct TypeA<'a> {
+pub struct ResolvedType<'a> {
     pub ty:   &'a Type<'a>,      // Type as written in source
     pub form: TypeForm           // Type reduced to info for typeck and codegen
 }
@@ -34,116 +35,101 @@ pub enum TypeForm {
     Opaque,                      // Array, Union, Struct, Func
 }
 
-//pub fn analyze_type
-//    <'a>
-//    (ty:    &'a Type <'a>,
-//     scope: &   Scope<'a>)
-//    -> Result<TypeA<'a>, &'a str> {
-//
-//    let res = try!(resolve_type_form(ty, scope));
-//
-//    Ok(TypeA { ty: ty, form: res })
-//}
-//
-//fn resolve_type_form
-//    <'a>
-//    (ty:    &Type <'a>,
-//     scope: &Scope<'a>)
-//    -> Result<TypeForm, &'a str> {
-//
-//    match *ty {
-//        Type::Ref(n) => {
-//            // For type references, form is that of referenced type
-//            match scope.types.lookup(n) {
-//                Some(ty) => resolve_type_form(ty, scope),
-//                None     => Err(n),
-//            }
-//        },
-//        Type::Int(s) => {
-//            // For integers, form is inty
-//            Ok(TypeForm::Inty(s))
-//        },
-//        Type::Float(s) => {
-//            // For floats, form is floaty
-//            Ok(TypeForm::Floaty(s))
-//        },
-//        Type::Ptr(ref ty, _) => {
-//            // For pointers, form is that of address type (probably inty)
-//            resolve_type_form(&**ty, scope)
-//        },
-//        _ => {
-//            // Everything else is opaque
-//            Ok(TypeForm::Opaque)
-//        }
-//    }
-//}
-//
-//pub fn check_types_compat<'a>
-//                         (x: TypeA<'a>, y: TypeA<'a>)
-//                         -> Option<TypeA<'a>> {
-//   
-//    // A type is compatible with itself
-//    //
-//    if x.ty as *const _ == y.ty as *const _ {
-//        return Some(x);
-//    }
-//
-//    // Otherwise, two types are compatible if:
-//    //   - they are of the same form, and
-//    //   - at least one is arbitrary.
-//    //
-//    match (x.form, y.form) {
-//        (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
-//            match (xf, yf) {
-//                (_, None) => Some(x),
-//                (None, _) => Some(y),
-//                _         => None,
-//            }
-//        },
-//        (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
-//            match (xf, yf) {
-//                (_, None) => Some(x),
-//                (None, _) => Some(y),
-//                _         => None,
-//            }
-//        },
-//        _ => None
-//    }
-//}
-//
-//pub fn check_types_extend<'a>
-//                         (x: TypeA<'a>, y: TypeA<'a>)
-//                         -> Option<TypeA<'a>> {
-//   
-//    // Type A is extendible to type B if:
-//    //   - A and B are of the same form, and
-//    //   - neither A nor B is arbitrary, and
-//    //   - A is narrower or same width as B.
-//    //
-//    match (x.form, y.form) {
-//        (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
-//            match (xf, yf) {
-//                (Some(xf), Some(yf))
-//                    if xf.value_width <= yf.value_width
-//                    && xf.store_width <= yf.store_width
-//                    && xf.signed      == yf.signed
-//                  => Some(y),
-//                _ => None
-//            }
-//        },
-//        (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
-//            match (xf, yf) {
-//                (Some(xf), Some(yf))
-//                    if xf.value_width <= yf.value_width
-//                    && xf.store_width <= yf.store_width
-//                  => Some(y),
-//                _ => None
-//            }
-//        },
-//        _ => None
-//    }
-//}
-//
+impl<'a> ResolvedType<'a> {
+    pub fn resolve(ty: &'a Type<'a>, scope: &Scope<'a>) -> Result<Self, ()> {
+        let res = try!(Self::resolve_form(ty, scope));
+        Ok(ResolvedType { ty: ty, form: res })
+    }
+
+    fn resolve_form(ty: &Type<'a>, scope: &Scope<'a>) -> Result<TypeForm, ()> {
+        match *ty {
+            Type::Ref(n) => {
+                // For type references, form is that of referenced type
+                match scope.types.lookup(n) {
+                    Some(ty) => Self::resolve_form(ty, scope),
+                    None     => Err(()),
+                }
+            },
+            Type::Int(s) => {
+                // For integers, form is inty
+                Ok(TypeForm::Inty(s))
+            },
+            Type::Float(s) => {
+                // For floats, form is floaty
+                Ok(TypeForm::Floaty(s))
+            },
+            Type::Ptr(ref ty, _) => {
+                // For pointers, form is that of address type (probably inty)
+                Self::resolve_form(&**ty, scope)
+            },
+            _ => {
+                // Everything else is opaque
+                Ok(TypeForm::Opaque)
+            }
+        }
+    }
+
+    pub fn check_compat(x: Self, y: Self) -> Option<Self> {
+        // A type is compatible with itself
+        //
+        if x.ty as *const _ == y.ty as *const _ {
+            return Some(x);
+        }
+    
+        // Otherwise, two types are compatible if:
+        //   - they are of the same form, and
+        //   - at least one is unbounded.
+        //
+        match (x.form, y.form) {
+            (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
+                match (xf, yf) {
+                    (_, None) => Some(x),
+                    (None, _) => Some(y),
+                    _         => None,
+                }
+            },
+            (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
+                match (xf, yf) {
+                    (_, None) => Some(x),
+                    (None, _) => Some(y),
+                    _         => None,
+                }
+            },
+            _ => None
+        }
+    }
+
+    pub fn check_extend(x: Self, y: Self) -> Option<Self> {
+        // Type A is extendible to type B if:
+        //   - A and B are of the same form, and
+        //   - neither A nor B is unbounded, and
+        //   - A is narrower or same width as B.
+        //
+        match (x.form, y.form) {
+            (TypeForm::Inty(xf), TypeForm::Inty(yf)) => {
+                match (xf, yf) {
+                    (Some(xf), Some(yf))
+                        if xf.value_width <= yf.value_width
+                        && xf.store_width <= yf.store_width
+                        && xf.signed      == yf.signed
+                      => Some(y),
+                    _ => None
+                }
+            },
+            (TypeForm::Floaty(xf), TypeForm::Floaty(yf)) => {
+                match (xf, yf) {
+                    (Some(xf), Some(yf))
+                        if xf.value_width <= yf.value_width
+                        && xf.store_width <= yf.store_width
+                      => Some(y),
+                    _ => None
+                }
+            },
+            _ => None
+        }
+    }
+}
+
 //pub fn check_forms_inty(_a: TypeForm,
 //                        _b: TypeForm,
 //                        out: TypeForm,
@@ -216,7 +202,7 @@ pub enum TypeForm {
 //    }
 //}
 //
-//impl<'a> Contains<BigInt> for TypeA<'a> {
+//impl<'a> Contains<BigInt> for ResolvedType<'a> {
 //    #[inline(always)]
 //    fn contains(&self, item: &BigInt) -> Option<bool> {
 //        self.form.contains(item)

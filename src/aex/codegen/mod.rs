@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 mod eval;
-mod typea;
+mod types;
 
 use aex::compilation::Compilation;
 use aex::scope::Scope;
