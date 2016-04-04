@@ -18,11 +18,12 @@
 
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
-//use num::BigInt;
+use num::BigInt;
 
 use aex::ast::Expr;
 use aex::codegen::CodeGenerator;
 use aex::codegen::types::ResolvedType;
+use aex::operator::Op;
 use aex::pos::Pos;
 
 //use aex::ast::*;
@@ -55,9 +56,46 @@ impl<'g, 'c: 'g, T: Term<'c>> Eval<'c> for Evaluator<'g, 'c, T> {
     }
 }
 
+type V<'c, T> = Result<Value<'c, T>, ()>;
+
+
 impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
-    fn eval(&self, expr: &Expr<'c>) -> Result<Value<'c, T>, ()> {
-        panic!();
+    fn eval(&self, expr: &Expr<'c>) -> V<'c, T> {
+        match *expr {
+            Expr::Ident    (name)                  => self.eval_ident  (name),
+            Expr::Int      (ref val)               => self.eval_int    (val),
+            Expr::UnaryOp  (op, sel, ref x)        => self.eval_unary  (op, sel, x),
+            Expr::BinaryOp (op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
+            _ => panic!()
+        }
+    }
+
+    fn eval_ident(&self, name: &str) -> V<'c, T> {
+        panic!()
+    }
+
+    fn eval_int(&self, val: &BigInt) -> V<'c, T> {
+        panic!()
+    }
+
+    fn eval_unary(&self,
+                  op:  &'c Op,
+                  sel: Option<&'c str>,
+                  x:   &Expr<'c>)
+                 -> V<'c, T> {
+        let x = self.eval(x);
+        panic!()
+    }
+
+    fn eval_binary(&self,
+                   op:  &'c Op,
+                   sel: Option<&'c str>,
+                   x:   &Expr<'c>,
+                   y:   &Expr<'c>)
+                  -> V<'c, T> {
+        let x = self.eval(x);
+        let y = self.eval(y);
+        panic!()
     }
 }
 
