@@ -22,7 +22,7 @@ use num::BigInt;
 
 use aex::ast::Expr;
 use aex::codegen::CodeGenerator;
-use aex::codegen::types::ResolvedType;
+use aex::codegen::types::{ResolvedType, INT};
 use aex::operator::Op;
 use aex::pos::Pos;
 
@@ -63,7 +63,7 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
     fn eval(&self, expr: &Expr<'c>) -> V<'c, T> {
         match *expr {
             Expr::Ident    (name)                  => self.eval_ident  (name),
-            Expr::Int      (ref val)               => self.eval_int    (val),
+            Expr::Int      (_)                     => self.eval_int    (expr),
             Expr::UnaryOp  (op, sel, ref x)        => self.eval_unary  (op, sel, x),
             Expr::BinaryOp (op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
             _ => panic!()
@@ -74,8 +74,12 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
         panic!()
     }
 
-    fn eval_int(&self, val: &BigInt) -> V<'c, T> {
-        panic!()
+    fn eval_int(&self, val: &Expr<'c>) -> V<'c, T> {
+        Ok(Value {
+            term: T::from_const(val.clone()),
+            ty:   INT,
+            pos:  Pos::bof("f"),
+        })
     }
 
     fn eval_unary(&self,

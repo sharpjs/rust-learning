@@ -16,11 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use aex::types::{Type, IntSpec, FloatSpec};
+use aex::types::{self, Type, IntSpec, FloatSpec};
 use aex::scope::Scope;
 
 // -----------------------------------------------------------------------------
 // ResolvedType
+
+pub static INT: ResolvedType<'static> = ResolvedType {
+    ty:   types::INT,
+    form: TypeForm::Inty(None),
+};
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct ResolvedType<'a> {
