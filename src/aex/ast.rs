@@ -50,7 +50,7 @@ pub enum Expr<'a> {
     // Atoms
     Ident      (&'a str),
     Str        (&'a str),
-    Int        (BigInt),
+    Int        (Pos<'a>, BigInt),
     Deref      (Vec<Box<Expr<'a>>>),
 
     // Composites
@@ -120,7 +120,7 @@ impl<'a> Display for Expr<'a> {
         match *self {
             Expr::Ident      (s)                  => f.write_str(s),
             Expr::Str        (s)                  => fmt_str(s, f),
-            Expr::Int        (ref i)              => fmt_int(i, f),
+            Expr::Int        (_, ref i)           => fmt_int(i, f),
             Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
             Expr::Complement (ref e, None)        => write!(f, "~{}", e),
             Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
@@ -181,6 +181,7 @@ fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aex::pos::Pos;
 
     #[test]
     fn fmt_ident() {
@@ -213,14 +214,14 @@ mod tests {
 
     #[test]
     fn fmt_int_small() {
-        let expr = Expr::Int(7.into());
+        let expr = Expr::Int(Pos::bof("f"), 7.into());
         let text = format!("{}", &expr);
         assert_eq!(text, "7");
     }
 
     #[test]
     fn fmt_int_large() {
-        let expr = Expr::Int(42.into());
+        let expr = Expr::Int(Pos::bof("f"), 42.into());
         let text = format!("{}", &expr);
         assert_eq!(text, "0x2A");
     }

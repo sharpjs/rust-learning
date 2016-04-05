@@ -63,7 +63,7 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
     fn eval(&self, expr: &Expr<'c>) -> V<'c, T> {
         match *expr {
             Expr::Ident    (name)                  => self.eval_ident  (name),
-            Expr::Int      (_)                     => self.eval_int    (expr),
+            Expr::Int      (..)                    => self.eval_int    (expr),
             Expr::UnaryOp  (op, sel, ref x)        => self.eval_unary  (op, sel, x),
             Expr::BinaryOp (op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
             _ => panic!()
@@ -75,10 +75,12 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
     }
 
     fn eval_int(&self, val: &Expr<'c>) -> V<'c, T> {
+        let pos = match *val { Expr::Int(pos, _) => pos, _ => panic!() };
+
         Ok(Value {
             term: T::from_const(val.clone()),
             ty:   INT,
-            pos:  Pos::bof("f"),
+            pos:  pos,
         })
     }
 

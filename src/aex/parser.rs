@@ -269,6 +269,8 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             return Ok(Box::new(ctor(expr, None)));
         }
 
+        let pos = self.span.0;
+
         // Atom
         match self.token {
             // ID
@@ -279,7 +281,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             // INT
             Token::Int(x) => {
                 self.advance();
-                Ok(Box::new(Expr::Int(BigInt::from(x))))
+                Ok(Box::new(Expr::Int(pos, BigInt::from(x))))
             },
             // '(' expr ')'
             Token::ParenL => {
