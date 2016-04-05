@@ -16,16 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use aex::types::{self, Type, IntSpec, FloatSpec};
+use aex::types::{Type, IntSpec, FloatSpec};
 use aex::scope::Scope;
 
 // -----------------------------------------------------------------------------
 // ResolvedType
-
-pub static INT: ResolvedType<'static> = ResolvedType {
-    ty:   types::INT,
-    form: TypeForm::Inty(None),
-};
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct ResolvedType<'a> {
@@ -39,6 +34,21 @@ pub enum TypeForm {
     Floaty  (Option<FloatSpec>), // Float
     Opaque,                      // Array, Union, Struct, Func
 }
+
+pub static INT: ResolvedType<'static> = ResolvedType {
+    ty:   &Type::Ref("int"),
+    form: TypeForm::Inty(None),
+};
+
+pub static FLOAT: ResolvedType<'static> = ResolvedType {
+    ty:   &Type::Ref("float"),
+    form: TypeForm::Floaty(None),
+};
+
+pub static OPAQUE: ResolvedType<'static> = ResolvedType {
+    ty:   &Type::Ref("unknown"),
+    form: TypeForm::Opaque,
+};
 
 impl<'a> ResolvedType<'a> {
     pub fn resolve(ty: &'a Type<'a>, scope: &Scope<'a>) -> Result<Self, ()> {
