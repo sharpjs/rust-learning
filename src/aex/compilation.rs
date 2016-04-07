@@ -27,8 +27,8 @@ use aex::parser::parse;
 pub fn compile<I>(input: I, filename: &str)
 where I: Iterator<Item=char> {
 
-    let strings = StringInterner::new();
-    let mut compilation = Compilation::new(&strings);
+    let arenas = Memory::new();
+    let mut compilation = Compilation::new(&arenas.strings);
 
     let ast = {
         let mut lexer = Lexer::new(&mut compilation, input);
@@ -57,6 +57,18 @@ impl<'a> Compilation<'a> {
             code:    Assembly::new(),
             log:     Messages::new(),
             ops:     operator::create_op_table()
+        }
+    }
+}
+
+struct Memory<'a> {
+    strings: StringInterner<'a>,
+}
+
+impl<'a> Memory<'a> {
+    pub fn new() -> Self {
+        Memory {
+            strings: StringInterner::new()
         }
     }
 }
