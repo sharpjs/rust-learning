@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::any::Any;
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
 use num::BigInt;
@@ -99,10 +100,21 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
                    x:   &Expr<'c>,
                    y:   &Expr<'c>)
                   -> V<'c, T> {
-        let x = self.eval(x);
-        let y = self.eval(y);
+        let x = try!(self.eval(x));
+        let y = try!(self.eval(y));
+        let f = Any::downcast_ref::<OpFam>(op.eval).unwrap();
+        f.invoke();
+
         panic!()
     }
+}
+
+pub struct OpFam {
+    x: i32
+}
+
+impl OpFam {
+    pub fn invoke(&self) { }
 }
 
 // -----------------------------------------------------------------------------

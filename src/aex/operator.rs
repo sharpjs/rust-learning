@@ -23,7 +23,9 @@
 //   - Expr::BinaryOp (op, lhs, rhs, sel)
 //   - Expr::UnaryOp  (op, expr,     sel)
 
+use std::any::Any;
 use std::collections::HashMap;
+use std::fmt;
 
 use self::Assoc::*;
 use self::Fix::*;
@@ -34,13 +36,27 @@ pub struct OpTable {
     prefix:    HashMap<&'static str, Op>, // prefix ops
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy)]
 pub struct Op {
     pub chars: &'static str,
     pub prec:  u8,
     pub assoc: Assoc,
     pub fix:   Fix,
-  //pub eval:  &'static Any,
+    pub eval:  &'static (Any + Sync),
+}
+
+impl<T> PartialEq<T> for Op {
+    fn eq(&self, other: &T) -> bool {
+        false
+    }
+}
+
+impl Eq for Op { }
+
+impl fmt::Debug for Op {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
+        write!(f, "")
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -83,51 +99,51 @@ pub fn create_op_table() -> OpTable {
 
 static OPS: &'static [Op] = &[
     // Postfix Unary
-    Op { chars: "++", prec: 10, assoc: Left,  fix: Postfix },
-    Op { chars: "--", prec: 10, assoc: Left,  fix: Postfix },
+    Op { chars: "++", prec: 10, assoc: Left,  fix: Postfix, eval: &42 },
+    Op { chars: "--", prec: 10, assoc: Left,  fix: Postfix, eval: &42 },
 
     // Prefix Unary
-    Op { chars: "!",  prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "~",  prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "-",  prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "+",  prec:  9, assoc: Right, fix: Prefix  },
-    Op { chars: "&",  prec:  9, assoc: Right, fix: Prefix  },
+    Op { chars: "!",  prec:  9, assoc: Right, fix: Prefix,  eval: &42 },
+    Op { chars: "~",  prec:  9, assoc: Right, fix: Prefix,  eval: &42 },
+    Op { chars: "-",  prec:  9, assoc: Right, fix: Prefix,  eval: &42 },
+    Op { chars: "+",  prec:  9, assoc: Right, fix: Prefix,  eval: &42 },
+    Op { chars: "&",  prec:  9, assoc: Right, fix: Prefix,  eval: &42 },
 
     // Multiplicative
-    Op { chars: "*",  prec:  8, assoc: Left,  fix: Infix   },
-    Op { chars: "/",  prec:  8, assoc: Left,  fix: Infix   },
-    Op { chars: "%",  prec:  8, assoc: Left,  fix: Infix   },
-
-    // Additive
-    Op { chars: "+",  prec:  7, assoc: Left,  fix: Infix   },
-    Op { chars: "-",  prec:  7, assoc: Left,  fix: Infix   },
-
-    // Bitwise Shift
-    Op { chars: "<<", prec:  6, assoc: Left,  fix: Infix   },
-    Op { chars: ">>", prec:  6, assoc: Left,  fix: Infix   },
-
-    // Bitwise Boolean
-    Op { chars: "&",  prec:  5, assoc: Left,  fix: Infix   },
-    Op { chars: "^",  prec:  4, assoc: Left,  fix: Infix   },
-    Op { chars: "|",  prec:  3, assoc: Left,  fix: Infix   },
-
-    // Bitwise Manipulation
-    Op { chars: ".~", prec:  2, assoc: Left,  fix: Infix   },
-    Op { chars: ".!", prec:  2, assoc: Left,  fix: Infix   },
-    Op { chars: ".+", prec:  2, assoc: Left,  fix: Infix   },
-    Op { chars: ".?", prec:  2, assoc: Left,  fix: Infix   },
+    Op { chars: "*",  prec:  8, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "/",  prec:  8, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "%",  prec:  8, assoc: Left,  fix: Infix,   eval: &42 },
+                                                          
+    // Additive                                           
+    Op { chars: "+",  prec:  7, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "-",  prec:  7, assoc: Left,  fix: Infix,   eval: &42 },
+                                                          
+    // Bitwise Shift                                      
+    Op { chars: "<<", prec:  6, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: ">>", prec:  6, assoc: Left,  fix: Infix,   eval: &42 },
+                                                          
+    // Bitwise Boolean                                    
+    Op { chars: "&",  prec:  5, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "^",  prec:  4, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "|",  prec:  3, assoc: Left,  fix: Infix,   eval: &42 },
+                                                          
+    // Bitwise Manipulation                               
+    Op { chars: ".~", prec:  2, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: ".!", prec:  2, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: ".+", prec:  2, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: ".?", prec:  2, assoc: Left,  fix: Infix,   eval: &42 },
 
     // Comparison
-    Op { chars: "?",  prec:  1, assoc: Left,  fix: Postfix },
-    Op { chars: "<>", prec:  1, assoc: Left,  fix: Infix   },
-    Op { chars: "==", prec:  1, assoc: Left,  fix: Infix   },
-    Op { chars: "!=", prec:  1, assoc: Left,  fix: Infix   },
-    Op { chars: "<" , prec:  1, assoc: Left,  fix: Infix   },
-    Op { chars: "<=", prec:  1, assoc: Left,  fix: Infix   },
-    Op { chars: ">" , prec:  1, assoc: Left,  fix: Infix   },
-    Op { chars: ">=", prec:  1, assoc: Left,  fix: Infix   },
-
-    // Assignment
-    Op { chars: "=",  prec:  0, assoc: Right, fix: Infix   },
+    Op { chars: "?",  prec:  1, assoc: Left,  fix: Postfix, eval: &42 },
+    Op { chars: "<>", prec:  1, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "==", prec:  1, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "!=", prec:  1, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "<" , prec:  1, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: "<=", prec:  1, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: ">" , prec:  1, assoc: Left,  fix: Infix,   eval: &42 },
+    Op { chars: ">=", prec:  1, assoc: Left,  fix: Infix,   eval: &42 },
+                                                           
+    // Assignment                                          
+    Op { chars: "=",  prec:  0, assoc: Right, fix: Infix,   eval: &42 },
 ];
 
