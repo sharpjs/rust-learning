@@ -45,6 +45,10 @@ struct Parser<'p, 'a: 'p, L: 'p + Lex<'a>> {
 
 // Helpers
 
+const TEMP_POS: &'static Pos<'static> = &Pos {
+    file: "bof", byte: 0, line: 1, column: 1
+};
+
 macro_rules! expect {
     ( $parser:ident>, $desc:expr, $( $( $token:pat )|+ ),+ ) => {
         match $parser.token {
@@ -281,7 +285,8 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             // INT
             Token::Int(x) => {
                 self.advance();
-                Ok(Box::new(Expr::Int(pos, BigInt::from(x))))
+                //let pos2 = self.lexer.context.positions.alloc(pos);
+                Ok(Box::new(Expr::Int(TEMP_POS, BigInt::from(x))))
             },
             // '(' expr ')'
             Token::ParenL => {

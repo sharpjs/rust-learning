@@ -50,7 +50,7 @@ pub enum Expr<'a> {
     // Atoms
     Ident      (&'a str),
     Str        (&'a str),
-    Int        (Pos<'a>, BigInt),
+    Int        (&'a Pos<'a>, BigInt),
     Deref      (Vec<Box<Expr<'a>>>),
 
     // Composites
@@ -214,14 +214,16 @@ mod tests {
 
     #[test]
     fn fmt_int_small() {
-        let expr = Expr::Int(Pos::bof("f"), 7.into());
+        let pos  = Pos::bof("f");
+        let expr = Expr::Int(&pos, 7.into());
         let text = format!("{}", &expr);
         assert_eq!(text, "7");
     }
 
     #[test]
     fn fmt_int_large() {
-        let expr = Expr::Int(Pos::bof("f"), 42.into());
+        let pos  = Pos::bof("f");
+        let expr = Expr::Int(&pos, 42.into());
         let text = format!("{}", &expr);
         assert_eq!(text, "0x2A");
     }

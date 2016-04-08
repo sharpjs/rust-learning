@@ -124,7 +124,7 @@ impl OpFam {
 pub struct Value<'c, T: Term<'c>> {
     pub term: T,
     pub ty:   ResolvedType<'c>,
-    pub pos:  Pos<'c>,
+    pub pos:  &'c Pos<'c>,
 }
 
 impl<'c, T: Term<'c>> Display for Value<'c, T> {
