@@ -46,7 +46,7 @@ pub enum Stmt<'a> {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Expr<'a> {
+pub enum Expr<'a, T=()> {
     // Atoms
     Ident      (&'a str),
     Str        (&'a str),
@@ -54,8 +54,8 @@ pub enum Expr<'a> {
     Deref      (Vec<Box<Expr<'a>>>),
 
     // Composites
-    UnaryOp    (&'a Op, Option<&'a str>, Box<Expr<'a>>),
-    BinaryOp   (&'a Op, Option<&'a str>, Box<Expr<'a>>, Box<Expr<'a>>),
+    UnaryOp    (T, &'a Op, &'a str, Box<Expr<'a, T>>),
+    BinaryOp   (T, &'a Op, &'a str, Box<Expr<'a, T>>, Box<Expr<'a, T>>),
 
     // Right Unary
     Member     (Box<Expr<'a>>, &'a str),
