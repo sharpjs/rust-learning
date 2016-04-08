@@ -19,16 +19,18 @@
 use aex::asm::Assembly;
 use aex::codegen::CodeGenerator;
 use aex::lexer::Lexer;
+use aex::mem::arena::Arena;
 use aex::mem::interner::StringInterner;
 use aex::message::Messages;
 use aex::operator::{self, OpTable};
 use aex::parser::parse;
+use aex::pos::Pos;
 
 pub fn compile<I>(input: I, filename: &str)
 where I: Iterator<Item=char> {
 
-    let arenas = Memory::new();
-    let mut compilation = Compilation::new(&arenas.strings);
+    let memory = Memory::new();
+    let mut compilation = Compilation::new(&memory);
 
     let ast = {
         let mut lexer = Lexer::new(&mut compilation, input);
@@ -41,34 +43,38 @@ where I: Iterator<Item=char> {
 }
 
 pub struct Compilation<'a> {
-    pub strings: &'a StringInterner<'a>,
-    pub code:    Assembly,
-    pub log:     Messages<'a>,
-    pub ops:     OpTable,
+    pub strings:   &'a StringInterner<'a>,
+    pub positions: &'a Arena<Pos<'a>>,
+    pub code:      Assembly,
+    pub log:       Messages<'a>,
+    pub ops:       OpTable,
     // target
     //  > builtin scope
     //  > operators
 }
 
 impl<'a> Compilation<'a> {
-    pub fn new(strings: &'a StringInterner<'a>) -> Self {
+    pub fn new(memory: &'a Memory<'a>) -> Self {
         Compilation {
-            strings: strings,
-            code:    Assembly::new(),
-            log:     Messages::new(),
-            ops:     operator::create_op_table()
+            strings:   &memory.strings,
+            positions: &memory.positions,
+            code:      Assembly::new(),
+            log:       Messages::new(),
+            ops:       operator::create_op_table()
         }
     }
 }
 
-struct Memory<'a> {
-    strings: StringInterner<'a>,
+pub struct Memory<'a> {
+    strings:   StringInterner<'a>,
+    positions: Arena<Pos<'a>>,
 }
 
 impl<'a> Memory<'a> {
     pub fn new() -> Self {
         Memory {
-            strings: StringInterner::new()
+            strings:   StringInterner::new(),
+            positions: Arena::new(),
         }
     }
 }
