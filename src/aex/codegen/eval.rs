@@ -19,7 +19,7 @@
 use std::any::Any;
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
-use num::BigInt;
+//use num::BigInt;
 
 use aex::ast::Expr;
 use aex::codegen::CodeGenerator;
