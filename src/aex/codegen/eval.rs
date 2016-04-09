@@ -63,10 +63,10 @@ type V<'c, T> = Result<Value<'c, T>, ()>;
 impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
     fn eval(&self, expr: &Expr<'c>) -> V<'c, T> {
         match *expr {
-            Expr::Ident    (name)                       => self.eval_ident  (name),
-            Expr::Int      (..)                         => self.eval_int    (expr),
-            Expr::UnaryOp  (pos, op, sel, ref x)        => self.eval_unary  (op, sel, x),
-            Expr::BinaryOp (pos, op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
+            Expr::Ident    (name)                  => self.eval_ident  (name),
+            Expr::Int      (..)                    => self.eval_int    (expr),
+            Expr::UnaryOp  (op, sel, ref x)        => self.eval_unary  (op, sel, x),
+            Expr::BinaryOp (op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
             _ => panic!()
         }
     }
@@ -87,7 +87,7 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
 
     fn eval_unary(&self,
                   op:  &'c Op,
-                  sel: &'c str,
+                  sel: Option<&'c str>,
                   x:   &Expr<'c>)
                  -> V<'c, T> {
         let x = self.eval(x);
@@ -96,7 +96,7 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
 
     fn eval_binary(&self,
                    op:  &'c Op,
-                   sel: &'c str,
+                   sel: Option<&'c str>,
                    x:   &Expr<'c>,
                    y:   &Expr<'c>)
                   -> V<'c, T> {
@@ -124,7 +124,7 @@ impl OpFam {
 pub struct Value<'c, T: Term<'c>> {
     pub term: T,
     pub ty:   ResolvedType<'c>,
-    pub pos:  &'c Pos<'c>,
+    pub pos:  Pos<'c>,
 }
 
 impl<'c, T: Term<'c>> Display for Value<'c, T> {

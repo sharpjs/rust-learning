@@ -46,16 +46,16 @@ pub enum Stmt<'a> {
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Expr<'a, T=()> {
+pub enum Expr<'a> {
     // Atoms
     Ident      (&'a str),
     Str        (&'a str),
-    Int        (&'a Pos<'a>, BigInt),
+    Int        (Pos<'a>, BigInt),
     Deref      (Vec<Box<Expr<'a>>>),
 
     // Composites
-    UnaryOp    (T, &'a Op, &'a str, Box<Expr<'a, T>>),
-    BinaryOp   (T, &'a Op, &'a str, Box<Expr<'a, T>>, Box<Expr<'a, T>>),
+    UnaryOp    (&'a Op, Option<&'a str>, Box<Expr<'a>>),
+    BinaryOp   (&'a Op, Option<&'a str>, Box<Expr<'a>>, Box<Expr<'a>>),
 
     // Right Unary
     Member     (Box<Expr<'a>>, &'a str),
@@ -214,16 +214,14 @@ mod tests {
 
     #[test]
     fn fmt_int_small() {
-        let pos  = Pos::bof("f");
-        let expr = Expr::Int(&pos, 7.into());
+        let expr = Expr::Int(Pos::bof("f"), 7.into());
         let text = format!("{}", &expr);
         assert_eq!(text, "7");
     }
 
     #[test]
     fn fmt_int_large() {
-        let pos  = Pos::bof("f");
-        let expr = Expr::Int(&pos, 42.into());
+        let expr = Expr::Int(Pos::bof("f"), 42.into());
         let text = format!("{}", &expr);
         assert_eq!(text, "0x2A");
     }
