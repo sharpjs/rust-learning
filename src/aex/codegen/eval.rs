@@ -19,7 +19,7 @@
 use std::any::Any;
 use std::fmt::{self, Display, Formatter};
 use std::marker::PhantomData;
-//use num::BigInt;
+use num::BigInt;
 
 use aex::ast::Expr;
 use aex::codegen::CodeGenerator;
@@ -43,12 +43,12 @@ pub trait Eval<'c> {
 // -----------------------------------------------------------------------------
 // Evaluator
 
-pub struct Evaluator<'g, 'c: 'g, T: Term<'c>> {
+pub struct Evaluator<'g, 'c: 'g, T> {
     cg: CodeGenerator<'g, 'c>,
     _t: PhantomData<T>,
 }
 
-impl<'g, 'c: 'g, T: Term<'c>> Eval<'c> for Evaluator<'g, 'c, T> {
+impl<'g, 'c: 'g, T> Eval<'c> for Evaluator<'g, 'c, T> {
     #[inline]
     #[allow(unused_must_use)]
     fn eval(&self, expr: &Expr<'c>) {
@@ -60,41 +60,46 @@ impl<'g, 'c: 'g, T: Term<'c>> Eval<'c> for Evaluator<'g, 'c, T> {
 type V<'c, T> = Result<Value<'c, T>, ()>;
 
 
-impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
+impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> {
     fn eval(&self, expr: &Expr<'c>) -> V<'c, T> {
         match *expr {
-            Expr::Ident  (ref pos, name)         => self.eval_ident  (pos, name),
-            Expr::Int    (..)                    => self.eval_int    (expr),
-            Expr::Unary  (pos, op, sel, ref x)        => self.eval_unary  (op, sel, x),
-            Expr::Binary (pos, op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
+            Expr::Ident  (pos, name)                  => self.eval_ident  (pos, name),
+            Expr::Int    (pos, ref val)               => self.eval_int    (pos, val),
+            Expr::Unary  (pos, op, sel, ref x)        => self.eval_unary  (pos, op, sel, x),
+            Expr::Binary (pos, op, sel, ref x, ref y) => self.eval_binary (pos, op, sel, x, y),
             _ => panic!()
         }
     }
 
-    fn eval_ident(&self, pos: &Pos, name: &str) -> V<'c, T> {
+    fn eval_ident(&self, pos: Pos, name: &str) -> V<'c, T> {
+        //Ok(Value {
+        //    term: ?, 
+        //    ty:   ?,
+        //    pos:  pos
+        //})
         panic!()
     }
 
-    fn eval_int(&self, val: &Expr<'c>) -> V<'c, T> {
-        let pos = match *val { Expr::Int(pos, _) => pos, _ => panic!() };
-
+    fn eval_int(&self, pos: Pos<'c>, val: &BigInt) -> V<'c, T> {
         Ok(Value {
-            term: T::from_const(val.clone()),
+            term: Self::t_from_const(val.clone()),
             ty:   INT,
             pos:  pos,
         })
     }
 
     fn eval_unary(&self,
-                  op:  &'c Op,
-                  sel: Option<&'c str>,
+                  pos: Pos<'c>,
+                  op:  &Op,
+                  sel: Option<&str>,
                   x:   &Expr<'c>)
                  -> V<'c, T> {
-        let x = self.eval(x);
-        panic!()
+        let x = try!(self.eval(x));
+        Self::do_unary(op, sel, x)
     }
 
     fn eval_binary(&self,
+                   pos: Pos<'c>,
                    op:  &'c Op,
                    sel: Option<&'c str>,
                    x:   &Expr<'c>,
@@ -102,49 +107,62 @@ impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
                   -> V<'c, T> {
         let x = try!(self.eval(x));
         let y = try!(self.eval(y));
-        let f = Any::downcast_ref::<OpFam>(op.eval).unwrap();
-        f.invoke();
+        Self::do_binary(op, sel, x, y)
+    }
 
+    // Target-specific
+    fn t_from_const(val: BigInt) -> T {
+        panic!()
+    }
+
+    // Target-specific
+    fn do_unary(op:  &Op,
+                sel: Option<&str>,
+                x:   Value<'c, T>)
+               -> V<'c, T> {
+        panic!()
+    }
+
+    // Target-specific
+    fn do_binary(op:  &Op,
+                 sel: Option<&str>,
+                 x:   Value<'c, T>,
+                 y:   Value<'c, T>)
+                -> V<'c, T> {
         panic!()
     }
 }
 
-pub struct OpFam {
-    x: i32
-}
-
-impl OpFam {
-    pub fn invoke(&self) { }
-}
+type DoUnary<T> = &'static for<'a> Fn(Value<'a, T>) -> Value<'a, T>;
 
 // -----------------------------------------------------------------------------
 // Value - an evaluated expression
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Value<'c, T: Term<'c>> {
+pub struct Value<'c, T> {
     pub term: T,
     pub ty:   ResolvedType<'c>,
     pub pos:  Pos<'c>,
 }
 
-impl<'c, T: Term<'c>> Display for Value<'c, T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        Display::fmt(&self.term, f)
-    }
-}
-
-// -----------------------------------------------------------------------------
-// Term - a "term" (operand, location, etc.) in the target architecture
-
-pub trait Term<'c>: Display {
-    // The Mode identifies what kind of term this is.
-    type Mode;
-    fn mode(&self) -> Self::Mode;
-
-    // A term must be able to hold a constant expression.
-    fn is_const(&self) -> bool;
-    fn to_const(&self) -> &Expr<'c>;
-    fn from_const(Expr<'c>) -> Self;
-}
+//impl<'c, T: Term<'c>> Display for Value<'c, T> {
+//    #[inline(always)]
+//    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+//        Display::fmt(&self.term, f)
+//    }
+//}
+//
+//// -----------------------------------------------------------------------------
+//// Term - a "term" (operand, location, etc.) in the target architecture
+//
+//pub trait Term<'c>: Display {
+//    //// The Mode identifies what kind of term this is.
+//    //type Mode;
+//    //fn mode(&self) -> Self::Mode;
+//
+//    // A term must be able to hold a constant expression.
+//    fn   is_const (&self)    -> bool;
+//    fn   to_const (&self)    -> &Expr<'c>;
+//    fn from_const (Expr<'c>) -> Self;
+//}
 
