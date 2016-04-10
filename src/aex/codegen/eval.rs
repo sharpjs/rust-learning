@@ -63,15 +63,15 @@ type V<'c, T> = Result<Value<'c, T>, ()>;
 impl<'g, 'c: 'g, T: Term<'c>> Evaluator<'g, 'c, T> {
     fn eval(&self, expr: &Expr<'c>) -> V<'c, T> {
         match *expr {
-            Expr::Ident    (name)                  => self.eval_ident  (name),
-            Expr::Int      (..)                    => self.eval_int    (expr),
-            Expr::UnaryOp  (op, sel, ref x)        => self.eval_unary  (op, sel, x),
-            Expr::BinaryOp (op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
+            Expr::Ident  (ref pos, name)         => self.eval_ident  (pos, name),
+            Expr::Int    (..)                    => self.eval_int    (expr),
+            Expr::Unary  (pos, op, sel, ref x)        => self.eval_unary  (op, sel, x),
+            Expr::Binary (pos, op, sel, ref x, ref y) => self.eval_binary (op, sel, x, y),
             _ => panic!()
         }
     }
 
-    fn eval_ident(&self, name: &str) -> V<'c, T> {
+    fn eval_ident(&self, pos: &Pos, name: &str) -> V<'c, T> {
         panic!()
     }
 

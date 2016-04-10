@@ -48,14 +48,14 @@ pub enum Stmt<'a> {
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Expr<'a> {
     // Atoms
-    Ident      (&'a str),
-    Str        (&'a str),
-    Int        (Pos<'a>, BigInt),
-    Deref      (Vec<Box<Expr<'a>>>),
+    Ident   (Pos<'a>, &'a str),
+    Str     (Pos<'a>, &'a str),
+    Int     (Pos<'a>, BigInt),
+    Deref   (Pos<'a>, Vec<Box<Expr<'a>>>),
 
     // Composites
-    UnaryOp    (&'a Op, Option<&'a str>, Box<Expr<'a>>),
-    BinaryOp   (&'a Op, Option<&'a str>, Box<Expr<'a>>, Box<Expr<'a>>),
+    Unary   (Pos<'a>, &'a Op, Option<&'a str>, Box<Expr<'a>>),
+    Binary  (Pos<'a>, &'a Op, Option<&'a str>, Box<Expr<'a>>, Box<Expr<'a>>),
 
     // Right Unary
     Member     (Box<Expr<'a>>, &'a str),
@@ -118,8 +118,8 @@ impl<'a> Expr<'a> {
 impl<'a> Display for Expr<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Expr::Ident      (s)                  => f.write_str(s),
-            Expr::Str        (s)                  => fmt_str(s, f),
+            Expr::Ident      (_, s)               => f.write_str(s),
+            Expr::Str        (_, s)               => fmt_str(s, f),
             Expr::Int        (_, ref i)           => fmt_int(i, f),
             Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
             Expr::Complement (ref e, None)        => write!(f, "~{}", e),
@@ -185,7 +185,7 @@ mod tests {
 
     #[test]
     fn fmt_ident() {
-        let expr = Expr::Ident("a");
+        let expr = Expr::Ident(Pos::bof("f"), "a");
         let text = format!("{}", &expr);
         assert_eq!(text, "a");
     }
@@ -207,7 +207,7 @@ mod tests {
             \\023\\177\\347\\277\\277\
         \"";
 
-        let expr = Expr::Str(original);
+        let expr = Expr::Str(Pos::bof("f"), original);
         let text = format!("{}", &expr);
         assert_eq!(text, formatted);
     }
@@ -228,8 +228,8 @@ mod tests {
 
     #[test]
     fn fmt_add() {
-        let a    = Box::new(Expr::Ident("a"));
-        let b    = Box::new(Expr::Ident("b"));
+        let a    = Box::new(Expr::Ident(Pos::bof("f"), "a"));
+        let b    = Box::new(Expr::Ident(Pos::bof("f"), "b"));
         let expr = Expr::Add(a, b, None);
         let text = format!("{}", &expr);
         assert_eq!(text, "(a + b)");

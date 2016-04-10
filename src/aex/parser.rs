@@ -276,7 +276,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
             // ID
             Token::Id(x) => {
                 self.advance();
-                Ok(Box::new(Expr::Ident(x)))
+                Ok(Box::new(Expr::Ident(pos, x)))
             },
             // INT
             Token::Int(x) => {
