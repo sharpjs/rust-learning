@@ -48,7 +48,7 @@ pub struct Evaluator<'g, 'c: 'g, T> {
     _t: PhantomData<T>,
 }
 
-impl<'g, 'c: 'g, T> Eval<'c> for Evaluator<'g, 'c, T> {
+impl<'g, 'c: 'g, T> Eval<'c> for Evaluator<'g, 'c, T> where T: Any {
     #[inline]
     #[allow(unused_must_use)]
     fn eval(&self, expr: &Expr<'c>) {
@@ -60,7 +60,7 @@ impl<'g, 'c: 'g, T> Eval<'c> for Evaluator<'g, 'c, T> {
 type V<'c, T> = Result<Value<'c, T>, ()>;
 
 
-impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> {
+impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> where T: Any {
     fn eval(&self, expr: &Expr<'c>) -> V<'c, T> {
         match *expr {
             Expr::Ident  (pos, name)                  => self.eval_ident  (pos, name),
@@ -107,7 +107,8 @@ impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> {
                   -> V<'c, T> {
         let x = try!(self.eval(x));
         let y = try!(self.eval(y));
-        Self::do_binary(op, sel, x, y)
+        let f = Any::downcast_ref::<DoBinary<T>>(&op.eval).unwrap();
+        Ok(f(sel, x, y, pos))
     }
 
     // Target-specific
@@ -133,7 +134,8 @@ impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> {
     }
 }
 
-type DoUnary<T> = &'static for<'a> Fn(Value<'a, T>) -> Value<'a, T>;
+type DoBinary<T> = &'static for<'a>
+    Fn(Option<&str>, Value<'a, T>, Value<'a, T>, Pos<'a>) -> Value<'a, T>;
 
 // -----------------------------------------------------------------------------
 // Value - an evaluated expression
