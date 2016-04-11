@@ -108,7 +108,7 @@ impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> where T: Any {
         let x = try!(self.eval(x));
         let y = try!(self.eval(y));
         let f = Any::downcast_ref::<DoBinary<T>>(&op.eval).unwrap();
-        Ok(f(sel, x, y, pos))
+        f(sel, x, y, pos)
     }
 
     // Target-specific
@@ -135,7 +135,7 @@ impl<'g, 'c: 'g, T> Evaluator<'g, 'c, T> where T: Any {
 }
 
 type DoBinary<T> = &'static for<'a>
-    Fn(Option<&str>, Value<'a, T>, Value<'a, T>, Pos<'a>) -> Value<'a, T>;
+    Fn(Option<&str>, Value<'a, T>, Value<'a, T>, Pos<'a>) -> V<'a, T>;
 
 // -----------------------------------------------------------------------------
 // Value - an evaluated expression
