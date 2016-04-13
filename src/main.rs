@@ -23,16 +23,16 @@ extern crate num;
 
 mod aex;
 
-use std::io::{self, Read};
+//use std::io::{self, Read};
 
 fn main() {
-    let mut input = String::new();
-
-    match io::stdin().read_to_string(&mut input) {
-        Ok(_)  => (),
-        Err(e) => panic!("error reading stdin: {}", e)
-    }
-
-    aex::compile(input.chars(), "(stdin)");
+//    let mut input = String::new();
+//
+//    match io::stdin().read_to_string(&mut input) {
+//        Ok(_)  => (),
+//        Err(e) => panic!("error reading stdin: {}", e)
+//    }
+//
+//    aex::compile(input.chars(), "(stdin)");
 }
 
