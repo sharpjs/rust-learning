@@ -16,7 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//pub mod cf; // Freescale ColdFire
+mod cf; // Freescale ColdFire
+
+pub use self::cf::ColdFire;
 
 //use aex::types::Type;
 

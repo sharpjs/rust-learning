@@ -16,34 +16,34 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod loc;
-mod code_gen;
+//mod loc;
+//mod code_gen;
 
-use aex::types::*;
+//use aex::types::*;
 use aex::target::Target;
 
-pub struct ColdFire {
-    ptr_type: Type<'static>
-}
+pub struct ColdFire; // {
+//    ptr_type: Type<'static>
+//}
 
-impl ColdFire {
-    pub fn new() -> Self {
-        ColdFire {
-            ptr_type: Type::Ptr(
-                Box::new(Type::Ref("int")),
-                Box::new(Type::Ref("u8" ))
-            )
-        }
-    }
-}
+//impl ColdFire {
+//    pub fn new() -> Self {
+//        ColdFire {
+//            ptr_type: Type::Ptr(
+//                Box::new(Type::Ref("int")),
+//                Box::new(Type::Ref("u8" ))
+//            )
+//        }
+//    }
+//}
 
-impl Default for ColdFire {
-    #[inline]
-    fn default() -> Self { Self::new() }
-}
+//impl Default for ColdFire {
+//    #[inline]
+//    fn default() -> Self { Self::new() }
+//}
 
 impl Target for ColdFire {
-    #[inline]
-    fn label_type(&self) -> &Type<'static> { &self.ptr_type }
+//    #[inline]
+//    fn label_type(&self) -> &Type<'static> { &self.ptr_type }
 }
 

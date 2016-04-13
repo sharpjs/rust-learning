@@ -25,6 +25,8 @@ mod aex;
 
 //use std::io::{self, Read};
 
+use aex::*;
+
 fn main() {
 //    let mut input = String::new();
 //
@@ -32,7 +34,7 @@ fn main() {
 //        Ok(_)  => (),
 //        Err(e) => panic!("error reading stdin: {}", e)
 //    }
-//
-//    aex::compile(input.chars(), "(stdin)");
+
+    Compiler::new(ColdFire);
 }
 

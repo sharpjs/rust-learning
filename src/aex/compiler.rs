@@ -20,7 +20,7 @@
 //use aex::codegen::CodeGenerator;
 //use aex::lexer::Lexer;
 //use aex::mem::arena::Arena;
-//use aex::mem::interner::StringInterner;
+use aex::mem::interner::StringInterner;
 //use aex::message::Messages;
 //use aex::operator::{self, OpTable};
 //use aex::parser::parse;
@@ -43,8 +43,9 @@ use aex::target::Target;
 //    println!("{:#?}", ast);
 //}
 
-pub struct Compiler<T: Target> {
+pub struct Compiler<'a, T: Target> {
     pub target: T,
+        memory: Memory<'a>,
     //pub strings:   &'a StringInterner<'a>,
     //pub positions: &'a Arena<Pos<'a>>,
     //pub code:      Assembly,
@@ -55,29 +56,31 @@ pub struct Compiler<T: Target> {
     //  > operators
 }
 
-impl<T: Target> Compiler<T> {
-//    pub fn new(memory: &'a Memory<'a>) -> Self {
-//        Compiler {
+impl<'a, T: Target> Compiler<'a, T> {
+    pub fn new(target: T) -> Self {
+        Compiler {
+            target: target,
+            memory: Memory::new(),
 //            strings:   &memory.strings,
 //            positions: &memory.positions,
 //            code:      Assembly::new(),
 //            log:       Messages::new(),
 //            ops:       operator::create_op_table()
-//        }
-//    }
+        }
+    }
 }
 
-//pub struct Memory<'a> {
-//    strings:   StringInterner<'a>,
-//    positions: Arena<Pos<'a>>,
-//}
-//
-//impl<'a> Memory<'a> {
-//    pub fn new() -> Self {
-//        Memory {
-//            strings:   StringInterner::new(),
-//            positions: Arena::new(),
-//        }
-//    }
-//}
+pub struct Memory<'a> {
+    strings:   StringInterner<'a>,
+    //positions: Arena<Pos<'a>>,
+}
+
+impl<'a> Memory<'a> {
+    pub fn new() -> Self {
+        Memory {
+            strings:   StringInterner::new(),
+            //positions: Arena::new(),
+        }
+    }
+}
 
