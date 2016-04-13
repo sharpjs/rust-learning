@@ -22,7 +22,7 @@
 mod util;
 
 //mod ast;
-//mod compilation;
+//mod compiler;
 //mod codegen;
 //mod mem;
 //mod lexer;
