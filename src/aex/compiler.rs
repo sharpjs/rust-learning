@@ -1,4 +1,4 @@
-// Compilation State
+// Compiler Top-Level Interface
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,66 +16,68 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use aex::asm::Assembly;
-use aex::codegen::CodeGenerator;
-use aex::lexer::Lexer;
-use aex::mem::arena::Arena;
-use aex::mem::interner::StringInterner;
-use aex::message::Messages;
-use aex::operator::{self, OpTable};
-use aex::parser::parse;
-use aex::pos::Pos;
+//use aex::asm::Assembly;
+//use aex::codegen::CodeGenerator;
+//use aex::lexer::Lexer;
+//use aex::mem::arena::Arena;
+//use aex::mem::interner::StringInterner;
+//use aex::message::Messages;
+//use aex::operator::{self, OpTable};
+//use aex::parser::parse;
+//use aex::pos::Pos;
+use aex::target::Target;
 
-pub fn compile<I>(input: I, filename: &str)
-where I: Iterator<Item=char> {
+//pub fn compile<I>(input: I, filename: &str)
+//where I: Iterator<Item=char> {
+//
+//    let memory = Memory::new();
+//    let mut compilation = Compiler::new(&memory);
+//
+//    let ast = {
+//        let mut lexer = Lexer::new(&mut compilation, input);
+//        parse(&mut lexer)
+//    };
+//
+//    let generator = CodeGenerator::new(&mut compilation);
+//
+//    println!("{:#?}", ast);
+//}
 
-    let memory = Memory::new();
-    let mut compilation = Compilation::new(&memory);
-
-    let ast = {
-        let mut lexer = Lexer::new(&mut compilation, input);
-        parse(&mut lexer)
-    };
-
-    let generator = CodeGenerator::new(&mut compilation);
-
-    println!("{:#?}", ast);
-}
-
-pub struct Compilation<'a> {
-    pub strings:   &'a StringInterner<'a>,
-    pub positions: &'a Arena<Pos<'a>>,
-    pub code:      Assembly,
-    pub log:       Messages<'a>,
-    pub ops:       OpTable,
+pub struct Compiler<T: Target> {
+    pub target: T,
+    //pub strings:   &'a StringInterner<'a>,
+    //pub positions: &'a Arena<Pos<'a>>,
+    //pub code:      Assembly,
+    //pub log:       Messages<'a>,
+    //pub ops:       OpTable,
     // target
     //  > builtin scope
     //  > operators
 }
 
-impl<'a> Compilation<'a> {
-    pub fn new(memory: &'a Memory<'a>) -> Self {
-        Compilation {
-            strings:   &memory.strings,
-            positions: &memory.positions,
-            code:      Assembly::new(),
-            log:       Messages::new(),
-            ops:       operator::create_op_table()
-        }
-    }
+impl<T: Target> Compiler<T> {
+//    pub fn new(memory: &'a Memory<'a>) -> Self {
+//        Compiler {
+//            strings:   &memory.strings,
+//            positions: &memory.positions,
+//            code:      Assembly::new(),
+//            log:       Messages::new(),
+//            ops:       operator::create_op_table()
+//        }
+//    }
 }
 
-pub struct Memory<'a> {
-    strings:   StringInterner<'a>,
-    positions: Arena<Pos<'a>>,
-}
-
-impl<'a> Memory<'a> {
-    pub fn new() -> Self {
-        Memory {
-            strings:   StringInterner::new(),
-            positions: Arena::new(),
-        }
-    }
-}
+//pub struct Memory<'a> {
+//    strings:   StringInterner<'a>,
+//    positions: Arena<Pos<'a>>,
+//}
+//
+//impl<'a> Memory<'a> {
+//    pub fn new() -> Self {
+//        Memory {
+//            strings:   StringInterner::new(),
+//            positions: Arena::new(),
+//        }
+//    }
+//}
 

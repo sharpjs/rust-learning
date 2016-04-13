@@ -1,4 +1,4 @@
-// Target Modules
+// Target Architectures
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod cf; // Freescale ColdFire
+//pub mod cf; // Freescale ColdFire
 
-use aex::types::Type;
+//use aex::types::Type;
 
 pub trait Target {
-    fn label_type(&self) -> &Type<'static>;
+    //fn label_type(&self) -> &Type<'static>;
 }
 

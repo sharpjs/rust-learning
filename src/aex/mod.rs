@@ -22,7 +22,7 @@
 mod util;
 
 //mod ast;
-//mod compiler;
+mod compiler;
 //mod codegen;
 mod mem;
 //mod lexer;
@@ -30,6 +30,7 @@ mod mem;
 //mod parser;
 //mod scope;
 //mod symbol;
+mod target;
 //mod types;
 
 //pub use aex::compilation::compile;
@@ -42,5 +43,4 @@ mod mem;
 
 //mod analyze;
 //mod output;
-//mod target;
 
