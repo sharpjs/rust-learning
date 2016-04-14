@@ -23,6 +23,7 @@ pub use self::cf::ColdFire;
 //use aex::types::Type;
 
 pub trait Target {
+    type Term;
     //fn label_type(&self) -> &Type<'static>;
 }
 

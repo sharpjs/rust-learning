@@ -19,12 +19,20 @@
 //mod loc;
 //mod code_gen;
 
+use std::marker::PhantomData;
 //use aex::types::*;
 use aex::target::Target;
 
-pub struct ColdFire; // {
+pub struct ColdFire<'a> {
+    _x: PhantomData<&'a str>
 //    ptr_type: Type<'static>
-//}
+}
+
+impl<'a> ColdFire<'a> {
+    pub fn new() -> Self {
+        ColdFire { _x: PhantomData }
+    }
+}
 
 //impl ColdFire {
 //    pub fn new() -> Self {
@@ -42,8 +50,12 @@ pub struct ColdFire; // {
 //    fn default() -> Self { Self::new() }
 //}
 
-impl Target for ColdFire {
+impl<'a> Target for ColdFire<'a> {
+    type Term = CfTerm<'a>;
 //    #[inline]
 //    fn label_type(&self) -> &Type<'static> { &self.ptr_type }
 }
+
+// Temporary
+pub enum CfTerm<'a> { A(&'a str), B }
 

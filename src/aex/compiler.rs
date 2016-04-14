@@ -27,12 +27,13 @@ use aex::mem::interner::StringInterner;
 //use aex::pos::Pos;
 use aex::target::Target;
 
-pub fn compile<I, T>(input: I, filename: &str, target: T)
-where I: Iterator<Item=char>,
-      T: Target {
+use aex::target::ColdFire;
 
-    let     memory   = Memory::new();
-    let     compiler = Compiler::new(target, &memory);
+pub fn compile<I>(input: I, filename: &str)
+where I: Iterator<Item=char> {
+    let target   = ColdFire::new();
+    let memory   = Memory::new();
+    let compiler = Compiler::new(target, &memory);
 
 //    let ast = {
 //        let mut lexer = Lexer::new(&mut compilation, input);

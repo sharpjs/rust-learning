@@ -34,6 +34,6 @@ fn main() {
         Err(e) => panic!("error reading stdin: {}", e)
     }
 
-    compile(input.chars(), "(stdin)", ColdFire);
+    compile(input.chars(), "(stdin)");
 }
 
