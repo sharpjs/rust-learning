@@ -18,8 +18,8 @@
 
 // Recently visited
 
-#[macro_use]
-mod util;
+//#[macro_use]
+//mod util;
 
 //mod ast;
 mod compiler;
