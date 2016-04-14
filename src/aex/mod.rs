@@ -27,6 +27,7 @@ mod compiler;
 mod mem;
 //mod lexer;
 //mod operator;
+mod pos;
 //mod parser;
 //mod scope;
 //mod symbol;
@@ -40,7 +41,6 @@ pub use aex::target::ColdFire;
 
 //mod asm;
 //mod message;
-//mod pos;
 
 //mod analyze;
 //mod output;
