@@ -27,12 +27,13 @@ use aex::mem::interner::StringInterner;
 //use aex::pos::Pos;
 use aex::target::Target;
 
-//pub fn compile<I>(input: I, filename: &str)
-//where I: Iterator<Item=char> {
-//
-//    let memory = Memory::new();
-//    let mut compilation = Compiler::new(&memory);
-//
+pub fn compile<I, T>(input: I, filename: &str, target: T)
+where I: Iterator<Item=char>,
+      T: Target {
+
+    let     memory   = Memory::new();
+    let     compiler = Compiler::new(target, &memory);
+
 //    let ast = {
 //        let mut lexer = Lexer::new(&mut compilation, input);
 //        parse(&mut lexer)
@@ -41,36 +42,39 @@ use aex::target::Target;
 //    let generator = CodeGenerator::new(&mut compilation);
 //
 //    println!("{:#?}", ast);
-//}
+}
 
-pub struct Compiler<'a, T: Target> {
+struct Compiler<'a, T: Target> {
     pub target: T,
-        memory: Memory<'a>,
-    //pub strings:   &'a StringInterner<'a>,
-    //pub positions: &'a Arena<Pos<'a>>,
+    // > builtin scope
+    // > operators
+    pub strings:   &'a StringInterner<'a>,
+//    pub positions: &'a Arena<Pos<'a>>,
     //pub code:      Assembly,
     //pub log:       Messages<'a>,
     //pub ops:       OpTable,
-    // target
-    //  > builtin scope
-    //  > operators
 }
 
 impl<'a, T: Target> Compiler<'a, T> {
-    pub fn new(target: T) -> Self {
+    pub fn new(target: T, memory: &'a Memory<'a>) -> Self {
         Compiler {
-            target: target,
-            memory: Memory::new(),
-//            strings:   &memory.strings,
+            target:    target,
+            strings:   &memory.strings,
 //            positions: &memory.positions,
 //            code:      Assembly::new(),
 //            log:       Messages::new(),
 //            ops:       operator::create_op_table()
         }
     }
+
+    // CHOICE: Either go back to 'a as above, or
+    // make Arena return i32 instead of &'a
+    //pub fn strings(&self) -> &StringInterner<'a> {
+    //    &self.memory.strings
+    //}
 }
 
-pub struct Memory<'a> {
+struct Memory<'a> {
     strings:   StringInterner<'a>,
     //positions: Arena<Pos<'a>>,
 }

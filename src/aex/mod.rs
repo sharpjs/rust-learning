@@ -33,7 +33,7 @@ mod mem;
 mod target;
 //mod types;
 
-pub use aex::compiler::Compiler;
+pub use aex::compiler::compile;
 pub use aex::target::ColdFire;
 
 // Not recently visited
