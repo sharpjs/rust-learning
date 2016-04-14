@@ -19,12 +19,12 @@
 //use aex::asm::Assembly;
 //use aex::codegen::CodeGenerator;
 //use aex::lexer::Lexer;
-//use aex::mem::arena::Arena;
+use aex::mem::arena::Arena;
 use aex::mem::interner::StringInterner;
 //use aex::message::Messages;
 //use aex::operator::{self, OpTable};
 //use aex::parser::parse;
-//use aex::pos::Pos;
+use aex::pos::Pos;
 use aex::target::Target;
 
 use aex::target::ColdFire;
@@ -46,11 +46,9 @@ where I: Iterator<Item=char> {
 }
 
 struct Compiler<'a, T: Target> {
-    pub target: T,
-    // > builtin scope
-    // > operators
+    pub target:    T,
     pub strings:   &'a StringInterner<'a>,
-//    pub positions: &'a Arena<Pos<'a>>,
+    pub positions: &'a Arena<Pos<'a>>,
     //pub code:      Assembly,
     //pub log:       Messages<'a>,
     //pub ops:       OpTable,
@@ -61,7 +59,7 @@ impl<'a, T: Target> Compiler<'a, T> {
         Compiler {
             target:    target,
             strings:   &memory.strings,
-//            positions: &memory.positions,
+            positions: &memory.positions,
 //            code:      Assembly::new(),
 //            log:       Messages::new(),
 //            ops:       operator::create_op_table()
@@ -70,21 +68,20 @@ impl<'a, T: Target> Compiler<'a, T> {
 
     // CHOICE: Either go back to 'a as above, or
     // make Arena return i32 instead of &'a
-    //pub fn strings(&self) -> &StringInterner<'a> {
-    //    &self.memory.strings
-    //}
 }
 
+// This type is separate, so that rustc generates a useful 'a.
+//
 struct Memory<'a> {
     strings:   StringInterner<'a>,
-    //positions: Arena<Pos<'a>>,
+    positions: Arena<Pos<'a>>,
 }
 
 impl<'a> Memory<'a> {
     pub fn new() -> Self {
         Memory {
             strings:   StringInterner::new(),
-            //positions: Arena::new(),
+            positions: Arena::new(),
         }
     }
 }
