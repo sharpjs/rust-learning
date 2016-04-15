@@ -31,19 +31,19 @@ use aex::pos::Pos;
 use self::Arity::*;
 use self::Fixity::*;
 
-#[derive(Clone, Debug)]
-pub struct OpTable<'a, V: 'a> {
-    nonprefix: HashMap<&'static str, Op<'a, V>>, // infix and postfix ops
-    prefix:    HashMap<&'static str, Op<'a, V>>, // prefix ops
+#[derive(Debug)]
+pub struct OpTable<V> {
+    nonprefix: HashMap<&'static str, Op<V>>, // infix and postfix ops
+    prefix:    HashMap<&'static str, Op<V>>, // prefix ops
 }
 
-#[derive(Clone, Copy, Debug)]
-pub struct Op<'a, V: 'a> {
+#[derive(Debug)]
+pub struct Op<V> {
     pub chars:  &'static str,
     pub prec:   u8,
     pub assoc:  Assoc,
     pub fixity: Fixity,
-    pub arity:  Arity<'a, V>
+    pub arity:  Arity<V>
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -52,13 +52,12 @@ pub enum Assoc { Left, Right }
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Fixity { Prefix, Infix, Postfix }
 
-#[derive(Clone, Copy)]
-pub enum Arity<'a, V: 'a> {
-    Unary  (&'a Fn(&Pos, &str, [V; 1]) -> V),
-    Binary (&'a Fn(&Pos, &str, [V; 2]) -> V)
+pub enum Arity<V> {
+    Unary  (Box<Fn(&Pos, &str, [V; 1]) -> V>),
+    Binary (Box<Fn(&Pos, &str, [V; 2]) -> V>)
 }
 
-impl<'a, V: 'a> OpTable<'a, V> {
+impl<V> OpTable<V> {
     pub fn new() -> Self {
         OpTable { 
             nonprefix: HashMap::new(),
@@ -66,7 +65,7 @@ impl<'a, V: 'a> OpTable<'a, V> {
         }
     }
 
-    pub fn add(&mut self, op: Op<'a, V>) {
+    pub fn add(&mut self, op: Op<V>) {
         let map = match op.fixity {
             Infix | Postfix => &mut self.nonprefix,
             Prefix          => &mut self.prefix,
@@ -74,16 +73,16 @@ impl<'a, V: 'a> OpTable<'a, V> {
         map.insert(op.chars, op);
     }
 
-    pub fn get_nonprefix(&self, chars: &str) -> Option<&Op<'a, V>> {
+    pub fn get_nonprefix(&self, chars: &str) -> Option<&Op<V>> {
         self.nonprefix.get(chars)
     }
 
-    pub fn get_prefix(&self, chars: &str) -> Option<&Op<'a, V>> {
+    pub fn get_prefix(&self, chars: &str) -> Option<&Op<V>> {
         self.prefix.get(chars)
     }
 }
 
-impl<'a, V: 'a> fmt::Debug for Arity<'a, V> {
+impl<V> fmt::Debug for Arity<V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match *self {
             Unary  (_) => "Unary",

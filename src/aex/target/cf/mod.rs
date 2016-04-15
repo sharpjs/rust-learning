@@ -20,12 +20,16 @@
 //mod code_gen;
 
 use std::marker::PhantomData;
-//use aex::types::*;
+
+use aex::operator::{Op, OpTable};
+use aex::operator::Assoc::*;
+use aex::operator::Fixity::*;
+use aex::operator::Arity::*;
+use aex::pos::Pos;
 use aex::target::Target;
 
 pub struct ColdFire<'a> {
-    _x: PhantomData<&'a str>
-//    ptr_type: Type<'static>
+    _x: PhantomData<&'a ()>
 }
 
 impl<'a> ColdFire<'a> {
@@ -34,28 +38,22 @@ impl<'a> ColdFire<'a> {
     }
 }
 
-//impl ColdFire {
-//    pub fn new() -> Self {
-//        ColdFire {
-//            ptr_type: Type::Ptr(
-//                Box::new(Type::Ref("int")),
-//                Box::new(Type::Ref("u8" ))
-//            )
-//        }
-//    }
-//}
-
-//impl Default for ColdFire {
-//    #[inline]
-//    fn default() -> Self { Self::new() }
-//}
-
 impl<'a> Target for ColdFire<'a> {
     type Term = CfTerm<'a>;
-//    #[inline]
-//    fn label_type(&self) -> &Type<'static> { &self.ptr_type }
+
+    fn init_operators(&self, operators: &mut OpTable<Self::Term>) {
+        operators.add(Op {
+            chars: "+", prec: 7, assoc: Left, fixity: Infix, arity: Binary(
+                Box::new(|p, s, a| CfTerm::B)
+            )
+        });
+    }
 }
 
 // Temporary
 pub enum CfTerm<'a> { A(&'a str), B }
+
+fn add<'a>(pos: &Pos, sel: &str, args: [CfTerm<'a>; 2]) -> CfTerm<'a> {
+    CfTerm::B
+}
 
