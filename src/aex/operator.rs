@@ -54,8 +54,8 @@ pub enum Fixity { Prefix, Infix, Postfix }
 
 #[derive(Clone, Copy)]
 pub enum Arity<'a, V: 'a> {
-    Unary  (&'a Fn(Pos<'a>, &'a str, [V; 1]) -> V),
-    Binary (&'a Fn(Pos<'a>, &'a str, [V; 2]) -> V)
+    Unary  (&'a Fn(&Pos, &str, [V; 1]) -> V),
+    Binary (&'a Fn(&Pos, &str, [V; 2]) -> V)
 }
 
 impl<'a, V: 'a> OpTable<'a, V> {
@@ -98,7 +98,7 @@ impl<'a, V: 'a> fmt::Debug for Arity<'a, V> {
 //    for &op in OPS { table.add(op) }
 //    table
 //}
-//
+
 //static OPS: &'static [Op<V>] = &[
 //    // Postfix Unary
 //    Op { chars: "++", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
