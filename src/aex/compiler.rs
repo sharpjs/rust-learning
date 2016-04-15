@@ -65,9 +65,6 @@ impl<'a, T: Target> Compiler<'a, T> {
 //            ops:       operator::create_op_table()
         }
     }
-
-    // CHOICE: Either go back to 'a as above, or
-    // make Arena return i32 instead of &'a
 }
 
 // This type is separate, so that rustc generates a useful 'a.

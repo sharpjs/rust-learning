@@ -26,7 +26,7 @@ mod compiler;
 //mod codegen;
 mod mem;
 //mod lexer;
-//mod operator;
+mod operator;
 mod pos;
 //mod parser;
 //mod scope;
