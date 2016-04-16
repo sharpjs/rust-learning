@@ -20,12 +20,11 @@ mod cf; // Freescale ColdFire
 
 pub use self::cf::ColdFire;
 
-use aex::operator::OpTable;
+use aex::operator::OperatorTable;
 //use aex::types::Type;
 
 pub trait Target {
     type Term;
-    //fn label_type(&self) -> &Type<'static>;
-    fn init_operators(&self, &mut OpTable<Self::Term>);
+    fn init_operators(&self, &mut OperatorTable<Self::Term>);
 }
 

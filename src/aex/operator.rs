@@ -32,13 +32,13 @@ use self::Arity::*;
 use self::Fixity::*;
 
 #[derive(Debug)]
-pub struct OpTable<V> {
-    nonprefix: HashMap<&'static str, Op<V>>, // infix and postfix ops
-    prefix:    HashMap<&'static str, Op<V>>, // prefix ops
+pub struct OperatorTable<V> {
+    nonprefix: HashMap<&'static str, Operator<V>>, // infix and postfix ops
+    prefix:    HashMap<&'static str, Operator<V>>, // prefix ops
 }
 
 #[derive(Debug)]
-pub struct Op<V> {
+pub struct Operator<V> {
     pub chars:  &'static str,
     pub prec:   u8,
     pub assoc:  Assoc,
@@ -57,15 +57,15 @@ pub enum Arity<V> {
     Binary (Box<Fn(&Pos, &str, [V; 2]) -> V>)
 }
 
-impl<V> OpTable<V> {
+impl<V> OperatorTable<V> {
     pub fn new() -> Self {
-        OpTable { 
+        OperatorTable { 
             nonprefix: HashMap::new(),
             prefix:    HashMap::new(),
         }
     }
 
-    pub fn add(&mut self, op: Op<V>) {
+    pub fn add(&mut self, op: Operator<V>) {
         let map = match op.fixity {
             Infix | Postfix => &mut self.nonprefix,
             Prefix          => &mut self.prefix,
@@ -73,12 +73,25 @@ impl<V> OpTable<V> {
         map.insert(op.chars, op);
     }
 
-    pub fn get_nonprefix(&self, chars: &str) -> Option<&Op<V>> {
+    pub fn get_nonprefix(&self, chars: &str) -> Option<&Operator<V>> {
         self.nonprefix.get(chars)
     }
 
-    pub fn get_prefix(&self, chars: &str) -> Option<&Op<V>> {
+    pub fn get_prefix(&self, chars: &str) -> Option<&Operator<V>> {
         self.prefix.get(chars)
+    }
+}
+
+impl<V> Operator<V> {
+    pub fn invoke_unary(&self, pos: &Pos, sel: &str, args: [V; 1]) -> V {
+        // if args are constant
+        //   do constant op
+        // else
+        //   do asm op
+        match self.arity {
+            Unary(ref f) => f(pos, sel, args),
+            _ => panic!()
+        }
     }
 }
 
@@ -92,59 +105,59 @@ impl<V> fmt::Debug for Arity<V> {
 }
 
 //// For now.  Eventually, targets should provide their available operators.
-//pub fn create_op_table<V>() -> OpTable<V> {
-//    let mut table = OpTable::new();
+//pub fn create_op_table<V>() -> OperatorTable<V> {
+//    let mut table = OperatorTable::new();
 //    for &op in OPS { table.add(op) }
 //    table
 //}
 
-//static OPS: &'static [Op<V>] = &[
+//static OPS: &'static [Operator<V>] = &[
 //    // Postfix Unary
-//    Op { chars: "++", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
-//    Op { chars: "--", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
+//    Operator { chars: "++", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
+//    Operator { chars: "--", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
 //
 //    // Prefix Unary
-//    Op { chars: "!",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Op { chars: "~",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Op { chars: "-",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Op { chars: "+",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Op { chars: "&",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
+//    Operator { chars: "!",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
+//    Operator { chars: "~",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
+//    Operator { chars: "-",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
+//    Operator { chars: "+",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
+//    Operator { chars: "&",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
 //
 //    // Multiplicative
-//    Op { chars: "*",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "/",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "%",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "*",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "/",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "%",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
 //                                                          
 //    // Additive                                           
-//    Op { chars: "+",  prec:  7, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "-",  prec:  7, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "+",  prec:  7, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "-",  prec:  7, assoc: Left,  fixity: Infix,   eval: &42 },
 //                                                          
 //    // Bitwise Shift                                      
-//    Op { chars: "<<", prec:  6, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: ">>", prec:  6, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "<<", prec:  6, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: ">>", prec:  6, assoc: Left,  fixity: Infix,   eval: &42 },
 //                                                          
 //    // Bitwise Boolean                                    
-//    Op { chars: "&",  prec:  5, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "^",  prec:  4, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "|",  prec:  3, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "&",  prec:  5, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "^",  prec:  4, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "|",  prec:  3, assoc: Left,  fixity: Infix,   eval: &42 },
 //                                                          
 //    // Bitwise Manipulation                               
-//    Op { chars: ".~", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: ".!", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: ".+", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: ".?", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: ".~", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: ".!", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: ".+", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: ".?", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
 //
 //    // Comparison
-//    Op { chars: "?",  prec:  1, assoc: Left,  fixity: Postfix, eval: &42 },
-//    Op { chars: "<>", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "==", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "!=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "<" , prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: "<=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: ">" , prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Op { chars: ">=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "?",  prec:  1, assoc: Left,  fixity: Postfix, eval: &42 },
+//    Operator { chars: "<>", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "==", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "!=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "<" , prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: "<=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: ">" , prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
+//    Operator { chars: ">=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
 //                                                           
 //    // Assignment                                          
-//    Op { chars: "=",  prec:  0, assoc: Right, fixity: Infix,   eval: &42 },
+//    Operator { chars: "=",  prec:  0, assoc: Right, fixity: Infix,   eval: &42 },
 //];
 

@@ -21,7 +21,7 @@
 
 use std::marker::PhantomData;
 
-use aex::operator::{Op, OpTable};
+use aex::operator::{Operator, OperatorTable};
 use aex::operator::Assoc::*;
 use aex::operator::Fixity::*;
 use aex::operator::Arity::*;
@@ -41,8 +41,8 @@ impl<'a> ColdFire<'a> {
 impl<'a> Target for ColdFire<'a> {
     type Term = CfTerm<'a>;
 
-    fn init_operators(&self, operators: &mut OpTable<Self::Term>) {
-        operators.add(Op {
+    fn init_operators(&self, operators: &mut OperatorTable<Self::Term>) {
+        operators.add(Operator {
             chars: "+", prec: 7, assoc: Left, fixity: Infix, arity: Binary(
                 Box::new(|p, s, a| CfTerm::B)
             )
