@@ -42,11 +42,9 @@ impl<'a> Target for ColdFire<'a> {
     type Term = CfTerm<'a>;
 
     fn init_operators(&self, operators: &mut OperatorTable<Self::Term>) {
-        operators.add(Operator {
-            chars: "+", prec: 7, assoc: Left, fixity: Infix, arity: Binary(
-                Box::new(|p, s, a| CfTerm::B)
-            )
-        });
+        operators.add(Operator::new("+", 7, Left, Infix, Binary(
+            Box::new(|p, s, a| CfTerm::B)
+        )));
     }
 }
 

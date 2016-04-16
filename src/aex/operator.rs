@@ -32,18 +32,18 @@ use self::Arity::*;
 use self::Fixity::*;
 
 #[derive(Debug)]
-pub struct OperatorTable<V> {
-    nonprefix: HashMap<&'static str, Operator<V>>, // infix and postfix ops
-    prefix:    HashMap<&'static str, Operator<V>>, // prefix ops
+pub struct OperatorTable<T> {
+    nonprefix: HashMap<&'static str, Operator<T>>, // infix and postfix ops
+    prefix:    HashMap<&'static str, Operator<T>>, // prefix ops
 }
 
 #[derive(Debug)]
-pub struct Operator<V> {
+pub struct Operator<T> {
     pub chars:  &'static str,
     pub prec:   u8,
     pub assoc:  Assoc,
     pub fixity: Fixity,
-    pub arity:  Arity<V>
+    pub arity:  Arity<T>
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -52,12 +52,12 @@ pub enum Assoc { Left, Right }
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Fixity { Prefix, Infix, Postfix }
 
-pub enum Arity<V> {
-    Unary  (Box<Fn(&Pos, &str, [V; 1]) -> V>),
-    Binary (Box<Fn(&Pos, &str, [V; 2]) -> V>)
+pub enum Arity<T> {
+    Unary  (Box<Fn(&Pos, &str, [T; 1]) -> T>),
+    Binary (Box<Fn(&Pos, &str, [T; 2]) -> T>)
 }
 
-impl<V> OperatorTable<V> {
+impl<T> OperatorTable<T> {
     pub fn new() -> Self {
         OperatorTable { 
             nonprefix: HashMap::new(),
@@ -65,7 +65,7 @@ impl<V> OperatorTable<V> {
         }
     }
 
-    pub fn add(&mut self, op: Operator<V>) {
+    pub fn add(&mut self, op: Operator<T>) {
         let map = match op.fixity {
             Infix | Postfix => &mut self.nonprefix,
             Prefix          => &mut self.prefix,
@@ -73,17 +73,32 @@ impl<V> OperatorTable<V> {
         map.insert(op.chars, op);
     }
 
-    pub fn get_nonprefix(&self, chars: &str) -> Option<&Operator<V>> {
+    pub fn get_nonprefix(&self, chars: &str) -> Option<&Operator<T>> {
         self.nonprefix.get(chars)
     }
 
-    pub fn get_prefix(&self, chars: &str) -> Option<&Operator<V>> {
+    pub fn get_prefix(&self, chars: &str) -> Option<&Operator<T>> {
         self.prefix.get(chars)
     }
 }
 
-impl<V> Operator<V> {
-    pub fn invoke_unary(&self, pos: &Pos, sel: &str, args: [V; 1]) -> V {
+impl<T> Operator<T> {
+    pub fn new(chars:  &'static str,
+               prec:   u8,
+               assoc:  Assoc,
+               fixity: Fixity,
+               arity:  Arity<T>
+              ) -> Self {
+        Operator {
+            chars:  chars,
+            prec:   prec,
+            assoc:  assoc,
+            fixity: fixity,
+            arity:  arity
+        }
+    }
+
+    pub fn invoke_unary(&self, pos: &Pos, sel: &str, args: [T; 1]) -> T {
         // if args are constant
         //   do constant op
         // else
@@ -95,7 +110,7 @@ impl<V> Operator<V> {
     }
 }
 
-impl<V> fmt::Debug for Arity<V> {
+impl<T> fmt::Debug for Arity<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match *self {
             Unary  (_) => "Unary",
@@ -105,13 +120,13 @@ impl<V> fmt::Debug for Arity<V> {
 }
 
 //// For now.  Eventually, targets should provide their available operators.
-//pub fn create_op_table<V>() -> OperatorTable<V> {
+//pub fn create_op_table<T>() -> OperatorTable<T> {
 //    let mut table = OperatorTable::new();
 //    for &op in OPS { table.add(op) }
 //    table
 //}
 
-//static OPS: &'static [Operator<V>] = &[
+//static OPS: &'static [Operator<T>] = &[
 //    // Postfix Unary
 //    Operator { chars: "++", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
 //    Operator { chars: "--", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
