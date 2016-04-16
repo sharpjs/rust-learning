@@ -21,7 +21,7 @@
 //#[macro_use]
 //mod util;
 
-//mod ast;
+mod ast;
 mod compiler;
 //mod codegen;
 mod mem;
