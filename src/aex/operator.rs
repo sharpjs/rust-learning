@@ -26,7 +26,8 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use aex::pos::Pos;
+use aex::ast::Expr;
+use aex::pos::*;
 
 use self::Arity::*;
 use self::Fixity::*;
@@ -53,8 +54,24 @@ pub enum Assoc { Left, Right }
 pub enum Fixity { Prefix, Infix, Postfix }
 
 pub enum Arity<T> {
-    Unary  (Box<Fn(&Pos, &str, [T; 1]) -> T>),
-    Binary (Box<Fn(&Pos, &str, [T; 2]) -> T>)
+    Unary  (Box<Fn(&Pos, &str, [Operand<T>; 1]) -> Operand<T>>),
+    Binary (Box<Fn(&Pos, &str, [Operand<T>; 2]) -> Operand<T>>)
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct Operand<T> {
+    pub term: T,
+    pub kind: Kind
+}
+
+// Temporary placeholder
+pub type Kind = usize;
+
+pub trait Constness {
+    type Expr;
+    fn new_const(Self::Expr) -> Self;
+    fn is_const(&self) -> bool;
+    fn to_const( self) -> Self::Expr;
 }
 
 impl<T> OperatorTable<T> {
@@ -82,7 +99,7 @@ impl<T> OperatorTable<T> {
     }
 }
 
-impl<T> Operator<T> {
+impl<T: Constness> Operator<T> {
     pub fn new(chars:  &'static str,
                prec:   u8,
                assoc:  Assoc,
@@ -98,11 +115,12 @@ impl<T> Operator<T> {
         }
     }
 
-    pub fn invoke_unary(&self, pos: &Pos, sel: &str, args: [T; 1]) -> T {
-        // if args are constant
-        //   do constant op
-        // else
-        //   do asm op
+    pub fn invoke_unary(&self, pos: &Pos, sel: &str, args: [Operand<T>; 1]) -> Operand<T> {
+        if args[0].term.is_const() {
+            // do constant op
+        } else {
+            // do asm op
+        }
         match self.arity {
             Unary(ref f) => f(pos, sel, args),
             _ => panic!()
