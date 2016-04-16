@@ -18,6 +18,12 @@
 
 use std::fmt;
 
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+pub struct Source<'a> {
+    pos: &'a Pos<'a>,    // position
+    len: usize           // length, in bytes
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Pos<'a> {
     pub file:   &'a str,    // file name
