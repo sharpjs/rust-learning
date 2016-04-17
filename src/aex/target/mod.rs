@@ -25,13 +25,11 @@ use aex::operator::*;
 
 pub trait Target {
     // Target-specific information in an operand
-    type Operand;
     type Term: Constness<Expr=Self::Expr>;
     type Expr;
+    type Operand;
 
     fn init_operators(&self, &mut OperatorTable<Self::Term>);
 }
 
-use aex::ast::*;
-use aex::pos::Source;
 
