@@ -17,11 +17,12 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use std::fmt::{self, Display, Formatter, Write};
-use num::{BigInt /*, ToPrimitive*/};
+use num::{BigInt, BigUint /*, ToPrimitive*/};
 
 use aex::operator::Operator;
 use aex::pos::Pos;
-//use aex::types::*;
+use aex::types::int::IntSpec;
+use aex::types::float::FloatSpec;
 
 pub type Ast<'a, T: 'a> = Vec<Stmt<'a, T>>;
 
@@ -115,6 +116,24 @@ pub enum Expr<'a, T: 'a> {
 //        Expr::Add(Box::new(a), Box::new(b), None)
 //    }
 //}
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub enum Type<'a> {
+    Ref    (&'a str),
+    Int    (Option<IntSpec>),
+    Float  (Option<FloatSpec>),
+    Array  (Box<Type<'a>>, Option<BigUint>),
+    Ptr    (Box<Type<'a>>, Box<Type<'a>>),
+    Struct (Vec<Member<'a>>),
+    Union  (Vec<Member<'a>>),
+    Func   (Vec<Member<'a>>, Vec<Member<'a>>),
+}
+
+#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+pub struct Member<'a> {
+    pub name: &'a str,
+    pub ty:   Type<'a>,
+}
 
 //impl<'a> Display for Expr<'a> {
 //    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
