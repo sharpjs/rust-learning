@@ -20,16 +20,16 @@ mod cf; // Freescale ColdFire
 
 pub use self::cf::ColdFire;
 
-use aex::operator::*;
+//use aex::operator::*;
 //use aex::types::Type;
 
 pub trait Target {
     // Target-specific information in an operand
-    type Term: Constness<Expr=Self::Expr>;
-    type Expr;
-    type Operand;
+    //type Term: Constness<Expr=Self::Expr>;
+    //type Expr;
+    //type Operand;
 
-    fn init_operators(&self, &mut OperatorTable<Self::Term>);
+    //fn init_operators(&self, &mut OperatorTable<Self::Term>);
 }
 
 

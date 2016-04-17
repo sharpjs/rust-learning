@@ -21,12 +21,12 @@
 
 use std::marker::PhantomData;
 
-use aex::ast::Expr;
-use aex::operator::{Operator, OperatorTable};
-use aex::operator::Assoc::*;
-use aex::operator::Fixity::*;
-use aex::operator::Arity::*;
-use aex::operator::{Constness, Operand};
+//use aex::ast::Expr;
+//use aex::operator::{Operator, OperatorTable};
+//use aex::operator::Assoc::*;
+//use aex::operator::Fixity::*;
+//use aex::operator::Arity::*;
+//use aex::operator::{Constness, Operand};
 //use aex::pos::{Source, Pos};
 use aex::target::*;
 
@@ -41,27 +41,27 @@ impl<'a> ColdFire<'a> {
 }
 
 impl<'a> Target for ColdFire<'a> {
-    type Term    = CfTerm<'a>;
-    type Expr    = Expr<'a, Self::Term>;
-    type Operand = Operand<'a, Self::Term>;
+    //type Term    = CfTerm<'a>;
+    //type Expr    = Expr<'a, Self::Term>;
+    //type Operand = Operand<'a, Self::Term>;
 
-    fn init_operators(&self, operators: &mut OperatorTable<Self::Term>) {
-        operators.add(Operator::new("+", 7, Left, Infix, Binary(
-            Box::new(|src, sel, args| Operand {
-                term: CfTerm::B, kind: 42, src: src
-            })
-        )));
-    }
+    //fn init_operators(&self, operators: &mut OperatorTable<Self::Term>) {
+    //    operators.add(Operator::new("+", 7, Left, Infix, Binary(
+    //        Box::new(|src, sel, args| Operand {
+    //            term: CfTerm::B, kind: 42, src: src
+    //        })
+    //    )));
+    //}
 }
 
-// Temporary
-pub enum CfTerm<'a> { A(&'a str), B }
-
-impl<'a> Constness for CfTerm<'a> {
-    type Expr = Expr<'a, Self>;
-
-    fn new_const(expr: Self::Expr) -> Self { panic!() }
-    fn is_const(&self) -> bool { panic!() }
-    fn to_const( self) -> Self::Expr { panic!() }
-}
+//// Temporary
+//pub enum CfTerm<'a> { A(&'a str), B }
+//
+//impl<'a> Constness for CfTerm<'a> {
+//    type Expr = Expr<'a, Self>;
+//
+//    fn new_const(expr: Self::Expr) -> Self { panic!() }
+//    fn is_const(&self) -> bool { panic!() }
+//    fn to_const( self) -> Self::Expr { panic!() }
+//}
 
