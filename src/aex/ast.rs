@@ -144,49 +144,49 @@ mod tests {
         assert_eq!(text, "a");
     }
 
-//    #[test]
-//    fn fmt_str() {
-//        let original = "\
-//            \x08\x09\x0A\x0C\x0D\
-//            !\"#$%&'()*+,-./0123456789:;<=>?\
-//            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\
-//            `abcdefghijklmnopqrstuvwxyz{|}~\
-//            \x13\x7F\u{7FFF}\
-//        ";
-//        let formatted = "\"\
-//            \\b\\t\\n\\f\\r\
-//            !\\\"#$%&'()*+,-./0123456789:;<=>?\
-//            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_\
-//            `abcdefghijklmnopqrstuvwxyz{|}~\
-//            \\023\\177\\347\\277\\277\
-//        \"";
-//
-//        let expr = Expr::Str(Pos::bof("f"), original);
-//        let text = format!("{}", &expr);
-//        assert_eq!(text, formatted);
-//    }
-//
-//    #[test]
-//    fn fmt_int_small() {
-//        let expr = Expr::Int(Pos::bof("f"), 7.into());
-//        let text = format!("{}", &expr);
-//        assert_eq!(text, "7");
-//    }
-//
-//    #[test]
-//    fn fmt_int_large() {
-//        let expr = Expr::Int(Pos::bof("f"), 42.into());
-//        let text = format!("{}", &expr);
-//        assert_eq!(text, "0x2A");
-//    }
-//
-//    #[test]
-//    fn fmt_add() {
-//        let a    = Box::new(Expr::Ident(Pos::bof("f"), "a"));
-//        let b    = Box::new(Expr::Ident(Pos::bof("f"), "b"));
-//        let expr = Expr::Add(a, b, None);
-//        let text = format!("{}", &expr);
-//        assert_eq!(text, "(a + b)");
-//    }
+    #[test]
+    fn fmt_str() {
+        let original = "\
+            \x08\x09\x0A\x0C\x0D\
+            !\"#$%&'()*+,-./0123456789:;<=>?\
+            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\
+            `abcdefghijklmnopqrstuvwxyz{|}~\
+            \x13\x7F\u{7FFF}\
+        ";
+        let formatted = "\"\
+            \\b\\t\\n\\f\\r\
+            !\\\"#$%&'()*+,-./0123456789:;<=>?\
+            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_\
+            `abcdefghijklmnopqrstuvwxyz{|}~\
+            \\023\\177\\347\\277\\277\
+        \"";
+
+        let expr = Expr::Str::<TestTarget>(BOF, original);
+        let text = format!("{}", &expr);
+        assert_eq!(text, formatted);
+    }
+
+    #[test]
+    fn fmt_int_small() {
+        let expr = Expr::Int::<TestTarget>(BOF, 7.into());
+        let text = format!("{}", &expr);
+        assert_eq!(text, "7");
+    }
+
+    #[test]
+    fn fmt_int_large() {
+        let expr = Expr::Int::<TestTarget>(BOF, 42.into());
+        let text = format!("{}", &expr);
+        assert_eq!(text, "0x2A");
+    }
+
+    //#[test]
+    //fn fmt_add() {
+    //    let a    = Box::new(Expr::Ident::<TestTarget>(BOF, "a"));
+    //    let b    = Box::new(Expr::Ident::<TestTarget>(BOF, "b"));
+    //    let expr = Expr::Add(a, b, None);
+    //    let text = format!("{}", &expr);
+    //    assert_eq!(text, "(a + b)");
+    //}
 }
 
