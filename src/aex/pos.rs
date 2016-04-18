@@ -64,8 +64,13 @@ impl<'a> fmt::Debug for Pos<'a> {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::*;
+
+    pub static BOF: Source<'static> = Source {
+        pos: &Pos { file: "f", byte: 0, line: 1, column: 1 },
+        len: 0
+    };
 
     #[test]
     fn bof() {
