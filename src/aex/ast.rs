@@ -130,18 +130,20 @@ fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
     }
 }
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use aex::pos::Pos;
-//
-//    #[test]
-//    fn fmt_ident() {
-//        let expr = Expr::Ident(Pos::bof("f"), "a");
-//        let text = format!("{}", &expr);
-//        assert_eq!(text, "a");
-//    }
-//
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use aex::target::tests::TestTarget;
+    use aex::pos::tests::BOF;
+
+    #[test]
+    fn fmt_ident() {
+        let expr = Expr::Ident::<TestTarget>(BOF, "a");
+        let text = format!("{}", &expr);
+        assert_eq!(text, "a");
+    }
+
 //    #[test]
 //    fn fmt_str() {
 //        let original = "\
@@ -186,5 +188,5 @@ fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
 //        let text = format!("{}", &expr);
 //        assert_eq!(text, "(a + b)");
 //    }
-//}
+}
 
