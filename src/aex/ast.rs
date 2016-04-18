@@ -16,188 +16,120 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::fmt::{self, Display, Formatter, Write};
-use num::{BigInt, BigUint /*, ToPrimitive*/};
+use std::fmt::{self, Display, Formatter, Write};
+use num::{BigInt, BigUint, ToPrimitive};
 
-use aex::operator::Operator;
-use aex::pos::Pos;
+use aex::target::Target;
 use aex::types::int::IntSpec;
 use aex::types::float::FloatSpec;
 
-pub type Ast<'a, T: 'a> = Vec<Stmt<'a, T>>;
+pub type Ast<T> = Vec<Stmt<T>>;
 
-#[derive(Clone, Debug)]
-pub enum Stmt<'a, T: 'a> {
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Stmt<T: Target> {
     // Composite
-    Block   (&'a Pos<'a>, Ast<'a, T>),
+    Block   (T::Source, Vec<Stmt<T>>),
 
-    //// Declaration
-    //TypeDef (Pos<'a>, &'a str, Box<Type<'a>>),
-    //Label   (Pos<'a>, &'a str),
-    //Bss     (Pos<'a>, &'a str, Box<Type<'a>>),
-    //Data    (Pos<'a>, &'a str, Box<Type<'a>>, Box<Expr<'a>>),
-    //Alias   (Pos<'a>, &'a str, Box<Type<'a>>, Box<Expr<'a>>),
-    //Func    (Pos<'a>, &'a str, Box<Type<'a>>, Box<Stmt<'a>>),
+    // Declaration
+    TypeDef (T::Source, T::String, Box<Type<T>>),
+    Label   (T::Source, T::String),
+    Bss     (T::Source, T::String, Box<Type<T>>),
+    Data    (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
+    Alias   (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
+    Func    (T::Source, T::String, Box<Type<T>>, Box<Stmt<T>>),
 
     // Execution
-    Eval    (&'a Pos<'a>, Box<Expr<'a, T>>),
-    //Loop    (Pos<'a>, Box<Stmt<'a>>),
-    //If      (Pos<'a>, Cond<'a>, Box<Stmt<'a>>, Option<Box<Stmt<'a>>>),
-    //While   (Pos<'a>, Cond<'a>, Box<Stmt<'a>>),
+    Eval    (T::Source, Box<Expr<T>>),
+    Loop    (T::Source, Box<Stmt<T>>),
+    If      (T::Source, Cond<T>, Box<Stmt<T>>, Option<Box<Stmt<T>>>),
+    While   (T::Source, Cond<T>, Box<Stmt<T>>),
 }
 
-#[derive(Clone, Debug)]
-pub enum Expr<'a, T: 'a> {
-    // Atoms
-    Ident   (&'a Pos<'a>, &'a str),
-    Str     (&'a Pos<'a>, &'a str),
-    Int     (&'a Pos<'a>, BigInt),
-    //Deref   (Pos<'a>, Vec<Expr<'a, T>>),
-    //Member  (Pos<'a>, Box<Expr<'a, T>>, &'a str),
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Expr<T: Target> {
+    // Atomic
+    Ident   (T::Source, T::String),
+    Str     (T::Source, T::String),
+    Int     (T::Source, BigInt),
+    Deref   (T::Source, Vec<Expr<T>>),
+    Member  (T::Source, Box<Expr<T>>, T::String),
 
-    // Composites
-    Unary   (&'a Pos<'a>, &'a Operator<T>, &'a str, Box<Expr<'a, T>>),
-    Binary  (&'a Pos<'a>, &'a Operator<T>, &'a str, Box<Expr<'a, T>>, Box<Expr<'a, T>>),
-
-    //// Right Unary
-    ////Member     (Box<Expr<'a>>, &'a str),
-
-    //// Left Unary
-    //Increment  (Box<Expr<'a>>, Option<&'a str>),
-    //Decrement  (Box<Expr<'a>>, Option<&'a str>),
-    //Clear      (Box<Expr<'a>>, Option<&'a str>),
-    //Negate     (Box<Expr<'a>>, Option<&'a str>),
-    //Complement (Box<Expr<'a>>, Option<&'a str>),
-
-    //// Multiplicative
-    //Multiply   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //Divide     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //Modulo     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-
-    //// Additive
-    //Add        (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //Subtract   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-
-    //// Bitwise Shift
-    //ShiftL     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //ShiftR     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-
-    //// Bitwise Boolean
-    //BitAnd     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //BitXor     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //BitOr      (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-
-    //// Bit Manipulation
-    //BitChange  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //BitClear   (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //BitSet     (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //BitTest    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-
-    //// Comparison
-    //Compare    (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //CompareEq  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //CompareNe  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //CompareLt  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //CompareLe  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //CompareGt  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //CompareGe  (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //Test       (Box<Expr<'a>>,                Option<&'a str>),
-
-    //// Assignment
-    //Move       (Box<Expr<'a>>, Box<Expr<'a>>, Option<&'a str>),
-    //MoveCond   (Box<Expr<'a>>, Box<Cond<'a>>, Option<&'a str>), // TODO: Make Cond an atom
+    // Composite
+    Unary   (T::Source, T::Operator, T::String, Box<Expr<T>>),
+    Binary  (T::Source, T::Operator, T::String, Box<Expr<T>>, Box<Expr<T>>),
 }
 
-//#[derive(Clone, Eq, PartialEq, Debug)]
-//pub struct Cond<'a> (pub &'a str, pub Option<Box<Expr<'a>>>);
-//
-//impl<'a> Expr<'a> {
-//    pub fn add<'b>(a: Expr<'b>, b: Expr<'b>) -> Expr<'b> {
-//        Expr::Add(Box::new(a), Box::new(b), None)
-//    }
-//}
-
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub enum Type<'a> {
-    Ref    (&'a str),
-    Int    (Option<IntSpec>),
-    Float  (Option<FloatSpec>),
-    Array  (Box<Type<'a>>, Option<BigUint>),
-    Ptr    (Box<Type<'a>>, Box<Type<'a>>),
-    Struct (Vec<Member<'a>>),
-    Union  (Vec<Member<'a>>),
-    Func   (Vec<Member<'a>>, Vec<Member<'a>>),
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Type<T: Target> {
+    Ident   (T::Source, T::String),
+    Int     (T::Source, Option<IntSpec>),
+    Float   (T::Source, Option<FloatSpec>),
+    Array   (T::Source, Box<Type<T>>, Option<BigUint>),
+    Ptr     (T::Source, Box<Type<T>>, Box<Type<T>>),
+    Struct  (T::Source, Vec<Member<T>>),
+    Union   (T::Source, Vec<Member<T>>),
+    Func    (T::Source, Vec<Member<T>>, Vec<Member<T>>),
 }
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub struct Member<'a> {
-    pub name: &'a str,
-    pub ty:   Type<'a>,
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Member<T: Target> (T::String, Type<T>);
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Cond<T: Target> (T::String, Option<Box<Expr<T>>>);
+
+impl<T: Target> Display for Expr<T> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            Expr::Ident  (_, s)                      => f.write_str(s.as_ref()),
+            Expr::Str    (_, s)                      => fmt_str(s.as_ref(), f),
+            Expr::Int    (_, ref i)                  => fmt_int(i, f),
+            Expr::Unary  (_, ref o, s, ref x)        => panic!(),
+            Expr::Binary (_, ref o, s, ref x, ref y) => panic!(),
+            _                                        => Err(fmt::Error)
+        }
+    }
 }
 
-//impl<'a> Display for Expr<'a> {
-//    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-//        match *self {
-//            Expr::Ident      (_, s)               => f.write_str(s),
-//            Expr::Str        (_, s)               => fmt_str(s, f),
-//            Expr::Int        (_, ref i)           => fmt_int(i, f),
-//            Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
-//            Expr::Complement (ref e, None)        => write!(f, "~{}", e),
-//            Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
-//            Expr::Divide     (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
-//            Expr::Modulo     (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
-//            Expr::Add        (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
-//            Expr::Subtract   (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
-//            Expr::ShiftL     (ref l, ref r, None) => write!(f, "({} << {})", l, r),
-//            Expr::ShiftR     (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
-//            Expr::BitAnd     (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
-//            Expr::BitXor     (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
-//            Expr::BitOr      (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
-//            _                                     => Err(fmt::Error)
-//        }
-//    }
-//}
-//
-//fn fmt_str(s: &str, f: &mut Formatter) -> fmt::Result {
-//    try!(f.write_char('"'));
-//    for c in s.chars() {
-//        match c {
-//            '\x08'          => try!(f.write_str("\\b")),
-//            '\x09'          => try!(f.write_str("\\t")),
-//            '\x0A'          => try!(f.write_str("\\n")),
-//            '\x0C'          => try!(f.write_str("\\f")),
-//            '\x0D'          => try!(f.write_str("\\r")),
-//            '\"'            => try!(f.write_str("\\\"")),
-//            '\\'            => try!(f.write_str("\\\\")),
-//            '\x20'...'\x7E' => try!(f.write_char(c)),
-//            _               => try!(fmt_esc_utf8(c, f))
-//        }
-//    }
-//    try!(f.write_char('"'));
-//    Ok(())
-//}
-//
-//fn fmt_esc_utf8(c: char, f: &mut Formatter) -> fmt::Result {
-//    use std::io::{Cursor, Write};
-//    let mut buf = [0u8; 4];
-//    let len = {
-//        let mut cur = Cursor::new(&mut buf[..]);
-//        write!(cur, "{}", c).unwrap();
-//        cur.position() as usize
-//    };
-//    for b in &buf[0..len] {
-//        try!(write!(f, "\\{:03o}", b));
-//    }
-//    Ok(())
-//}
-//
-//fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
-//    match i.to_u64() {
-//        Some(n) if n > 9 => write!(f, "{:#X}", n),
-//        _                => write!(f, "{}",    i),
-//    }
-//}
-//
+fn fmt_str(s: &str, f: &mut Formatter) -> fmt::Result {
+    try!(f.write_char('"'));
+    for c in s.chars() {
+        match c {
+            '\x08'          => try!(f.write_str("\\b")),
+            '\x09'          => try!(f.write_str("\\t")),
+            '\x0A'          => try!(f.write_str("\\n")),
+            '\x0C'          => try!(f.write_str("\\f")),
+            '\x0D'          => try!(f.write_str("\\r")),
+            '\"'            => try!(f.write_str("\\\"")),
+            '\\'            => try!(f.write_str("\\\\")),
+            '\x20'...'\x7E' => try!(f.write_char(c)),
+            _               => try!(fmt_esc_utf8(c, f))
+        }
+    }
+    try!(f.write_char('"'));
+    Ok(())
+}
+
+fn fmt_esc_utf8(c: char, f: &mut Formatter) -> fmt::Result {
+    use std::io::{Cursor, Write};
+    let mut buf = [0u8; 4];
+    let len = {
+        let mut cur = Cursor::new(&mut buf[..]);
+        write!(cur, "{}", c).unwrap();
+        cur.position() as usize
+    };
+    for b in &buf[0..len] {
+        try!(write!(f, "\\{:03o}", b));
+    }
+    Ok(())
+}
+
+fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
+    match i.to_u64() {
+        Some(n) if n > 9 => write!(f, "{:#X}", n),
+        _                => write!(f, "{}",    i),
+    }
+}
+
 //#[cfg(test)]
 //mod tests {
 //    use super::*;

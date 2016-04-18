@@ -280,3 +280,17 @@ impl<T> fmt::Debug for Arity<T> {
 //    Operator { chars: "=",  prec:  0, assoc: Right, fixity: Infix,   eval: &42 },
 //];
 
+
+            //Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
+            //Expr::Complement (ref e, None)        => write!(f, "~{}", e),
+            //Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
+            //Expr::Divide     (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
+            //Expr::Modulo     (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
+            //Expr::Add        (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
+            //Expr::Subtract   (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
+            //Expr::ShiftL     (ref l, ref r, None) => write!(f, "({} << {})", l, r),
+            //Expr::ShiftR     (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
+            //Expr::BitAnd     (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
+            //Expr::BitXor     (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
+            //Expr::BitOr      (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
+

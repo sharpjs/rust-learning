@@ -18,12 +18,19 @@
 
 mod cf; // Freescale ColdFire
 
+pub use std::fmt::{Debug, Display};
+pub use std::hash::Hash;
+
 pub use self::cf::ColdFire;
 
 //use aex::operator::*;
 //use aex::types::Type;
 
 pub trait Target {
+    type String:    Clone + Copy + Eq + PartialEq + Hash + Debug + AsRef<str>;
+    type Source:    Clone + Copy + Eq + PartialEq        + Debug;
+    type Operator:  Clone        + Eq + PartialEq        + Debug;
+
     // Target-specific information in an operand
     //type Term: Constness<Expr=Self::Expr>;
     //type Expr;

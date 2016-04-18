@@ -27,7 +27,7 @@ use std::marker::PhantomData;
 //use aex::operator::Fixity::*;
 //use aex::operator::Arity::*;
 //use aex::operator::{Constness, Operand};
-//use aex::pos::{Source, Pos};
+use aex::pos::{Source /*, Pos*/};
 use aex::target::*;
 
 pub struct ColdFire<'a> {
@@ -41,6 +41,10 @@ impl<'a> ColdFire<'a> {
 }
 
 impl<'a> Target for ColdFire<'a> {
+    type String   = &'a str;
+    type Source   = Source<'a>;
+    type Operator = i32;
+
     //type Term    = CfTerm<'a>;
     //type Expr    = Expr<'a, Self::Term>;
     //type Operand = Operand<'a, Self::Term>;
