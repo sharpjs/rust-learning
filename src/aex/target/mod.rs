@@ -39,4 +39,17 @@ pub trait Target {
     //fn init_operators(&self, &mut OperatorTable<Self::Term>);
 }
 
+#[cfg(test)]
+pub mod tests {
+    use super::Target;
+    use aex::pos::Source;
+
+    pub struct TestTarget;
+
+    impl Target for TestTarget {
+        type String   = &'static str;
+        type Source   = Source<'static>;
+        type Operator = i32;
+    }
+}
 
