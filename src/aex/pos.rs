@@ -19,9 +19,12 @@
 use std::fmt;
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
-pub struct Source<'a> {
-    pos: &'a Pos<'a>,    // position
-    len: usize           // length, in bytes
+pub enum Source<'a> {
+    BuiltIn,
+    File {
+        pos: &'a Pos<'a>,   // position
+        len: usize          // length, in bytes
+    }
 }
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
@@ -67,7 +70,7 @@ impl<'a> fmt::Debug for Pos<'a> {
 pub mod tests {
     use super::*;
 
-    pub static BOF: Source<'static> = Source {
+    pub static BOF: Source<'static> = Source::File {
         pos: &Pos { file: "f", byte: 0, line: 1, column: 1 },
         len: 0
     };

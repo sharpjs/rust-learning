@@ -1,4 +1,4 @@
-// Aex Root Module
+// Contains - Check if value is in type
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,33 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// Recently visited
+pub trait Contains<T> {
+    fn contains(&self, item: &T) -> Option<bool>;
+    //
+    // Some(true)  => item definitely     in self
+    // Some(false) => item definitely not in self
+    // None        => unknown
+}
 
-//#[macro_use]
-//mod util;
-
-mod ast;
-mod compiler;
-//mod codegen;
-mod mem;
-//mod lexer;
-mod operator;
-mod pos;
-//mod parser;
-//mod scope;
-mod source;
-mod symbol;
-mod target;
-mod types;
-
-pub use aex::compiler::compile;
-pub use aex::target::ColdFire;
-
-// Not recently visited
-
-//mod asm;
-//mod message;
-
-//mod analyze;
-//mod output;
+impl<T, S> Contains<T> for Option<S> where S: Contains<T> {
+    #[inline]
+    fn contains(&self, item: &T) -> Option<bool> {
+        match *self {
+            Some(ref s) => s.contains(item),
+            None        => None,
+        }
+    }
+}
 

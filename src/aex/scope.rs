@@ -20,7 +20,8 @@ use std::collections::HashMap;
 
 use aex::mem::arena::Arena;
 use aex::symbol::Symbol;
-use aex::types::Type;
+use aex::ast::Type;
+//use aex::types::Type;
 
 // -----------------------------------------------------------------------------
 

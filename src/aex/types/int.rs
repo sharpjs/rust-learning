@@ -18,6 +18,8 @@
 
 use num::{BigInt, Zero, One};
 
+use super::contains::Contains;
+
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub struct IntSpec {
     pub value_width: u8,    // count of value bits
@@ -40,6 +42,16 @@ impl IntSpec {
         } else {
             bit(self.value_width    ) - BigInt::one()
         }
+    }
+}
+
+impl Contains<BigInt> for IntSpec {
+    #[inline]
+    fn contains(&self, value: &BigInt) -> Option<bool> {
+        Some(
+            *value >= self.min_value() &&
+            *value <= self.max_value()
+        )
     }
 }
 

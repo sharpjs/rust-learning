@@ -20,8 +20,7 @@ use std::fmt::{self, Display, Formatter, Write};
 use num::{BigInt, BigUint, ToPrimitive};
 
 use aex::target::Target;
-use aex::types::int::IntSpec;
-use aex::types::float::FloatSpec;
+use aex::types::Type;
 
 pub type Ast<T> = Vec<Stmt<T>>;
 
@@ -31,12 +30,12 @@ pub enum Stmt<T: Target> {
     Block   (T::Source, Vec<Stmt<T>>),
 
     // Declaration
-    TypeDef (T::Source, T::String, Box<Type<T>>),
+    //TypeDef (T::Source, T::String, Box<Type<T>>),
     Label   (T::Source, T::String),
-    Bss     (T::Source, T::String, Box<Type<T>>),
-    Data    (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
-    Alias   (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
-    Func    (T::Source, T::String, Box<Type<T>>, Box<Stmt<T>>),
+    //Bss     (T::Source, T::String, Box<Type<T>>),
+    //Data    (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
+    //Alias   (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
+    //Func    (T::Source, T::String, Box<Type<T>>, Box<Stmt<T>>),
 
     // Execution
     Eval    (T::Source, Box<Expr<T>>),
@@ -59,20 +58,7 @@ pub enum Expr<T: Target> {
     Binary  (T::Source, T::Operator, T::String, Box<Expr<T>>, Box<Expr<T>>),
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Type<T: Target> {
-    Ident   (T::Source, T::String),
-    Int     (T::Source, Option<IntSpec>),
-    Float   (T::Source, Option<FloatSpec>),
-    Array   (T::Source, Box<Type<T>>, Option<BigUint>),
-    Ptr     (T::Source, Box<Type<T>>, Box<Type<T>>),
-    Struct  (T::Source, Vec<Member<T>>),
-    Union   (T::Source, Vec<Member<T>>),
-    Func    (T::Source, Vec<Member<T>>, Vec<Member<T>>),
-}
-
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Member<T: Target> (T::String, Type<T>);
+use aex::pos::Source;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Cond<T: Target> (T::String, Option<Box<Expr<T>>>);
