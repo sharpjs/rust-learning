@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod contains;
+pub mod builtin;
 pub mod float;
 pub mod int;
 pub mod res;
@@ -26,7 +27,6 @@ use num::BigUint;
 use aex::pos::Source;
 use aex::types::float::FloatSpec;
 use aex::types::int::IntSpec;
-use aex::types::res::{TypeRes, TypeForm};
 
 // Type expression
 
@@ -46,45 +46,4 @@ pub enum Type<'a> {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Member<'a> (&'a str, Type<'a>);
-
-// Built-In Abstract Types
-
-pub static INT: TypeRes<'static> = TypeRes {
-    def:  &Type::Ident(Source::BuiltIn, "(int)"),
-    form: TypeForm::Inty(None),
-};
-
-pub static FLOAT: TypeRes<'static> = TypeRes {
-    def:  &Type::Ident(Source::BuiltIn, "(float)"),
-    form: TypeForm::Floaty(None),
-};
-
-pub static OPAQUE: TypeRes<'static> = TypeRes {
-    def:  &Type::Ident(Source::BuiltIn, "(unknown)"),
-    form: TypeForm::Opaque,
-};
-
-// Built-In Concrete Types
-
-macro_rules! ints {
-    ($($name:ident: $id:expr, $vw:expr, $sw:expr, $sg:expr;)*) => {$(
-        pub static $name: TypeRes<'static> = TypeRes {
-            def: &Type::Ident(Source::BuiltIn, $id),
-            form: TypeForm::Inty(Some(IntSpec {
-                value_width: $vw, store_width: $sw, signed: $sg
-            }))
-        };
-    )*}
-}
-ints! {
-     U8:  "u8",  8,  8, false;
-    U16: "u16", 16, 16, false;
-    U32: "u32", 32, 32, false;
-    U64: "u64", 64, 64, false;
-
-     I8:  "i8",  8,  8, true;
-    I16: "i16", 16, 16, true;
-    I32: "i32", 32, 32, true;
-    I64: "i64", 64, 64, true;
-}
 
