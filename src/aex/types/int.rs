@@ -1,4 +1,4 @@
-// Types
+// Integer Type Specifiers
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
