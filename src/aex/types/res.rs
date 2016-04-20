@@ -39,30 +39,6 @@ pub enum TypeForm {
     Opaque,                         // Array, Union, Struct, Func
 }
 
-#[cfg(test)]
-mod tests {
-}
-
-//impl<'a> TypeRes<'a> {
-//    pub fn is_scalar(&self) -> bool {
-//        is!(*self => Int(_))
-//    }
-//
-//    pub fn value_width(&self) -> Option<u8> {
-//        match *self {
-//            Int(Some(IntSpec { value_width, .. })) => Some(value_width),
-//            _                                      => None
-//        }
-//    }
-//
-//    pub fn store_width(&self) -> Option<u8> {
-//        match *self {
-//            Int(Some(IntSpec { store_width, .. })) => Some(store_width),
-//            _                                      => None
-//        }
-//    }
-//}
-
 impl<'a> TypeRes<'a> {
     pub fn check_compat(x: Self, y: Self) -> Option<Self> {
         // A type is compatible with itself
@@ -132,6 +108,40 @@ impl<'a> Contains<BigInt> for TypeRes<'a> {
     }
 }
 
+impl TypeForm {
+    pub fn is_scalar(&self) -> bool {
+        match *self {
+            TypeForm::Inty   (..) => true,
+            TypeForm::Floaty (..) => true,
+            _                     => false
+        }
+    }
+
+    pub fn value_width(&self) -> Option<u8> {
+        match *self {
+            TypeForm::Inty(Some(IntSpec { value_width, .. })) => {
+                Some(value_width)
+            },
+            TypeForm::Floaty(Some(FloatSpec { value_width, .. })) => {
+                Some(value_width)
+            },
+            _ => None
+        }
+    }
+
+    pub fn store_width(&self) -> Option<u8> {
+        match *self {
+            TypeForm::Inty(Some(IntSpec { store_width, .. })) => {
+                Some(store_width)
+            },
+            TypeForm::Floaty(Some(FloatSpec { store_width, .. })) => {
+                Some(store_width)
+            },
+            _ => None
+        }
+    }
+}
+
 impl Contains<BigInt> for TypeForm {
     #[inline]
     fn contains(&self, expr: &BigInt) -> Option<bool> {
@@ -141,5 +151,9 @@ impl Contains<BigInt> for TypeForm {
             TypeForm::Opaque     => Some(false)
         }
     }
+}
+
+#[cfg(test)]
+mod tests {
 }
 
