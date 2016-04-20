@@ -17,10 +17,11 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter, Write};
-use num::{BigInt, BigUint, ToPrimitive};
+use num::{BigInt, ToPrimitive};
 
+//use aex::pos::Source;
 use aex::target::Target;
-use aex::types::Type;
+//use aex::types::Type;
 
 pub type Ast<T> = Vec<Stmt<T>>;
 
@@ -57,8 +58,6 @@ pub enum Expr<T: Target> {
     Unary   (T::Source, T::Operator, T::String, Box<Expr<T>>),
     Binary  (T::Source, T::Operator, T::String, Box<Expr<T>>, Box<Expr<T>>),
 }
-
-use aex::pos::Source;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Cond<T: Target> (T::String, Option<Box<Expr<T>>>);
