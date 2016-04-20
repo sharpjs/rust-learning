@@ -23,13 +23,13 @@ pub mod res;
 
 use num::BigUint;
 
-use aex::types::int::IntSpec;
-use aex::types::float::FloatSpec;
 use aex::pos::Source;
-
-use self::res::*;
+use aex::types::float::FloatSpec;
+use aex::types::int::IntSpec;
+use aex::types::res::{TypeRes, TypeForm};
 
 // Type expression
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
     Ident   (Source<'a>, &'a str),
@@ -43,6 +43,7 @@ pub enum Type<'a> {
 }
 
 // Complex type member
+
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Member<'a> (&'a str, Type<'a>);
 
