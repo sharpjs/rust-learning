@@ -16,11 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// Recently visited
-
-//#[macro_use]
-//mod util;
-
 mod ast;
 mod compiler;
 //mod codegen;
@@ -34,6 +29,7 @@ mod source;
 mod symbol;
 mod target;
 mod types;
+mod util;
 
 pub use aex::compiler::compile;
 pub use aex::target::ColdFire;

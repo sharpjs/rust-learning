@@ -20,8 +20,8 @@ use std::collections::HashMap;
 
 use aex::mem::arena::Arena;
 use aex::symbol::Symbol;
-use aex::ast::Type;
-//use aex::types::Type;
+use aex::types::Type;
+use aex::util::Lookup;
 
 // -----------------------------------------------------------------------------
 
@@ -115,6 +115,13 @@ impl<'me, T> ScopeMap<'me, T> {
 
         // Else fail
         None
+    }
+}
+
+impl<'me, T> Lookup<str, T> for ScopeMap<'me, T> {
+    #[inline(always)]
+    fn lookup(&self, name: &str) -> Option<&T> {
+        self.lookup(name)
     }
 }
 
