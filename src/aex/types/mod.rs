@@ -20,7 +20,7 @@ pub mod contains;
 pub mod builtin;
 pub mod float;
 pub mod int;
-pub mod res;
+//pub mod res;
 
 use num::BigUint;
 
@@ -32,9 +32,9 @@ use aex::types::int::IntSpec;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
-    Ident   (Source<'a>, &'a str),
-    Int     (Source<'a>, IntSpec),
-    Float   (Source<'a>, FloatSpec),
+    Ident   (Source<'a>, &'a str, Option<&'a Type<'a>>),
+    Int     (Source<'a>, Option<IntSpec>),
+    Float   (Source<'a>, Option<FloatSpec>),
     Array   (Source<'a>, Box<Type<'a>>, Option<BigUint>),
     Ptr     (Source<'a>, Box<Type<'a>>, Box<Type<'a>>),
     Struct  (Source<'a>, Vec<Member<'a>>),
@@ -46,4 +46,28 @@ pub enum Type<'a> {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Member<'a> (&'a str, Type<'a>);
+
+// Basic equivalence and size information for a type
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum TypeForm {
+    Inty    (Option<  IntSpec>),    // Int, Ptr
+    Floaty  (Option<FloatSpec>),    // Float
+    Opaque,                         // Array, Union, Struct, Func
+}
+
+impl<'a> Type<'a> {
+    pub fn form(&self) -> TypeForm {
+        match *self {
+            Type::Ptr    (_, ref t, _)   => t.form(),
+            Type::Ident  (_, _, Some(t)) => t.form(),
+            Type::Ident  (..)            => panic!(),
+            Type::Int    (_, s)          => TypeForm::Inty   (s),
+            Type::Float  (_, s)          => TypeForm::Floaty (s),
+            Type::Array  (..)            => TypeForm::Opaque,
+            Type::Struct (..)            => TypeForm::Opaque,
+            Type::Union  (..)            => TypeForm::Opaque,
+            Type::Func   (..)            => TypeForm::Opaque,
+        }
+    }
+}
 
