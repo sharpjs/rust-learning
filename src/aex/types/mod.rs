@@ -17,11 +17,12 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod contains;
-pub mod builtin;
+//pub mod builtin;
 pub mod float;
 pub mod int;
 //pub mod res;
 
+use std::rc::Rc;
 use num::BigUint;
 
 use aex::pos::Source;
@@ -32,7 +33,7 @@ use aex::types::int::IntSpec;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
-    Ident   (Source<'a>, &'a str, Option<&'a Type<'a>>),
+    Ident   (Source<'a>, &'a str, Option<Rc<Type<'a>>>),
     Int     (Source<'a>, Option<IntSpec>),
     Float   (Source<'a>, Option<FloatSpec>),
     Array   (Source<'a>, Box<Type<'a>>, Option<BigUint>),
@@ -58,11 +59,13 @@ pub enum TypeForm {
 impl<'a> Type<'a> {
     pub fn form(&self) -> TypeForm {
         match *self {
-            Type::Ptr    (_, ref t, _)   => t.form(),
-            Type::Ident  (_, _, Some(t)) => t.form(),
-            Type::Ident  (..)            => panic!(),
+            Type::Ident  (_, _, Some(ref t))
+                => t.form(),
+            Type::Ident  (..)
+                => panic!("Attempted to compute form of unresolved type identifier."),
             Type::Int    (_, s)          => TypeForm::Inty   (s),
             Type::Float  (_, s)          => TypeForm::Floaty (s),
+            Type::Ptr    (_, ref t, _)   => t.form(),
             Type::Array  (..)            => TypeForm::Opaque,
             Type::Struct (..)            => TypeForm::Opaque,
             Type::Union  (..)            => TypeForm::Opaque,
