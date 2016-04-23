@@ -20,3 +20,27 @@ pub trait Lookup<K: ?Sized, V: ?Sized> {
     fn lookup(&self, key: &K) -> Option<&V>;
 }
 
+#[inline(always)]
+pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
+    x as *const _ == y as *const _
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ref_eq_true() {
+        let x = &"".to_string();
+        let y = x;
+        assert_eq!(ref_eq(x, y), true);
+    }
+
+    #[test]
+    fn ref_eq_false() {
+        let x = &"".to_string();
+        let y = &"".to_string();
+        assert_eq!(ref_eq(x, y), false);
+    }
+}
+
