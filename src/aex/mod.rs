@@ -37,7 +37,7 @@ pub use aex::target::ColdFire;
 // Not recently visited
 
 //mod asm;
-//mod message;
+mod message;
 
 //mod analyze;
 //mod output;
