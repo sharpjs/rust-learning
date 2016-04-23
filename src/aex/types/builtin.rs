@@ -21,10 +21,23 @@ use aex::types::Type;
 use aex::types::float::FloatSpec;
 use aex::types::int::IntSpec;
 
-macro_rules! types {
-    ($($name:ident: $ty:expr;)*) => {$(
-        pub static $name: Type<'static> = $ty;
-    )*};
+struct BuiltInTypes<'a> {
+    // Abstract
+    pub int:      Type<'a>,
+    pub float:    Type<'a>,
+    // Concrete unsigned integer
+    pub uint_8:   Type<'a>,
+    pub uint_16:  Type<'a>,
+    pub uint_32:  Type<'a>,
+    pub uint_64:  Type<'a>,
+    // Concrete signed integer
+    pub int_8:    Type<'a>,
+    pub int_16:   Type<'a>,
+    pub int_32:   Type<'a>,
+    pub int_64:   Type<'a>,
+    // Concrete floating-point
+    pub float_32: Type<'a>,
+    pub float_64: Type<'a>,
 }
 
 macro_rules! int {
@@ -45,25 +58,26 @@ macro_rules! float {
     ))
 }
 
-types! {
-    // Abstract
-    INT:   int!   ();
-    FLOAT: float! ();
-
-    // Concrete unsigned integer
-     U8: int! ( 8,  8, false);
-    U16: int! (16, 16, false);
-    U32: int! (32, 32, false);
-    U64: int! (64, 64, false);
-
-    // Concrete signed integer
-     I8: int! ( 8,  8, true);
-    I16: int! (16, 16, true);
-    I32: int! (32, 32, true);
-    I64: int! (64, 64, true);
-
-    // Concrete floating-point
-    F32: float! (32, 32);
-    F64: float! (64, 64);
+impl<'a> Default for BuiltInTypes<'a> {
+    fn default() -> Self {
+        BuiltInTypes {
+            // Abstract
+            int:      int!   (),
+            float:    float! (),
+            // Concrete unsigned integer
+            uint_8:   int!   ( 8,  8, false),
+            uint_16:  int!   (16, 16, false),
+            uint_32:  int!   (32, 32, false),
+            uint_64:  int!   (64, 64, false),
+            // Concrete signed integer
+            int_8:    int!   ( 8,  8, true),
+            int_16:   int!   (16, 16, true),
+            int_32:   int!   (32, 32, true),
+            int_64:   int!   (64, 64, true),
+            // Concrete floating-point
+            float_32: float! (32, 32),
+            float_64: float! (64, 64),
+        }
+    }
 }
 

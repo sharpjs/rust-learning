@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 pub mod contains;
-//pub mod builtin;
+pub mod builtin;
 pub mod float;
 pub mod int;
 //pub mod res;
