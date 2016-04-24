@@ -57,7 +57,14 @@ pub enum TypeForm {
     Opaque,                         // Array, Union, Struct, Func
 }
 
-enum CheckResult { None, Left, Right }
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum CheckResult { None, Left, Right }
+
+impl CheckResult {
+    pub fn left_if(cond: bool) -> Self {
+        if cond { CheckResult::Left } else { CheckResult::Right }
+    }
+}
 
 impl<'a> Type<'a> {
     pub fn form(&self) -> TypeForm {
@@ -71,7 +78,7 @@ impl<'a> Type<'a> {
         }
     }
 
-    fn as_resolved(&self) -> &Self {
+    pub fn as_resolved(&self) -> &Self {
         let mut ty = self;
         while let Type::Ident(_, _, Some(ref t)) = *ty {
             ty = &**t
@@ -79,7 +86,7 @@ impl<'a> Type<'a> {
         ty
     }
 
-    fn check_compat(x: &Self, y: &Self) -> CheckResult {
+    pub fn check_compat(x: &Self, y: &Self) -> CheckResult {
         // If both x and y are type identifiers, use nominal compatibility.
         // x and y are compatible only if they resolve to the same type.
         //
@@ -102,72 +109,116 @@ impl<'a> Type<'a> {
         //
         let x = x.as_resolved();
         let y = y.as_resolved();
+
         match (x, y) {
-            (&Type::Int(_, x), &Type::Int(_, y)) => {
-                match (x, y) {
-                    (x, y) if x == y => CheckResult::Left,
-                    (_, None)        => CheckResult::Left,
-                    (None, _)        => CheckResult::Right,
-                    _                => CheckResult::None,
-                }
+            // Unbounded scalars
+
+            (&Type::Int(_, None), &Type::Int(..     )) => CheckResult::Right,
+            (&Type::Int(_, None), &Type::Ptr(..     )) => CheckResult::Right,
+            (&Type::Int(..     ), &Type::Int(_, None)) => CheckResult::Left,
+            (&Type::Ptr(..     ), &Type::Int(_, None)) => CheckResult::Left,
+
+            (&Type::Float(_, None), &Type::Float(..     )) => CheckResult::Right,
+            (&Type::Float(..     ), &Type::Float(_, None)) => CheckResult::Left,
+
+            // Bounded scalars
+
+            (&Type::Int(_, Some(x)),
+             &Type::Int(_, Some(y))) => {
+                CheckResult::left_if(x == y)
             },
-            (&Type::Float(_, x), &Type::Float(_, y)) => {
-                match (x, y) {
-                    (x, y) if x == y => CheckResult::Left,
-                    (_, None)        => CheckResult::Left,
-                    (None, _)        => CheckResult::Right,
-                    _                => CheckResult::None,
-                }
+
+            (&Type::Float(_, Some(x)),
+             &Type::Float(_, Some(y))) => {
+                CheckResult::left_if(x == y)
             },
+
+            // Composite
+
             (&Type::Array(_, ref x_ty, ref x_len),
              &Type::Array(_, ref y_ty, ref y_len)) => {
-                if ref_eq(&**x_ty, &**y_ty) && *x_len == *y_len {
-                    CheckResult::Left
+                if *x_len == *y_len {
+                    Self::check_compat(&**x_ty, &**y_ty)
                 } else {
                     CheckResult::None
                 }
             },
+
             (&Type::Ptr(_, ref x_addr_ty, ref x_data_ty),
              &Type::Ptr(_, ref y_addr_ty, ref y_data_ty)) => {
-                if ref_eq(&**x_addr_ty, &**y_addr_ty) &&
-                   ref_eq(&**x_data_ty, &**y_data_ty) {
-                    CheckResult::Left
+                let addr_ck = Self::check_compat(&**x_addr_ty, &**y_addr_ty);
+                let data_ck = Self::check_compat(&**x_data_ty, &**y_data_ty);
+                if addr_ck == data_ck {
+                    addr_ck
                 } else {
                     CheckResult::None
                 }
             },
+
             (&Type::Struct(_, ref x_members),
              &Type::Struct(_, ref y_members)) => {
-                if Self::eq_members(x_members, y_members) {
-                    CheckResult::Left
-                } else {
-                    CheckResult::None
-                }
+                Self::check_compat_members(x_members, y_members)
             },
+
             (&Type::Union(_, ref x_members),
              &Type::Union(_, ref y_members)) => {
-                if Self::eq_members(x_members, y_members) {
-                    CheckResult::Left
-                } else {
-                    CheckResult::None
-                }
+                Self::check_compat_members(x_members, y_members)
             },
+
             (&Type::Func(_, ref x_args, ref x_rets),
              &Type::Func(_, ref y_args, ref y_rets)) => {
-                if Self::eq_members(x_args, y_args) &&
-                   Self::eq_members(x_rets, y_rets) {
-                    CheckResult::Left
+                let args_ck = Self::check_compat_members(x_args, y_args);
+                let rets_ck = Self::check_compat_members(x_rets, y_rets);
+                if args_ck == rets_ck {
+                    args_ck
                 } else {
                     CheckResult::None
                 }
             },
+
             _ => CheckResult::None
         }
     }
 
+    fn check_compat_members(x: &[Member<'a>], y: &[Member<'a>]) -> CheckResult {
+        // Member lists must have same length.
+        if x.len() != y.len() {
+            return CheckResult::None
+        }
+
+        let mut ret = None;
+
+        for pair in x.iter().zip(y.iter()) {
+            let (&Member(x_name, ref x_ty),
+                 &Member(y_name, ref y_ty)) = pair;
+
+            // Must have same member names in the same order.
+            if x_name != y_name {
+                return CheckResult::None
+            }
+
+            // Must have compatible member types
+            let ck = Self::check_compat(x_ty, y_ty);
+            if ck == CheckResult::None {
+                return CheckResult::None
+            }
+
+            // Left/rightness of member checks must agree
+            match ret {
+                None               => ret = Some(ck),
+                Some(r) if r == ck => {/*continue*/},
+                _                  => return CheckResult::None,
+            }
+        }
+
+        ret.unwrap_or(CheckResult::Left)
+    }
+
     fn eq_members(x: &[Member<'a>], y: &[Member<'a>]) -> bool {
         x.len() == y.len() &&
-        x.iter().zip(y.iter()).all(|(x, y)| x == y)
+        x.iter().zip(y.iter()).all(|(x, y)| {
+            Self::check_compat(&x.1, &y.1) == CheckResult::Left
+        })
     }
 
 //    pub fn check_extend(x: Self, y: Self) -> Option<Self> {
