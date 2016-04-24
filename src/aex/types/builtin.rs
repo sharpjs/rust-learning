@@ -81,3 +81,6 @@ impl<'s, 'a: 's> Default for BuiltInTypes<'s, 'a> {
     }
 }
 
+pub static U16: Type<'static, 'static> = int!(16, 16, false);
+pub static U32: Type<'static, 'static> = int!(32, 32, false);
+
