@@ -24,7 +24,7 @@ mod mem;
 mod operator;
 mod pos;
 //mod parser;
-//mod scope;
+mod scope;
 mod source;
 mod symbol;
 mod target;

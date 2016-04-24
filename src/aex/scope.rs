@@ -25,9 +25,11 @@ use aex::util::Lookup;
 
 // -----------------------------------------------------------------------------
 
+// TODO: Do we need to add 'a here, or can we take Type<> down to 1 lifetime param?
+
 pub struct Scope<'me> {
-    pub symbols: ScopeMap<'me, Symbol<'me>>,
-    pub types:   ScopeMap<'me, Type  <'me>>,
+    pub symbols: ScopeMap<'me, Symbol<'me, 'me>>,
+    pub types:   ScopeMap<'me, Type  <'me, 'me>>,
 }
 
 impl<'me> Scope<'me> {
@@ -151,7 +153,8 @@ mod tests {
 
     mod scope_map {
         use super::super::*;
-        use aex::types::*;
+        use aex::types::Type;
+        use aex::types::builtin::{U16, U32};
 
         #[test]
         fn empty() {
@@ -167,52 +170,52 @@ mod tests {
 
             assert_eq!( map.define("t", U32.clone()), Ok(()) );
 
-            assert_eq!( map.lookup("t"), Some(U32) );
+            assert_eq!( map.lookup("t"), Some(&U32) );
         }
 
         #[test]
         fn defined_ref() {
             let mut map = ScopeMap::new(None);
 
-            assert_eq!( map.define_ref("t", U32), Ok(()) );
+            assert_eq!( map.define_ref("t", &U32), Ok(()) );
 
-            assert_eq!( map.lookup("t"), Some(U32) );
+            assert_eq!( map.lookup("t"), Some(&U32) );
         }
 
         #[test]
         fn inherited() {
             let mut parent = ScopeMap::new(None);
 
-            assert_eq!( parent.define_ref("t", U32), Ok(()) );
+            assert_eq!( parent.define_ref("t", &U32), Ok(()) );
 
             let map = ScopeMap::new(Some(&parent));
 
-            assert_eq!( map.lookup("t"), Some(U32) );
+            assert_eq!( map.lookup("t"), Some(&U32) );
         }
 
         #[test]
         fn overridden() {
             let mut parent = ScopeMap::new(None);
 
-            assert_eq!( parent.define_ref("t", U16), Ok(()) );
+            assert_eq!( parent.define_ref("t", &U16), Ok(()) );
 
             let mut map = ScopeMap::new(Some(&parent));
 
-            assert_eq!( map.define_ref("t", U32), Ok(()) );
+            assert_eq!( map.define_ref("t", &U32), Ok(()) );
 
-            assert_eq!( map.lookup("t"), Some(U32) );
+            assert_eq!( map.lookup("t"), Some(&U32) );
         }
 
         #[test]
         fn duplicate() {
             let mut map = ScopeMap::new(None);
 
-            assert_eq!( map.define_ref("t", U16), Ok(()) );
+            assert_eq!( map.define_ref("t", &U16), Ok(()) );
 
-            assert_eq!( map.define_ref("t", U32), Err(U16) );
+            assert_eq!( map.define_ref("t", &U32), Err(&U16) );
 
-            assert_eq!( map.lookup("t"), Some(U32) );
+            assert_eq!( map.lookup("t"), Some(&U32) );
         }
-    }
+  }
 }
 
