@@ -214,13 +214,6 @@ impl<'a> Type<'a> {
         ret.unwrap_or(CheckResult::Left)
     }
 
-    fn eq_members(x: &[Member<'a>], y: &[Member<'a>]) -> bool {
-        x.len() == y.len() &&
-        x.iter().zip(y.iter()).all(|(x, y)| {
-            Self::check_compat(&x.1, &y.1) == CheckResult::Left
-        })
-    }
-
 //    pub fn check_extend(x: Self, y: Self) -> Option<Self> {
 //        // Type A is extendible to type B if:
 //        //   - A and B are of the same form, and
