@@ -17,13 +17,8 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::rc::Rc;
-//use num::{BigInt /*, ToPrimitive*/};
 
-//use aex::types::contains::Contains;
-//use aex::types::int::IntSpec;
-//use aex::types::float::FloatSpec;
 use aex::types::{Type, Member};
-////use aex::pos::Source;
 use aex::message::Messages;
 use aex::util::Lookup;
 
@@ -84,60 +79,7 @@ where 'a: 'me,
     }
 }
 
-//impl<'a> TypeRes<'a> {
-//}
-//
-//impl<'a> Contains<BigInt> for TypeRes<'a> {
-//    #[inline(always)]
-//    fn contains(&self, item: &BigInt) -> Option<bool> {
-//        self.form.contains(item)
-//    }
-//}
-//
-//impl TypeForm {
-//    pub fn is_scalar(&self) -> bool {
-//        match *self {
-//            TypeForm::Inty   (..) => true,
-//            TypeForm::Floaty (..) => true,
-//            _                     => false
-//        }
-//    }
-//
-//    pub fn value_width(&self) -> Option<u8> {
-//        match *self {
-//            TypeForm::Inty(Some(IntSpec { value_width, .. })) => {
-//                Some(value_width)
-//            },
-//            TypeForm::Floaty(Some(FloatSpec { value_width, .. })) => {
-//                Some(value_width)
-//            },
-//            _ => None
-//        }
-//    }
-//
-//    pub fn store_width(&self) -> Option<u8> {
-//        match *self {
-//            TypeForm::Inty(Some(IntSpec { store_width, .. })) => {
-//                Some(store_width)
-//            },
-//            TypeForm::Floaty(Some(FloatSpec { store_width, .. })) => {
-//                Some(store_width)
-//            },
-//            _ => None
-//        }
-//    }
-//}
-//
-//impl Contains<BigInt> for TypeForm {
-//    #[inline]
-//    fn contains(&self, expr: &BigInt) -> Option<bool> {
-//        match *self {
-//            TypeForm::Inty   (s) => s.contains(expr),
-//            TypeForm::Floaty (s) => None, // Don't know for now
-//            TypeForm::Opaque     => Some(false)
-//        }
-//    }
-//}
+// -----------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

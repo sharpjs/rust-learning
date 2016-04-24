@@ -19,19 +19,21 @@
 pub mod contains;
 pub mod builtin;
 pub mod float;
+pub mod form;
 pub mod int;
 pub mod res;
 
 use std::rc::Rc;
-use num::BigUint;
+use num::{BigInt, BigUint};
 
 use aex::pos::Source;
+use aex::types::contains::Contains;
 use aex::types::float::FloatSpec;
+use aex::types::form::TypeForm;
 use aex::types::int::IntSpec;
 use aex::util::ref_eq;
 
 // Type expression
-
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Type<'a> {
     Ident   (Source<'a>, &'a str, Option<Rc<Type<'a>>>),
@@ -45,26 +47,8 @@ pub enum Type<'a> {
 }
 
 // Complex type member
-
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Member<'a> (&'a str, Type<'a>);
-
-// Basic equivalence and size information for a type
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum TypeForm {
-    Inty    (Option<  IntSpec>),    // Int, Ptr
-    Floaty  (Option<FloatSpec>),    // Float
-    Opaque,                         // Array, Union, Struct, Func
-}
-
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub enum CheckResult { None, Left, Right }
-
-impl CheckResult {
-    pub fn left_if(cond: bool) -> Self {
-        if cond { CheckResult::Left } else { CheckResult::Right }
-    }
-}
 
 impl<'a> Type<'a> {
     pub fn form(&self) -> TypeForm {
@@ -148,11 +132,7 @@ impl<'a> Type<'a> {
              &Type::Ptr(_, ref y_addr_ty, ref y_data_ty)) => {
                 let addr_ck = Self::check_compat(&**x_addr_ty, &**y_addr_ty);
                 let data_ck = Self::check_compat(&**x_data_ty, &**y_data_ty);
-                if addr_ck == data_ck {
-                    addr_ck
-                } else {
-                    CheckResult::None
-                }
+                CheckResult::same_or_none(addr_ck, data_ck)
             },
 
             (&Type::Struct(_, ref x_members),
@@ -169,11 +149,7 @@ impl<'a> Type<'a> {
              &Type::Func(_, ref y_args, ref y_rets)) => {
                 let args_ck = Self::check_compat_members(x_args, y_args);
                 let rets_ck = Self::check_compat_members(x_rets, y_rets);
-                if args_ck == rets_ck {
-                    args_ck
-                } else {
-                    CheckResult::None
-                }
+                CheckResult::same_or_none(args_ck, rets_ck)
             },
 
             _ => CheckResult::None
@@ -245,7 +221,37 @@ impl<'a> Type<'a> {
 //    }
 }
 
+impl<'a> Contains<BigInt> for Type<'a> {
+    #[inline(always)]
+    fn contains(&self, item: &BigInt) -> Option<bool> {
+        self.form().contains(item)
+    }
+}
+
 fn panic_unresolved(name: &str) -> ! {
     panic!("Attempted to use unresolved type identifier '{}'", name)
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub enum CheckResult { None, Left, Right }
+
+impl CheckResult {
+    #[inline(always)]
+    pub fn left_if(cond: bool) -> Self {
+        if cond { CheckResult::Left } else { CheckResult::Right }
+    }
+
+    #[inline(always)]
+    pub fn same_or_none(x: Self, y: Self) -> Self {
+        if x == y { x } else { CheckResult::None }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+#[cfg(test)]
+mod tests {
 }
 
