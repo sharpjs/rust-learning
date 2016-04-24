@@ -23,7 +23,6 @@ pub mod form;
 pub mod int;
 pub mod res;
 
-use std::rc::Rc;
 use num::{BigInt, BigUint};
 
 use aex::pos::Source;
@@ -35,37 +34,37 @@ use aex::util::ref_eq;
 
 // Type expression
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Type<'a> {
-    Ident   (Source<'a>, &'a str, Option<Rc<Type<'a>>>),
+pub enum Type<'s, 'a: 's> {
+    Ident   (Source<'a>, &'a str, Option<&'s Type<'s, 'a>>),
     Int     (Source<'a>, Option<IntSpec>),
     Float   (Source<'a>, Option<FloatSpec>),
-    Array   (Source<'a>, Box<Type<'a>>, Option<BigUint>),
-    Ptr     (Source<'a>, Box<Type<'a>>, Box<Type<'a>>),
-    Struct  (Source<'a>, Vec<Member<'a>>),
-    Union   (Source<'a>, Vec<Member<'a>>),
-    Func    (Source<'a>, Vec<Member<'a>>, Vec<Member<'a>>),
+    Array   (Source<'a>, Box<Type<'s, 'a>>, Option<BigUint>),
+    Ptr     (Source<'a>, Box<Type<'s, 'a>>, Box<Type<'s, 'a>>),
+    Struct  (Source<'a>, Vec<Member<'s, 'a>>),
+    Union   (Source<'a>, Vec<Member<'s, 'a>>),
+    Func    (Source<'a>, Vec<Member<'s, 'a>>, Vec<Member<'s, 'a>>),
 }
 
 // Complex type member
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Member<'a> (&'a str, Type<'a>);
+pub struct Member<'s, 'a: 's> (&'a str, Type<'s, 'a>);
 
-impl<'a> Type<'a> {
+impl<'s, 'a: 's> Type<'s, 'a> {
     pub fn form(&self) -> TypeForm {
         match *self {
-            Type::Int   (_, s)              => TypeForm::Inty   (s),
-            Type::Float (_, s)              => TypeForm::Floaty (s),
-            Type::Ptr   (_, ref t, _)       => t.form(),
-            Type::Ident (_, _, Some(ref t)) => t.form(),
-            Type::Ident (_, n, None)        => panic_unresolved(n),
-            _                               => TypeForm::Opaque,
+            Type::Int   (_, s)          => TypeForm::Inty   (s),
+            Type::Float (_, s)          => TypeForm::Floaty (s),
+            Type::Ptr   (_, ref t, _)   => t.form(),
+            Type::Ident (_, _, Some(t)) => t.form(),
+            Type::Ident (_, n, None)    => panic_unresolved(n),
+            _                           => TypeForm::Opaque,
         }
     }
 
     pub fn as_resolved(&self) -> &Self {
         let mut ty = self;
-        while let Type::Ident(_, _, Some(ref t)) = *ty {
-            ty = &**t
+        while let Type::Ident(_, _, Some(t)) = *ty {
+            ty = t
         }
         ty
     }
@@ -75,9 +74,9 @@ impl<'a> Type<'a> {
         // x and y are compatible only if they resolve to the same type.
         //
         match (x, y) {
-            (&Type::Ident(_, _, Some(ref x)),
-             &Type::Ident(_, _, Some(ref y))) => {
-                if ref_eq(&**x, &**y) {
+            (&Type::Ident(_, _, Some(x)),
+             &Type::Ident(_, _, Some(y))) => {
+                if ref_eq(x, y) {
                     // Identify same type; compatible
                     return CheckResult::Left
                 } else {
@@ -156,7 +155,7 @@ impl<'a> Type<'a> {
         }
     }
 
-    fn check_compat_members(x: &[Member<'a>], y: &[Member<'a>]) -> CheckResult {
+    fn check_compat_members(x: &[Member<'s, 'a>], y: &[Member<'s, 'a>]) -> CheckResult {
         // Member lists must have same length.
         if x.len() != y.len() {
             return CheckResult::None
@@ -221,7 +220,7 @@ impl<'a> Type<'a> {
 //    }
 }
 
-impl<'a> Contains<BigInt> for Type<'a> {
+impl<'s, 'a: 's> Contains<BigInt> for Type<'s, 'a> {
     #[inline(always)]
     fn contains(&self, item: &BigInt) -> Option<bool> {
         self.form().contains(item)

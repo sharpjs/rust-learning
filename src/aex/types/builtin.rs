@@ -21,23 +21,23 @@ use aex::types::Type;
 use aex::types::float::FloatSpec;
 use aex::types::int::IntSpec;
 
-struct BuiltInTypes<'a> {
+struct BuiltInTypes<'s, 'a: 's> {
     // Abstract
-    pub int:      Type<'a>,
-    pub float:    Type<'a>,
+    pub int:      Type<'s, 'a>,
+    pub float:    Type<'s, 'a>,
     // Concrete unsigned integer
-    pub uint_8:   Type<'a>,
-    pub uint_16:  Type<'a>,
-    pub uint_32:  Type<'a>,
-    pub uint_64:  Type<'a>,
+    pub uint_8:   Type<'s, 'a>,
+    pub uint_16:  Type<'s, 'a>,
+    pub uint_32:  Type<'s, 'a>,
+    pub uint_64:  Type<'s, 'a>,
     // Concrete signed integer
-    pub int_8:    Type<'a>,
-    pub int_16:   Type<'a>,
-    pub int_32:   Type<'a>,
-    pub int_64:   Type<'a>,
+    pub int_8:    Type<'s, 'a>,
+    pub int_16:   Type<'s, 'a>,
+    pub int_32:   Type<'s, 'a>,
+    pub int_64:   Type<'s, 'a>,
     // Concrete floating-point
-    pub float_32: Type<'a>,
-    pub float_64: Type<'a>,
+    pub float_32: Type<'s, 'a>,
+    pub float_64: Type<'s, 'a>,
 }
 
 macro_rules! int {
@@ -58,7 +58,7 @@ macro_rules! float {
     ))
 }
 
-impl<'a> Default for BuiltInTypes<'a> {
+impl<'s, 'a: 's> Default for BuiltInTypes<'s, 'a> {
     fn default() -> Self {
         BuiltInTypes {
             // Abstract

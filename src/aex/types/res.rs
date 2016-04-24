@@ -16,29 +16,30 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::rc::Rc;
+use std::marker::PhantomData;
 
 use aex::types::{Type, Member};
 use aex::message::Messages;
 use aex::util::Lookup;
 
-pub struct TypeResolver<'me, 'a, L>
+pub struct TypeResolver<'me, 's: 'me, 'a: 's, L>
 where 'a: 'me,
-      L: 'me + Fn(&str) -> Option<Rc<Type<'a>>> {
+       L: 'me + Fn(&str) -> Option<&'s Type<'s, 'a>> {
 
     lookup: &'me L,
     log:    &'me mut Messages<'a>,
+    _z:     PhantomData<&'s ()>,
 }
 
-impl<'me, 'a, L> TypeResolver<'me, 'a, L>
+impl<'me, 's, 'a: 's, L> TypeResolver<'me, 's, 'a, L>
 where 'a: 'me,
-      L: 'me + Fn(&str) -> Option<Rc<Type<'a>>> {
+       L: 'me + Fn(&str) -> Option<&'s Type<'s, 'a>> {
 
     pub fn new(lookup: &'me L, log: &'me mut Messages<'a>) -> Self {
-        TypeResolver { lookup: lookup, log: log }
+        TypeResolver { lookup: lookup, log: log, _z: PhantomData }
     }
 
-    pub fn resolve(&self, ty: &mut Type<'a>) -> Result<(), ()> {
+    pub fn resolve(&self, ty: &mut Type<'s, 'a>) -> Result<(), ()> {
         match *ty {
             Type::Ident(_, name, ref mut ty) => {
                 match (self.lookup)(name) {
@@ -70,7 +71,7 @@ where 'a: 'me,
         Ok(())
     }
 
-    pub fn resolve_members(&self, members: &mut [Member<'a>])
+    pub fn resolve_members(&self, members: &mut [Member<'s, 'a>])
                           -> Result<(), ()> {
         for member in members {
             try!(self.resolve(&mut member.1));
