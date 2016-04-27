@@ -61,13 +61,6 @@ pub enum Arity<T> {
 //    BinarY (Box<for<'a> BinaryDispatch<'a, T>>)
 }
 
-//#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-//pub struct Operand<'a, T> {
-//    pub term: T,
-//    pub kind: Kind,
-//    pub src:  Source<'a>,
-//}
-
 impl<T> OperatorTable<T> {
     pub fn new() -> Self {
         OperatorTable { 
@@ -132,7 +125,62 @@ impl<T> fmt::Debug for Arity<T> {
 }
 
 //// -----------------------------------------------------------------------------
-//
+
+use std::borrow::Cow;
+use aex::types::Type;
+use aex::pos::Source;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Operand<'a, T: Const> {
+    pub value:  T,
+    pub ttype:  Cow<'a, Type<'a, 'a>>,
+    pub source: Source<'a>,
+}
+
+pub trait Const {
+    type Expr;
+    fn    new_const (Self::Expr) -> Self;
+    fn     is_const (&self     ) -> bool;
+    fn unwrap_const ( self     ) -> Self::Expr; // or panic
+}
+
+type BinaryImpl<T> = for<'a> fn([Operand<'a, T>; 2]) -> Result<Operand<'a, T>, ()>;
+
+pub struct BinaryDispatch<T: Const> {
+    const_op:     Option<BinaryImpl<T>>,
+    implicit_op:  Option<BinaryImpl<T>>,
+    explicit_ops: HashMap<&'static str, BinaryImpl<T>>,
+}
+
+impl<T: Const> BinaryDispatch<T> {
+    pub fn invoke<'a>(&self,
+                      selector: Option<&str>,
+                      operands: [Operand<'a, T>; 2]
+                    ) -> Result<Operand<'a, T>, ()> {
+
+        // Get implementation
+        let op =
+            if let Some(s) = selector {
+                self.explicit_ops.get(s).map(|&op| op)
+            } else if all_const(&operands) {
+                self.const_op
+            } else {
+                self.implicit_op
+            };
+
+        // Invoke implementation
+        match op {
+            Some(op) => op(operands),
+            None     => panic!(),
+        }
+    }
+}
+
+#[inline]
+fn all_const<'a, T: Const>(operands: &[Operand<'a, T>]) -> bool {
+    operands.iter().all(|o| o.value.is_const())
+}
+
 //pub trait BinaryDispatch<'a, T: 'a + Constness> {
 //    fn invoke(&self,
 //              src:  Source<'a>,
@@ -212,16 +260,6 @@ impl<T> fmt::Debug for Arity<T> {
 //    Float (f64),
 //    Expr  (Box<fmt::Display>),
 //}
-//
-//pub trait Constness {
-//    type Expr;
-//    fn new_const (Self::Expr) -> Self;
-//    fn  is_const (&self     ) -> bool;
-//    fn  to_const ( self     ) -> Self::Expr;
-//}
-//
-//// Temporary placeholder
-//pub type Kind = usize;
 
 //// For now.  Eventually, targets should provide their available operators.
 //pub fn create_op_table<T>() -> OperatorTable<T> {
