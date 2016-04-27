@@ -25,27 +25,23 @@
 
 use std::collections::HashMap;
 use std::fmt;
-//use num::BigInt;
 
-//use aex::ast::Expr;
-//use aex::pos::*;
-
-use self::Arity::*;
+use self::Dispatch::*;
 use self::Fixity::*;
 
 #[derive(Debug)]
-pub struct OperatorTable<T> {
+pub struct OperatorTable<T: Const> {
     nonprefix: HashMap<&'static str, Operator<T>>, // infix and postfix ops
     prefix:    HashMap<&'static str, Operator<T>>, // prefix ops
 }
 
 #[derive(Debug)]
-pub struct Operator<T> {
+pub struct Operator<T: Const> {
     pub chars:  &'static str,
     pub prec:   u8,
     pub assoc:  Assoc,
     pub fixity: Fixity,
-    pub arity:  Arity<T>
+    pub disp:   Dispatch<T>
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -54,14 +50,12 @@ pub enum Assoc { Left, Right }
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Fixity { Prefix, Infix, Postfix }
 
-use std::marker::PhantomData;
-pub enum Arity<T> {
-    Unary  (PhantomData<T>), //(Box<for<'a> Fn(Source<'a>, &str, [Operand<'a, T>; 1]) -> Operand<'a, T>>),
-    Binary (PhantomData<T>) //(Box<for<'a> Fn(Source<'a>, &str, [Operand<'a, T>; 2]) -> Operand<'a, T>>),
-//    BinarY (Box<for<'a> BinaryDispatch<'a, T>>)
+pub enum Dispatch<T: Const> {
+    Unary  (()), // TODO
+    Binary (BinaryDispatch<T>),
 }
 
-impl<T> OperatorTable<T> {
+impl<T: Const> OperatorTable<T> {
     pub fn new() -> Self {
         OperatorTable { 
             nonprefix: HashMap::new(),
@@ -86,19 +80,19 @@ impl<T> OperatorTable<T> {
     }
 }
 
-impl<T/*: Constness*/> Operator<T> {
+impl<T: Const> Operator<T> {
     pub fn new(chars:  &'static str,
                prec:   u8,
                assoc:  Assoc,
                fixity: Fixity,
-               arity:  Arity<T>
+               disp:   Dispatch<T>
               ) -> Self {
         Operator {
             chars:  chars,
             prec:   prec,
             assoc:  assoc,
             fixity: fixity,
-            arity:  arity
+            disp:   disp
         }
     }
 
@@ -108,14 +102,14 @@ impl<T/*: Constness*/> Operator<T> {
 //        } else {
 //            // do asm op
 //        }
-//        match self.arity {
+//        match self.disp {
 //            Unary(ref f) => f(src, sel, args),
 //            _ => panic!()
 //        }
 //    }
 }
 
-impl<T> fmt::Debug for Arity<T> {
+impl<T: Const> fmt::Debug for Dispatch<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match *self {
             Unary  (_) => "Unary",
@@ -127,6 +121,7 @@ impl<T> fmt::Debug for Arity<T> {
 //// -----------------------------------------------------------------------------
 
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use aex::types::Type;
 use aex::pos::Source;
 
@@ -144,7 +139,13 @@ pub trait Const {
     fn unwrap_const ( self     ) -> Self::Expr; // or panic
 }
 
-type BinaryImpl<T> = for<'a> fn([Operand<'a, T>; 2]) -> Result<Operand<'a, T>, ()>;
+pub struct Context<'a> {
+    x: PhantomData<&'a ()>
+}
+
+type BinaryImpl<T> = for<'a>
+    fn ([Operand<'a, T>; 2], Context<'a>)
+       -> Result<Operand<'a, T>, ()>;
 
 pub struct BinaryDispatch<T: Const> {
     const_op:     Option<BinaryImpl<T>>,
@@ -153,10 +154,19 @@ pub struct BinaryDispatch<T: Const> {
 }
 
 impl<T: Const> BinaryDispatch<T> {
+    pub fn new() -> Self {
+        BinaryDispatch {
+            const_op:     None,
+            implicit_op:  None,
+            explicit_ops: HashMap::new()
+        }
+    }
+
     pub fn invoke<'a>(&self,
                       selector: Option<&str>,
-                      operands: [Operand<'a, T>; 2]
-                    ) -> Result<Operand<'a, T>, ()> {
+                      operands: [Operand<'a, T>; 2],
+                      context:  Context<'a>,
+                     ) -> Result<Operand<'a, T>, ()> {
 
         // Get implementation
         let op =
@@ -170,7 +180,7 @@ impl<T: Const> BinaryDispatch<T> {
 
         // Invoke implementation
         match op {
-            Some(op) => op(operands),
+            Some(op) => op(operands, context),
             None     => panic!(),
         }
     }
@@ -180,86 +190,6 @@ impl<T: Const> BinaryDispatch<T> {
 fn all_const<'a, T: Const>(operands: &[Operand<'a, T>]) -> bool {
     operands.iter().all(|o| o.value.is_const())
 }
-
-//pub trait BinaryDispatch<'a, T: 'a + Constness> {
-//    fn invoke(&self,
-//              src:  Source<'a>,
-//              sel:  &str,
-//              args: [Operand<'a, T>; 2],
-//             ) -> Operand<'a, T> {
-//        let op =
-//            if sel != "" {
-//                // Explicitly selected asm operation
-//                self.asm_op_for_sel(sel)
-//            } else if args[0].term.is_const() && args[1].term.is_const() {
-//                // Constant operation
-//                let op = self.const_op();
-//                panic!()
-//            } else {
-//                // Auto-selected asm operation
-//                let sel = self.sel_for_args(args).unwrap();
-//                self.asm_op_for_sel(sel)
-//            };
-//        panic!()
-//    }
-//
-//    fn const_op       (&self) -> ConstOperation<T>;
-//    fn sel_for_args   (&self, [Operand<'a, T>; 2]) -> Option<&'static str>;
-//    fn asm_op_for_sel (&self, &str) -> Option<&AsmOperation<T>>;
-//
-//    fn set_const_op (&mut self, op: ConstOperation<T>);
-//    fn set_asm_auto (&mut self, fn([Operand<'a, T>; 2]) -> Option<&'static str>);
-//    fn add_asm_op   (&mut self, sel: &'static str, op: AsmOperation<T>);
-//}
-//
-//use std::marker::PhantomData;
-//
-//pub struct BinaryDispatcher<T> {
-//    const_op: ConstOperation<T>
-//}
-//
-//impl<'a, T: 'a + Constness> BinaryDispatch<'a, T> for BinaryDispatcher<T> {
-//    fn set_const_op(&mut self, op: ConstOperation<T>) {
-//        panic!()
-//    }
-//
-//    fn set_asm_auto(&mut self, f: fn([Operand<'a, T>; 2]) -> Option<&'static str>) {
-//        panic!()
-//    }
-//
-//    fn add_asm_op(&mut self, sel: &'static str, op: AsmOperation<T>) {
-//        panic!()
-//    }
-//
-//    fn const_op(&self) -> ConstOperation<T> {
-//        panic!()
-//    }
-//
-//    fn sel_for_args(&self, args: [Operand<'a, T>; 2]) -> Option<&'static str> {
-//        panic!()
-//    }
-//
-//    fn asm_op_for_sel(&self, sel: &str) -> Option<&AsmOperation<T>> {
-//        panic!()
-//    }
-//}
-//
-//pub struct ConstOperation<T> {
-//    //pub check_types:         fn($($n: TypeA<'a>),+) -> Option<TypeA<'a>>,
-//    pub eval_int:            fn([BigInt;      2]) -> BigInt,
-//    pub eval_float:          fn([f64;         2]) -> f64,
-//    pub eval_expr:   for<'a> fn([Expr<'a, T>; 2]) -> Expr<'a, T>,
-//}
-//
-//pub struct AsmOperation<T> {
-//    x: PhantomData<T>
-//}
-//
-//pub enum Const {
-//    Int   (BigInt),
-//    Float (f64),
-//    Expr  (Box<fmt::Display>),
-//}
 
 //// For now.  Eventually, targets should provide their available operators.
 //pub fn create_op_table<T>() -> OperatorTable<T> {
