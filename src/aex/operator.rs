@@ -139,6 +139,7 @@ pub trait Const {
     fn unwrap_const ( self     ) -> Self::Expr; // or panic
 }
 
+#[derive(Clone, Debug)]
 pub struct Context<'a> {
     x: PhantomData<&'a ()>
 }
@@ -189,6 +190,71 @@ impl<T: Const> BinaryDispatch<T> {
 #[inline]
 fn all_const<'a, T: Const>(operands: &[Operand<'a, T>]) -> bool {
     operands.iter().all(|o| o.value.is_const())
+}
+
+//// -----------------------------------------------------------------------------
+
+use aex::types::form::TypeForm;
+
+pub struct TargetBinaryOp<T: Const> {
+    pub default_width: u8,
+
+    pub check_modes:
+        for<'a> fn([&T; 2]) -> bool,
+
+    pub check_types:
+        for<'a> fn([&Type<'a, 'a>; 2]) -> Option<Cow<'a, Type<'a, 'a>>>,
+
+    pub check_forms:
+        fn([TypeForm; 2], u8) -> Option<u8>,
+}
+
+impl<T: Const + Clone> TargetBinaryOp<T> {
+    pub fn invoke<'a>(&self,
+                      operands: [Operand<'a, T>; 2],
+                      context:  Context<'a>,
+                     ) -> Result<Operand<'a, T>, ()> {
+        // Mode check
+        let vs = [&operands[0].value, &operands[1].value];
+        let ok = (self.check_modes)(vs);
+        if !ok {
+            return Err(())
+        }
+
+        // Type check
+        let ty = (self.check_types)([&operands[0].ttype, &operands[1].ttype]);
+        let ty = match ty {
+            Some(ty) => ty,
+            None     => {
+                return Err(())
+            }
+        };
+
+        // Form check
+        let width = self.default_width;
+        let width = (self.check_forms)([operands[0].ttype.form(),
+                                        operands[1].ttype.form()],
+                                       width);
+        let width = match width {
+            Some(w) => w,
+            None    => {
+                return Err(())
+            }
+        };
+
+        // Opcode select
+        // ?
+
+        // Emit
+        // ?
+
+        Ok(Operand {
+            value:  operands[0].value.clone(),
+            ttype:  ty,
+            source: operands[0].source
+        })
+    }
+
 }
 
 //// For now.  Eventually, targets should provide their available operators.
