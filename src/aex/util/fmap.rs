@@ -27,8 +27,8 @@ pub trait Fmap<T, U> {
 // which are necessary to express Functor like it is in Haskell.
 // For now, we have to provide both the T and U types.
 //
-// Rust also does not (yet) have variadic generic tuples.  So, we have
-// to implement Fmap for every size of tuple that we need.
+// Rust also does not (yet) have generics over aray size.
+// So, we have to implement Fmap for every size of array that we need.
 
 // Arity 0
 impl<T, U> Fmap<T, U> for [T; 0] {
