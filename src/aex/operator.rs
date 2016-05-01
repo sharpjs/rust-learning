@@ -51,8 +51,10 @@ pub enum Assoc { Left, Right }
 pub enum Fixity { Prefix, Infix, Postfix }
 
 pub enum Dispatch<T: Const> {
-    Unary  (()), // TODO
-    Binary (BinaryDispatch<T>),
+    //Unary  (UnaryDispatch<T>),
+    //Binary (BinaryDispatch<T>),
+    Unary(()),
+    Binary(T),
 }
 
 impl<T: Const> OperatorTable<T> {
@@ -118,17 +120,27 @@ impl<T: Const> fmt::Debug for Dispatch<T> {
     }
 }
 
-//// -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+
+// Remember, all this is just trying to abstract a fn...
+//
+//fn eval_add<'a, T: Const>
+//           (args: [Operand<'a, T>; 2],
+//            ctx:  Context<'a>)
+//           -> Result<Operand<'a, T>, ()> {
+//    eval_general(ADD, args, ctx, check_forms_x, check_types_x)
+//}
 
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use aex::types::Type;
 use aex::pos::Source;
+use aex::types::form::TypeForm;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Operand<'a, T: Const> {
-    pub value:  T,
-    pub ttype:  Cow<'a, Type<'a, 'a>>,
+pub struct Operand<'a, V> {
+    pub value:  V,
+    pub ty:     Cow<'a, Type<'a, 'a>>,
     pub source: Source<'a>,
 }
 
@@ -139,123 +151,232 @@ pub trait Const {
     fn unwrap_const ( self     ) -> Self::Expr; // or panic
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug)]
 pub struct Context<'a> {
     x: PhantomData<&'a ()>
 }
 
-type BinaryImpl<T> = for<'a>
-    fn ([Operand<'a, T>; 2], Context<'a>)
-       -> Result<Operand<'a, T>, ()>;
+pub type  UnaryArgs<'a, T> = (Operand<'a, T>,);
+pub type BinaryArgs<'a, T> = (Operand<'a, T>, Operand<'a, T>);
 
-pub struct BinaryDispatch<T: Const> {
-    const_op:     Option<BinaryImpl<T>>,
-    implicit_op:  Option<BinaryImpl<T>>,
-    explicit_ops: HashMap<&'static str, BinaryImpl<T>>,
+pub trait Args {
+    type Impl;
+    type Context: Copy;
+    type Result;
+
+    fn all_const(&self) -> bool;
+
+    fn dispatch(self, &Self::Impl, Self::Context)
+               -> Result<Self::Result, ()>;
 }
 
-impl<T: Const> BinaryDispatch<T> {
+impl<'a, T: Const> Args for UnaryArgs<'a, T> {
+    type Impl    = Box<Fn(Self, Context<'a>) -> Result<Operand<'a, T>, ()>>;
+    type Context = Context<'a>;
+    type Result  = Operand<'a, T>;
+
+    #[inline(always)]
+    fn all_const(&self) -> bool {
+        self.0.value.is_const()
+    }
+
+    #[inline(always)]
+    fn dispatch(self, f: &Self::Impl, ctx: Context<'a>)
+               -> Result<Self::Result, ()> {
+        f(self, ctx)
+    }
+}
+
+impl<'a, T: Const> Args for BinaryArgs<'a, T> {
+    type Impl    = Box<Fn(Self, Context<'a>) -> Result<Operand<'a, T>, ()>>;
+    type Context = Context<'a>;
+    type Result  = Operand<'a, T>;
+
+    #[inline(always)]
+    fn all_const(&self) -> bool {
+        self.0.value.is_const() &&
+        self.1.value.is_const()
+    }
+
+    #[inline(always)]
+    fn dispatch(self, f: &Self::Impl, ctx: Context<'a>)
+               -> Result<Self::Result, ()> {
+        f(self, ctx)
+    }
+}
+
+pub struct Dispatcher<A: Args> {
+    const_op:     Option<A::Impl>,
+    implicit_op:  Option<A::Impl>,
+    explicit_ops: HashMap<&'static str, A::Impl>,
+}
+
+impl<A: Args> Dispatcher<A> {
     pub fn new() -> Self {
-        BinaryDispatch {
+        Dispatcher {
             const_op:     None,
             implicit_op:  None,
             explicit_ops: HashMap::new()
         }
     }
 
-    pub fn invoke<'a>(&self,
-                      selector: Option<&str>,
-                      operands: [Operand<'a, T>; 2],
-                      context:  Context<'a>,
-                     ) -> Result<Operand<'a, T>, ()> {
+    pub fn dispatch<'a>(&self,
+                        sel:  Option<&str>,
+                        args: A,
+                        ctx:  A::Context,
+                       ) -> Result<A::Result, ()> {
 
         // Get implementation
         let op =
-            if let Some(s) = selector {
-                self.explicit_ops.get(s).map(|&op| op)
-            } else if all_const(&operands) {
-                self.const_op
+            if let Some(s) = sel {
+                self.explicit_ops.get(s)
+            } else if args.all_const() {
+                self.const_op.as_ref()
             } else {
-                self.implicit_op
+                self.implicit_op.as_ref()
             };
 
         // Invoke implementation
         match op {
-            Some(op) => op(operands, context),
+            Some(op) => args.dispatch(op, ctx),
             None     => panic!(),
         }
     }
 }
 
-#[inline]
-fn all_const<'a, T: Const>(operands: &[Operand<'a, T>]) -> bool {
-    operands.iter().all(|o| o.value.is_const())
+pub type OpcodeTable = &'static [(u8, &'static str)];
+
+fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
+    for &(op_width, op) in ops {
+        if op_width == ty_width { return Some(op) }
+    }
+    None
 }
 
-//// -----------------------------------------------------------------------------
+#[inline(always)]
+pub fn default_eval_binary<'a, T>(
+    a:             Operand<'a, T>,
+    b:             Operand<'a, T>,
+    ctx:           Context<'a>,
+    check_values:  fn(&T, &T) -> bool,
+    check_types:   fn(Cow<'a, Type<'a, 'a>>, Cow<'a, Type<'a, 'a>>) -> Option<Cow<'a, Type<'a, 'a>>>,
+    check_forms:   fn(TypeForm, TypeForm, TypeForm, u8) -> Option<u8>,
+    opcodes:       OpcodeTable,
+    default_width: u8,
+)   ->             Result<Operand<'a, T>, ()>
+{
+    // Destructure operands
+    let Operand { value: a_val, ty: a_ty, source: a_src } = a;
+    let Operand { value: b_val, ty: b_ty, source: b_src } = b;
 
-use aex::types::form::TypeForm;
-
-pub struct TargetBinaryOp<T: Const> {
-    pub default_width: u8,
-
-    pub check_modes:
-        for<'a> fn([&T; 2]) -> bool,
-
-    pub check_types:
-        for<'a> fn([&Type<'a, 'a>; 2]) -> Option<Cow<'a, Type<'a, 'a>>>,
-
-    pub check_forms:
-        fn([TypeForm; 2], u8) -> Option<u8>,
-}
-
-impl<T: Const + Clone> TargetBinaryOp<T> {
-    pub fn invoke<'a>(&self,
-                      operands: [Operand<'a, T>; 2],
-                      context:  Context<'a>,
-                     ) -> Result<Operand<'a, T>, ()> {
-        // Mode check
-        let vs = [&operands[0].value, &operands[1].value];
-        let ok = (self.check_modes)(vs);
-        if !ok {
-            return Err(())
-        }
-
-        // Type check
-        let ty = (self.check_types)([&operands[0].ttype, &operands[1].ttype]);
-        let ty = match ty {
-            Some(ty) => ty,
-            None     => {
-                return Err(())
-            }
-        };
-
-        // Form check
-        let width = self.default_width;
-        let width = (self.check_forms)([operands[0].ttype.form(),
-                                        operands[1].ttype.form()],
-                                       width);
-        let width = match width {
-            Some(w) => w,
-            None    => {
-                return Err(())
-            }
-        };
-
-        // Opcode select
-        // ?
-
-        // Emit
-        // ?
-
-        Ok(Operand {
-            value:  operands[0].value.clone(),
-            ttype:  ty,
-            source: operands[0].source
-        })
+    // Value (mode) check
+    // - Can the operation be performed on values of these kinds?
+    let ok = check_values(&a_val, &b_val);
+    if !ok {
+        //ctx.out.log.err_no_op_for_addr_modes(pos);
+        return Err(())
     }
 
+    // Get forms before we lose ownership of types
+    let a_form = a_ty.form();
+    let b_form = b_ty.form();
+
+    // Type check
+    // - Do these types make sense for the operation?
+    // - What is the type of the result?
+    let ty = check_types(a_ty, b_ty);
+    let ty = match ty {
+        Some(ty) => ty,
+        None     => {
+            //ctx.out.log.err_incompatible_types(pos);
+            return Err(())
+        }
+    };
+
+    // Form check
+    // - Which opcode should we use?
+    let width = default_width;
+    let width = check_forms(a_form, b_form, ty.form(), width);
+    let width = match width {
+        Some(w) => w,
+        None    => {
+            //ctx.out.log.err_no_op_for_operand_types(pos);
+            return Err(())
+        }
+    };
+
+    // Opcode select
+    let op = match select_opcode(width, opcodes) {
+        Some(op) => op,
+        None     => {
+            //ctx.out.log.err_no_op_for_operand_sizes(pos);
+            return Err(())
+        }
+    };
+
+    //// Emit
+    //ctx.out.asm.$write(op, $(&$n),+);
+
+    // Cast result to checked type
+    Ok(Operand { value: a_val, ty: ty, source: a_src })
 }
+
+// -----------------------------------------------------------------------------
+
+pub fn adda<'a, T>(l: Operand<'a, T>, r: Operand<'a, T>, cx: Context<'a>)
+                  -> Result<Operand<'a, T>, ()> {
+    default_eval_binary(
+        l, r, cx,
+        check_values_2,
+        check_types_2,
+        check_forms_2,
+        ADDA, 32
+    )
+}
+
+static ADDA: OpcodeTable = &[
+    (16, "adda.w"),
+    (32, "adda.l"),
+];
+
+fn check_values_2<T>(a: &T, b: &T) -> bool { panic!() }
+fn check_types_2<'a>(a: Cow<'a, Type<'a, 'a>>, b: Cow<'a, Type<'a, 'a>>) -> Option<Cow<'a, Type<'a, 'a>>> { panic!() }
+fn check_forms_2(a: TypeForm, b: TypeForm, ret: TypeForm, default: u8) -> Option<u8> { Some(default) }
+
+//macro_rules! gen_eval {
+//    ($name:ident ( $($arg:ident),* )
+//                 : $check_values:  ident,
+//                   $check_types:   ident,
+//                   $check_forms:   ident,
+//                   $default_width: expr
+//    ) => {
+//        pub fn $name<'a, V>
+//                    (args: [Operand<'a, V>; $n],
+//                     ctx:  Context<'a>,
+//                    ) -> Result<Operand<'a, V>, ()> {
+//
+//        }
+//    }
+//}
+
+//gen_eval! { adda : 2, check_modes_2, check_types_2, check_forms_2, 8 }
+//
+//pub fn check_modes_2<V>(values: [&V; 2]) -> bool {
+//    true
+//}
+//
+//pub fn check_types_2<'a>(types: [&Type<'a, 'a>; 2])
+//                    -> Option<Cow<'a, Type<'a, 'a>>> {
+//    None
+//}
+//
+//pub fn check_forms_2<'a>(forms:         [TypeForm; 2],
+//                         f2:            TypeForm,
+//                         default_width: u8)
+//                        -> Option<u8> {
+//    None
+//}
+
 
 //// For now.  Eventually, targets should provide their available operators.
 //pub fn create_op_table<T>() -> OperatorTable<T> {
