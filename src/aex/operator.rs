@@ -253,8 +253,8 @@ fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
     None
 }
 
-#[inline(always)]
-pub fn default_eval_binary<'a, T>(
+#[inline(always)] // Yes, even though it's not a small method.
+pub fn eval_binary<'a, T>(
     a:             Operand<'a, T>,
     b:             Operand<'a, T>,
     ctx:           Context<'a>,
@@ -323,16 +323,33 @@ pub fn default_eval_binary<'a, T>(
 
 // -----------------------------------------------------------------------------
 
-pub fn adda<'a, T>(l: Operand<'a, T>, r: Operand<'a, T>, cx: Context<'a>)
-                  -> Result<Operand<'a, T>, ()> {
-    default_eval_binary(
-        l, r, cx,
-        check_values_2,
-        check_types_2,
-        check_forms_2,
-        ADDA, 32
-    )
+macro_rules! impl_unary {
+    ($name:ident : $vc:ident, $tc:ident, $fc:ident, $ot:ident, $dw:expr) => {
+        pub fn $name<'a, T>(x:   Operand<'a, T>,
+                            ctx: Context<'a>)
+                           -> Result<Operand<'a, T>, ()> {
+            eval_unary(x, ctx, $vc, $tc, $fc, $ot, $dw)
+        }
+    }
 }
+
+macro_rules! impl_binary {
+    ($name:ident : $vc:ident, $tc:ident, $fc:ident, $ot:ident, $dw:expr) => {
+        pub fn $name<'a, T>(l:   Operand<'a, T>,
+                            r:   Operand<'a, T>,
+                            ctx: Context<'a>)
+                           -> Result<Operand<'a, T>, ()> {
+            eval_binary(l, r, ctx, $vc, $tc, $fc, $ot, $dw)
+        }
+    }
+}
+
+impl_binary! { add:  check_values_2, check_types_2, check_forms_2, ADD,  32 }
+impl_binary! { adda: check_values_2, check_types_2, check_forms_2, ADDA, 32 }
+
+static ADD: OpcodeTable = &[
+    (32, "addl"),
+];
 
 static ADDA: OpcodeTable = &[
     (16, "adda.w"),
