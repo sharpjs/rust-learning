@@ -26,7 +26,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use self::Dispatch::*;
+//use self::Dispatch::*;
 use self::Fixity::*;
 
 #[derive(Debug)]
@@ -114,8 +114,8 @@ impl<T: Const> Operator<T> {
 impl<T: Const> fmt::Debug for Dispatch<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match *self {
-            Unary  (_) => "Unary",
-            Binary (_) => "Binary",
+            Dispatch::Unary  (_) => "Unary",
+            Dispatch::Binary (_) => "Binary",
         })
     }
 }
@@ -156,8 +156,11 @@ pub struct Context<'a> {
     x: PhantomData<&'a ()>
 }
 
-pub type  UnaryArgs<'a, T> = (Operand<'a, T>,);
-pub type BinaryArgs<'a, T> = (Operand<'a, T>, Operand<'a, T>);
+pub type  Unary<T> = (T,  );
+pub type Binary<T> = (T, T);
+
+pub type  UnaryArgs<'a, T> =  Unary<Operand<'a, T>>;
+pub type BinaryArgs<'a, T> = Binary<Operand<'a, T>>;
 
 pub trait Args {
     type Impl;
@@ -244,6 +247,17 @@ impl<A: Args> Dispatcher<A> {
     }
 }
 
+pub type TypePtr<'a> = Cow<'a, Type<'a, 'a>>;
+
+pub type BinaryValueCheck<V> =
+    fn(Binary<&V>) -> bool;
+
+pub type BinaryTypeCheck<'a> =
+    fn(Binary<TypePtr<'a>>) -> Option<TypePtr<'a>>;
+
+pub type BinaryFormCheck =
+    fn(Binary<TypeForm>, TypeForm, u8) -> Option<u8>;
+
 pub type OpcodeTable = &'static [(u8, &'static str)];
 
 fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
@@ -254,24 +268,25 @@ fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
 }
 
 #[inline(always)] // Yes, even though it's not a small method.
-pub fn eval_binary<'a, T>(
-    a:             Operand<'a, T>,
-    b:             Operand<'a, T>,
+pub fn eval_binary<'a, V>(
+    args:          BinaryArgs<'a, V>,
     ctx:           Context<'a>,
-    check_values:  fn(&T, &T) -> bool,
-    check_types:   fn(Cow<'a, Type<'a, 'a>>, Cow<'a, Type<'a, 'a>>) -> Option<Cow<'a, Type<'a, 'a>>>,
-    check_forms:   fn(TypeForm, TypeForm, TypeForm, u8) -> Option<u8>,
+    check_values:  BinaryValueCheck<V>,
+    check_types:   BinaryTypeCheck<'a>,
+    check_forms:   BinaryFormCheck,
     opcodes:       OpcodeTable,
     default_width: u8,
-)   ->             Result<Operand<'a, T>, ()>
+)   ->             Result<Operand<'a, V>, ()>
 {
     // Destructure operands
-    let Operand { value: a_val, ty: a_ty, source: a_src } = a;
-    let Operand { value: b_val, ty: b_ty, source: b_src } = b;
+    let (
+        Operand { value: a_val, ty: a_ty, source: a_src },
+        Operand { value: b_val, ty: b_ty, source: b_src },
+    ) = args;
 
-    // Value (mode) check
-    // - Can the operation be performed on values of these kinds?
-    let ok = check_values(&a_val, &b_val);
+    // Value/mode check
+    // - Does the target op support these values / addressing modes?
+    let ok = check_values((&a_val, &b_val));
     if !ok {
         //ctx.out.log.err_no_op_for_addr_modes(pos);
         return Err(())
@@ -282,9 +297,9 @@ pub fn eval_binary<'a, T>(
     let b_form = b_ty.form();
 
     // Type check
-    // - Do these types make sense for the operation?
-    // - What is the type of the result?
-    let ty = check_types(a_ty, b_ty);
+    // - Does the target op take operands of these types?
+    // - What type should the result be?
+    let ty = check_types((a_ty, b_ty));
     let ty = match ty {
         Some(ty) => ty,
         None     => {
@@ -294,9 +309,9 @@ pub fn eval_binary<'a, T>(
     };
 
     // Form check
-    // - Which opcode should we use?
-    let width = default_width;
-    let width = check_forms(a_form, b_form, ty.form(), width);
+    // - Does the target op take operands of these storage widths?
+    // - What is the width of the opcode that should be used?
+    let width = check_forms((a_form, b_form), ty.form(), default_width);
     let width = match width {
         Some(w) => w,
         None    => {
@@ -305,7 +320,7 @@ pub fn eval_binary<'a, T>(
         }
     };
 
-    // Opcode select
+    // Opcode lookup
     let op = match select_opcode(width, opcodes) {
         Some(op) => op,
         None     => {
@@ -325,21 +340,20 @@ pub fn eval_binary<'a, T>(
 
 macro_rules! impl_unary {
     ($name:ident : $vc:ident, $tc:ident, $fc:ident, $ot:ident, $dw:expr) => {
-        pub fn $name<'a, T>(x:   Operand<'a, T>,
-                            ctx: Context<'a>)
-                           -> Result<Operand<'a, T>, ()> {
-            eval_unary(x, ctx, $vc, $tc, $fc, $ot, $dw)
+        pub fn $name<'a, V>(args: Unary<Operand<'a, V>>,
+                            ctx:  Context<'a>)
+                           -> Result<Operand<'a, V>, ()> {
+            eval_unary(args, ctx, $vc, $tc, $fc, $ot, $dw)
         }
     }
 }
 
 macro_rules! impl_binary {
     ($name:ident : $vc:ident, $tc:ident, $fc:ident, $ot:ident, $dw:expr) => {
-        pub fn $name<'a, T>(l:   Operand<'a, T>,
-                            r:   Operand<'a, T>,
-                            ctx: Context<'a>)
-                           -> Result<Operand<'a, T>, ()> {
-            eval_binary(l, r, ctx, $vc, $tc, $fc, $ot, $dw)
+        pub fn $name<'a, V>(args: Binary<Operand<'a, V>>,
+                            ctx:  Context<'a>)
+                           -> Result<Operand<'a, V>, ()> {
+            eval_binary(args, ctx, $vc, $tc, $fc, $ot, $dw)
         }
     }
 }
@@ -348,7 +362,7 @@ impl_binary! { add:  check_values_2, check_types_2, check_forms_2, ADD,  32 }
 impl_binary! { adda: check_values_2, check_types_2, check_forms_2, ADDA, 32 }
 
 static ADD: OpcodeTable = &[
-    (32, "addl"),
+    (32, "add.l"),
 ];
 
 static ADDA: OpcodeTable = &[
@@ -356,9 +370,20 @@ static ADDA: OpcodeTable = &[
     (32, "adda.l"),
 ];
 
-fn check_values_2<T>(a: &T, b: &T) -> bool { panic!() }
-fn check_types_2<'a>(a: Cow<'a, Type<'a, 'a>>, b: Cow<'a, Type<'a, 'a>>) -> Option<Cow<'a, Type<'a, 'a>>> { panic!() }
-fn check_forms_2(a: TypeForm, b: TypeForm, ret: TypeForm, default: u8) -> Option<u8> { Some(default) }
+fn check_values_2<T>(values: (&T, &T)) -> bool {
+    panic!()
+}
+
+fn check_types_2<'a>(types: Binary<TypePtr<'a>>) -> Option<TypePtr<'a>> {
+    panic!()
+}
+
+fn check_forms_2(forms: Binary<TypeForm>,
+                 ret: TypeForm,
+                 default: u8)
+                -> Option<u8> {
+    Some(default)
+}
 
 //macro_rules! gen_eval {
 //    ($name:ident ( $($arg:ident),* )
