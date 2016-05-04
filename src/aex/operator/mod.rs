@@ -223,79 +223,72 @@ impl<A: Args> Dispatcher<A> {
     }
 }
 
-pub type TypePtr<'a>         = Cow<'a, Type<'a, 'a>>;
-pub type BinaryValueCheck<V> = fn(Binary<&V>) -> bool;
-pub type BinaryTypeCheck<'a> = fn(Binary<TypePtr<'a>>) -> Option<TypePtr<'a>>;
-pub type BinaryFormCheck     = fn(Binary<TypeForm>, TypeForm, u8) -> Option<u8>;
-pub type OpcodeTable         = &'static [(u8, &'static str)];
+pub type TypePtr<'a> = Cow<'a, Type<'a, 'a>>;
+pub type OpcodeTable = &'static [(u8, &'static str)];
 
-#[inline(always)] // Use fn as a template
-pub fn eval_binary<'a, V>(
-    args:          BinaryArgs<'a, V>,
-    ctx:           Context<'a>,
-    check_values:  BinaryValueCheck<V>,
-    check_types:   BinaryTypeCheck<'a>,
-    check_forms:   BinaryFormCheck,
-    opcodes:       OpcodeTable,
-    default_width: u8,
-)   ->             Result<Operand<'a, V>, ()>
-{
-    // Destructure operands
-    let (
-        Operand { value: a_val, ty: a_ty, source: a_src },
-        Operand { value: b_val, ty: b_ty, source: b_src },
-    ) = args;
+use aex::pos::Pos;
 
-    // Value/mode check
-    // - Does the target op support these values / addressing modes?
-    let ok = check_values((&a_val, &b_val));
-    if !ok {
-        //ctx.out.log.err_no_op_for_addr_modes(pos);
-        return Err(())
+macro_rules! op {
+    ($name:ident ( $($arg:ident),+ ) :
+     $opcodes:expr, $default:expr, $ret:ident :
+     $mode_ck:expr, $type_ck:expr, $form_ck:expr
+    ) => {
+        pub fn $name<'a, V>($($arg: Operand<'a, V>),+, ctx: Context<'a>)
+                           -> Result<Operand<'a, V>, ()> {
+            // Value/mode check
+            // - Does the target op support these values / addressing modes?
+            if !$mode_ck($(&$arg.value),+) {
+                ctx.out.log.err_no_op_for_addr_modes(Pos::bof("a"));
+                return Err(())
+            }
+
+            // Get forms before we lose ownership of types
+            let forms = ($($arg.ty.form()),+,);
+
+            // Type check
+            // - Does the target op take operands of these types?
+            // - What type should the result be?
+            let ty = match $type_ck($($arg.ty),+) {
+                Some(ty) => ty,
+                None => {
+                    ctx.out.log.err_incompatible_types(Pos::bof("a"));
+                    return Err(())
+                }
+            };
+
+            // Pre-assemble result
+            let ret = Operand { value: $ret.value, ty: ty, source: $ret.source };
+
+            // Unpack forms saved earlier
+            let ($($arg),+,) = forms;
+
+            // Form check
+            // - Does the target op take operands of these storage widths?
+            // - What is the width of the opcode that should be used?
+            let width = match $form_ck($($arg),+, ret.ty.form(), $default) {
+                Some(w) => w,
+                None => {
+                    ctx.out.log.err_no_op_for_operand_types(Pos::bof("a"));
+                    return Err(())
+                }
+            };
+
+            // Opcode lookup
+            let op = match select_opcode(width, $opcodes) {
+                Some(op) => op,
+                None     => {
+                    ctx.out.log.err_no_op_for_operand_sizes(Pos::bof("a"));
+                    return Err(())
+                }
+            };
+
+            //// Emit
+            //ctx.out.asm.$write(op, $(&$n),+);
+
+            // Cast result to checked type
+            Ok(ret)
+        }
     }
-
-    // Get forms before we lose ownership of types
-    let a_form = a_ty.form();
-    let b_form = b_ty.form();
-
-    // Type check
-    // - Does the target op take operands of these types?
-    // - What type should the result be?
-    let ty = check_types((a_ty, b_ty));
-    let ty = match ty {
-        Some(ty) => ty,
-        None     => {
-            //ctx.out.log.err_incompatible_types(pos);
-            return Err(())
-        }
-    };
-
-    // Form check
-    // - Does the target op take operands of these storage widths?
-    // - What is the width of the opcode that should be used?
-    let width = check_forms((a_form, b_form), ty.form(), default_width);
-    let width = match width {
-        Some(w) => w,
-        None    => {
-            //ctx.out.log.err_no_op_for_operand_types(pos);
-            return Err(())
-        }
-    };
-
-    // Opcode lookup
-    let op = match select_opcode(width, opcodes) {
-        Some(op) => op,
-        None     => {
-            //ctx.out.log.err_no_op_for_operand_sizes(pos);
-            return Err(())
-        }
-    };
-
-    //// Emit
-    //ctx.out.asm.$write(op, $(&$n),+);
-
-    // Cast result to checked type
-    Ok(Operand { value: a_val, ty: ty, source: a_src })
 }
 
 fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
@@ -307,28 +300,8 @@ fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
 
 // -----------------------------------------------------------------------------
 
-macro_rules! impl_unary {
-    ($name:ident : $vc:ident, $tc:ident, $fc:ident, $ot:ident, $dw:expr) => {
-        pub fn $name<'a, V>(args: Unary<Operand<'a, V>>,
-                            ctx:  Context<'a>)
-                           -> Result<Operand<'a, V>, ()> {
-            eval_unary(args, ctx, $vc, $tc, $fc, $ot, $dw)
-        }
-    }
-}
-
-macro_rules! impl_binary {
-    ($name:ident : $vc:ident, $tc:ident, $fc:ident, $ot:ident, $dw:expr) => {
-        pub fn $name<'a, V>(args: Binary<Operand<'a, V>>,
-                            ctx:  Context<'a>)
-                           -> Result<Operand<'a, V>, ()> {
-            eval_binary(args, ctx, $vc, $tc, $fc, $ot, $dw)
-        }
-    }
-}
-
-impl_binary! { add:  check_values_2, check_types_2, check_forms_2, ADD,  32 }
-impl_binary! { adda: check_values_2, check_types_2, check_forms_2, ADDA, 32 }
+op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
+op! { adda (d, s) : ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
 
 static ADD: OpcodeTable = &[
     (32, "add.l"),
@@ -339,15 +312,15 @@ static ADDA: OpcodeTable = &[
     (32, "adda.l"),
 ];
 
-fn check_values_2<T>(values: (&T, &T)) -> bool {
+fn check_values_2<T>(a: &T, b: &T) -> bool {
     panic!()
 }
 
-fn check_types_2<'a>(types: Binary<TypePtr<'a>>) -> Option<TypePtr<'a>> {
+fn check_types_2<'a>(a: TypePtr<'a>, b: TypePtr<'a>) -> Option<TypePtr<'a>> {
     panic!()
 }
 
-fn check_forms_2(forms: Binary<TypeForm>,
+fn check_forms_2(a: TypeForm, b: TypeForm,
                  ret: TypeForm,
                  default: u8)
                 -> Option<u8> {
