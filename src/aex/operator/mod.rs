@@ -23,11 +23,13 @@
 //   - Expr::BinaryOp (op, lhs, rhs, sel)
 //   - Expr::UnaryOp  (op, expr,     sel)
 
+pub mod context;
+
 use std::collections::HashMap;
 use std::fmt;
 
-//use self::Dispatch::*;
 use self::Fixity::*;
+use self::context::*;
 
 #[derive(Debug)]
 pub struct OperatorTable<T: Const> {
@@ -55,6 +57,13 @@ pub enum Dispatch<T: Const> {
     //Binary (BinaryDispatch<T>),
     Unary(()),
     Binary(T),
+}
+
+pub trait Const {
+    type Expr;
+    fn    new_const (Self::Expr) -> Self;
+    fn     is_const (&self     ) -> bool;
+    fn unwrap_const ( self     ) -> Self::Expr; // or panic
 }
 
 impl<T: Const> OperatorTable<T> {
@@ -97,18 +106,6 @@ impl<T: Const> Operator<T> {
             disp:   disp
         }
     }
-
-//    pub fn invoke_unary<'a>(&self, src: Source<'a>, sel: &str, args: [Operand<'a, T>; 1]) -> Operand<'a, T> {
-//        if args[0].term.is_const() {
-//            // do constant op
-//        } else {
-//            // do asm op
-//        }
-//        match self.disp {
-//            Unary(ref f) => f(src, sel, args),
-//            _ => panic!()
-//        }
-//    }
 }
 
 impl<T: Const> fmt::Debug for Dispatch<T> {
@@ -122,19 +119,10 @@ impl<T: Const> fmt::Debug for Dispatch<T> {
 
 // -----------------------------------------------------------------------------
 
-// Remember, all this is just trying to abstract a fn...
-//
-//fn eval_add<'a, T: Const>
-//           (args: [Operand<'a, T>; 2],
-//            ctx:  Context<'a>)
-//           -> Result<Operand<'a, T>, ()> {
-//    eval_general(ADD, args, ctx, check_forms_x, check_types_x)
-//}
-
 use std::borrow::Cow;
-use std::marker::PhantomData;
-use aex::types::Type;
+
 use aex::pos::Source;
+use aex::types::Type;
 use aex::types::form::TypeForm;
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -142,18 +130,6 @@ pub struct Operand<'a, V> {
     pub value:  V,
     pub ty:     Cow<'a, Type<'a, 'a>>,
     pub source: Source<'a>,
-}
-
-pub trait Const {
-    type Expr;
-    fn    new_const (Self::Expr) -> Self;
-    fn     is_const (&self     ) -> bool;
-    fn unwrap_const ( self     ) -> Self::Expr; // or panic
-}
-
-#[derive(Clone, Copy, Debug)]
-pub struct Context<'a> {
-    x: PhantomData<&'a ()>
 }
 
 pub type  Unary<T> = (T,  );
@@ -164,7 +140,7 @@ pub type BinaryArgs<'a, T> = Binary<Operand<'a, T>>;
 
 pub trait Args {
     type Impl;
-    type Context: Copy;
+    type Context;
     type Result;
 
     fn all_const(&self) -> bool;
@@ -247,27 +223,13 @@ impl<A: Args> Dispatcher<A> {
     }
 }
 
-pub type TypePtr<'a> = Cow<'a, Type<'a, 'a>>;
+pub type TypePtr<'a>         = Cow<'a, Type<'a, 'a>>;
+pub type BinaryValueCheck<V> = fn(Binary<&V>) -> bool;
+pub type BinaryTypeCheck<'a> = fn(Binary<TypePtr<'a>>) -> Option<TypePtr<'a>>;
+pub type BinaryFormCheck     = fn(Binary<TypeForm>, TypeForm, u8) -> Option<u8>;
+pub type OpcodeTable         = &'static [(u8, &'static str)];
 
-pub type BinaryValueCheck<V> =
-    fn(Binary<&V>) -> bool;
-
-pub type BinaryTypeCheck<'a> =
-    fn(Binary<TypePtr<'a>>) -> Option<TypePtr<'a>>;
-
-pub type BinaryFormCheck =
-    fn(Binary<TypeForm>, TypeForm, u8) -> Option<u8>;
-
-pub type OpcodeTable = &'static [(u8, &'static str)];
-
-fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
-    for &(op_width, op) in ops {
-        if op_width == ty_width { return Some(op) }
-    }
-    None
-}
-
-#[inline(always)] // Yes, even though it's not a small method.
+#[inline(always)] // Use fn as a template
 pub fn eval_binary<'a, V>(
     args:          BinaryArgs<'a, V>,
     ctx:           Context<'a>,
@@ -336,6 +298,13 @@ pub fn eval_binary<'a, V>(
     Ok(Operand { value: a_val, ty: ty, source: a_src })
 }
 
+fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
+    for &(op_width, op) in ops {
+        if op_width == ty_width { return Some(op) }
+    }
+    None
+}
+
 // -----------------------------------------------------------------------------
 
 macro_rules! impl_unary {
@@ -385,48 +354,14 @@ fn check_forms_2(forms: Binary<TypeForm>,
     Some(default)
 }
 
-//macro_rules! gen_eval {
-//    ($name:ident ( $($arg:ident),* )
-//                 : $check_values:  ident,
-//                   $check_types:   ident,
-//                   $check_forms:   ident,
-//                   $default_width: expr
-//    ) => {
-//        pub fn $name<'a, V>
-//                    (args: [Operand<'a, V>; $n],
-//                     ctx:  Context<'a>,
-//                    ) -> Result<Operand<'a, V>, ()> {
+// Move this stuff somewhere eventually.
 //
-//        }
-//    }
-//}
-
-//gen_eval! { adda : 2, check_modes_2, check_types_2, check_forms_2, 8 }
-//
-//pub fn check_modes_2<V>(values: [&V; 2]) -> bool {
-//    true
-//}
-//
-//pub fn check_types_2<'a>(types: [&Type<'a, 'a>; 2])
-//                    -> Option<Cow<'a, Type<'a, 'a>>> {
-//    None
-//}
-//
-//pub fn check_forms_2<'a>(forms:         [TypeForm; 2],
-//                         f2:            TypeForm,
-//                         default_width: u8)
-//                        -> Option<u8> {
-//    None
-//}
-
-
-//// For now.  Eventually, targets should provide their available operators.
 //pub fn create_op_table<T>() -> OperatorTable<T> {
 //    let mut table = OperatorTable::new();
 //    for &op in OPS { table.add(op) }
 //    table
 //}
-
+//
 //static OPS: &'static [Operator<T>] = &[
 //    // Postfix Unary
 //    Operator { chars: "++", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
@@ -477,17 +412,16 @@ fn check_forms_2(forms: Binary<TypeForm>,
 //    Operator { chars: "=",  prec:  0, assoc: Right, fixity: Infix,   eval: &42 },
 //];
 
-
-            //Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
-            //Expr::Complement (ref e, None)        => write!(f, "~{}", e),
-            //Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
-            //Expr::Divide     (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
-            //Expr::Modulo     (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
-            //Expr::Add        (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
-            //Expr::Subtract   (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
-            //Expr::ShiftL     (ref l, ref r, None) => write!(f, "({} << {})", l, r),
-            //Expr::ShiftR     (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
-            //Expr::BitAnd     (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
-            //Expr::BitXor     (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
-            //Expr::BitOr      (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
+//Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
+//Expr::Complement (ref e, None)        => write!(f, "~{}", e),
+//Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
+//Expr::Divide     (ref l, ref r, None) => write!(f, "({} / {})",  l, r),
+//Expr::Modulo     (ref l, ref r, None) => write!(f, "({} % {})",  l, r),
+//Expr::Add        (ref l, ref r, None) => write!(f, "({} + {})",  l, r),
+//Expr::Subtract   (ref l, ref r, None) => write!(f, "({} - {})",  l, r),
+//Expr::ShiftL     (ref l, ref r, None) => write!(f, "({} << {})", l, r),
+//Expr::ShiftR     (ref l, ref r, None) => write!(f, "({} >> {})", l, r),
+//Expr::BitAnd     (ref l, ref r, None) => write!(f, "({} & {})",  l, r),
+//Expr::BitXor     (ref l, ref r, None) => write!(f, "({} ^ {})",  l, r),
+//Expr::BitOr      (ref l, ref r, None) => write!(f, "({} | {})",  l, r),
 
