@@ -33,7 +33,9 @@ use aex::pos::{Pos, Source};
 use aex::types::Type;
 use aex::types::form::TypeForm;
 
+use self::Assoc::*;
 use self::Fixity::*;
+use self::Dispatch::*;
 use self::context::Context;
 
 // -----------------------------------------------------------------------------
@@ -113,8 +115,8 @@ pub enum Dispatch<V> {
 impl<V> fmt::Debug for Dispatch<V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match *self {
-            Dispatch::Unary  (..) => "Unary",
-            Dispatch::Binary (..) => "Binary",
+            Unary  (..) => "Unary",
+            Binary (..) => "Binary",
         })
     }
 }
@@ -142,10 +144,21 @@ pub type TypePtr<'a> = Cow<'a, Type<'a, 'a>>;
 // -----------------------------------------------------------------------------
 
 macro_rules! def_dispatch {
-    { $name:ident ( $($arg:ident),+ ) : $imp:ident } => {
+    { $name:ident ( $($arg:ident),+ ) : $imp:ident, $new:ident, $disp:ident } => {
         pub type $imp<V> = for<'a>
             fn ($($arg: Operand<'a, V>),+, ctx: &mut Context<'a>)
             -> Result<Operand<'a, V>, ()>;
+
+        pub fn $new<V: Const>(chars:  &'static str,
+                              prec:   u8,
+                              assoc:  Assoc,
+                              fixity: Fixity)
+                             -> Operator<V> {
+            Operator::<V>::new(
+                chars, prec, assoc, fixity,
+                Dispatch::$disp($name::<V>::new())
+            )
+        }
 
         pub struct $name<V> {
             const_op:     Option<$imp<V>>,
@@ -187,15 +200,16 @@ macro_rules! def_dispatch {
     }
 }
 
-def_dispatch! {  UnaryDispatch (a   ) :  UnaryOp }
-def_dispatch! { BinaryDispatch (a, b) : BinaryOp }
+def_dispatch! {  UnaryDispatch (a   ) :  UnaryOp,  unary_op,  Unary }
+def_dispatch! { BinaryDispatch (a, b) : BinaryOp, binary_op, Binary }
 
 // -----------------------------------------------------------------------------
 
 macro_rules! op {
-    ($name:ident ( $($arg:ident),+ ) :
-     $opcodes:expr, $default:expr, $ret:ident :
-     $mode_ck:expr, $type_ck:expr, $form_ck:expr) => {
+    { $name:ident ( $($arg:ident),+ )
+        : $opcodes:expr, $default:expr, $ret:ident
+        : $mode_ck:expr, $type_ck:expr, $form_ck:expr
+    } => {
         pub fn $name<'a, V>($($arg: Operand<'a, V>),+, ctx: Context<'a>)
                            -> Result<Operand<'a, V>, ()> {
             // Value/mode check
@@ -292,64 +306,58 @@ fn check_forms_2(a: TypeForm, b: TypeForm,
     Some(default)
 }
 
-// Move this stuff somewhere eventually.
-//
-//pub fn create_op_table<V>() -> OperatorTable<V> {
-//    let mut table = OperatorTable::new();
-//    for &op in OPS { table.add(op) }
-//    table
-//}
-//
-//static OPS: &'static [Operator<V>] = &[
-//    // Postfix Unary
-//    Operator { chars: "++", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
-//    Operator { chars: "--", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
-//
-//    // Prefix Unary
-//    Operator { chars: "!",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Operator { chars: "~",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Operator { chars: "-",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Operator { chars: "+",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//    Operator { chars: "&",  prec:  9, assoc: Right, fixity: Prefix,  eval: &42 },
-//
-//    // Multiplicative
-//    Operator { chars: "*",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "/",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "%",  prec:  8, assoc: Left,  fixity: Infix,   eval: &42 },
-//                                                          
-//    // Additive                                           
-//    Operator { chars: "+",  prec:  7, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "-",  prec:  7, assoc: Left,  fixity: Infix,   eval: &42 },
-//                                                          
-//    // Bitwise Shift                                      
-//    Operator { chars: "<<", prec:  6, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: ">>", prec:  6, assoc: Left,  fixity: Infix,   eval: &42 },
-//                                                          
-//    // Bitwise Boolean                                    
-//    Operator { chars: "&",  prec:  5, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "^",  prec:  4, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "|",  prec:  3, assoc: Left,  fixity: Infix,   eval: &42 },
-//                                                          
-//    // Bitwise Manipulation                               
-//    Operator { chars: ".~", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: ".!", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: ".+", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: ".?", prec:  2, assoc: Left,  fixity: Infix,   eval: &42 },
-//
-//    // Comparison
-//    Operator { chars: "?",  prec:  1, assoc: Left,  fixity: Postfix, eval: &42 },
-//    Operator { chars: "<>", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "==", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "!=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "<" , prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: "<=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: ">" , prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//    Operator { chars: ">=", prec:  1, assoc: Left,  fixity: Infix,   eval: &42 },
-//                                                           
-//    // Assignment                                          
-//    Operator { chars: "=",  prec:  0, assoc: Right, fixity: Infix,   eval: &42 },
-//];
+// -----------------------------------------------------------------------------
 
+pub fn def_builtin_operators<V: Const>(table: &mut OperatorTable<V>) {
+    for op in builtin_operators::<V>() { table.add(op) }
+}
+
+fn builtin_operators<'a, V: Const>() -> Vec<Operator<V>> {
+    vec![
+        // Postfix Unary
+         unary_op::<V>( "++" , 10 , Left  , Postfix ),
+         unary_op::<V>( "--" , 10 , Left  , Postfix ),
+        // Prefix Unary
+         unary_op::<V>( "!"  ,  9 , Right , Prefix  ),
+         unary_op::<V>( "~"  ,  9 , Right , Prefix  ),
+         unary_op::<V>( "-"  ,  9 , Right , Prefix  ),
+         unary_op::<V>( "+"  ,  9 , Right , Prefix  ),
+         unary_op::<V>( "&"  ,  9 , Right , Prefix  ),
+        // Multiplicative
+        binary_op::<V>( "*"  ,  8 , Left  , Infix   ),
+        binary_op::<V>( "/"  ,  8 , Left  , Infix   ),
+        binary_op::<V>( "%"  ,  8 , Left  , Infix   ),
+        // Additive                          
+        binary_op::<V>( "+"  ,  7 , Left  , Infix   ),
+        binary_op::<V>( "-"  ,  7 , Left  , Infix   ),
+        // Bitwise Shift                      
+        binary_op::<V>( "<<" ,  6 , Left  , Infix   ),
+        binary_op::<V>( ">>" ,  6 , Left  , Infix   ),
+        // Bitwise Boolean                   
+        binary_op::<V>( "&"  ,  5 , Left  , Infix   ),
+        binary_op::<V>( "^"  ,  4 , Left  , Infix   ),
+        binary_op::<V>( "|"  ,  3 , Left  , Infix   ),
+        // Bitwise Manipulation              
+        binary_op::<V>( ".~" ,  2 , Left  , Infix   ),
+        binary_op::<V>( ".!" ,  2 , Left  , Infix   ),
+        binary_op::<V>( ".+" ,  2 , Left  , Infix   ),
+        binary_op::<V>( ".?" ,  2 , Left  , Infix   ),
+        // Comparison                     
+        binary_op::<V>( "?"  ,  1 , Left  , Postfix ),
+        binary_op::<V>( "<>" ,  1 , Left  , Infix   ),
+        binary_op::<V>( "==" ,  1 , Left  , Infix   ),
+        binary_op::<V>( "!=" ,  1 , Left  , Infix   ),
+        binary_op::<V>( "<"  ,  1 , Left  , Infix   ),
+        binary_op::<V>( "<=" ,  1 , Left  , Infix   ),
+        binary_op::<V>( ">"  ,  1 , Left  , Infix   ),
+        binary_op::<V>( ">=" ,  1 , Left  , Infix   ),
+        // Assignment                                              
+        binary_op::<V>( "="  ,  0 , Right , Infix   ),
+    ]
+}
+
+// This needs to go somewhere:
+//
 //Expr::Negate     (ref e, None)        => write!(f, "-{}", e),
 //Expr::Complement (ref e, None)        => write!(f, "~{}", e),
 //Expr::Multiply   (ref l, ref r, None) => write!(f, "({} * {})",  l, r),
