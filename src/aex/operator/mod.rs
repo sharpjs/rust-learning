@@ -25,8 +25,13 @@
 
 pub mod context;
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::fmt;
+
+use aex::pos::{Pos, Source};
+use aex::types::Type;
+use aex::types::form::TypeForm;
 
 use self::Fixity::*;
 use self::context::*;
@@ -52,11 +57,10 @@ pub enum Assoc { Left, Right }
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Fixity { Prefix, Infix, Postfix }
 
+//impls Debug
 pub enum Dispatch<T: Const> {
-    //Unary  (UnaryDispatch<T>),
-    //Binary (BinaryDispatch<T>),
-    Unary(()),
-    Binary(T),
+    Unary  ( UnaryDispatch<T>),
+    Binary (BinaryDispatch<T>),
 }
 
 pub trait Const {
@@ -119,120 +123,72 @@ impl<T: Const> fmt::Debug for Dispatch<T> {
 
 // -----------------------------------------------------------------------------
 
-use std::borrow::Cow;
-
-use aex::pos::Source;
-use aex::types::Type;
-use aex::types::form::TypeForm;
-
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Operand<'a, V> {
     pub value:  V,
-    pub ty:     Cow<'a, Type<'a, 'a>>,
+    pub ty:     TypePtr<'a>,
     pub source: Source<'a>,
 }
 
-pub type  Unary<T> = (T,  );
-pub type Binary<T> = (T, T);
-
-pub type  UnaryArgs<'a, T> =  Unary<Operand<'a, T>>;
-pub type BinaryArgs<'a, T> = Binary<Operand<'a, T>>;
-
-pub trait Args {
-    type Impl;
-    type Context;
-    type Result;
-
-    fn all_const(&self) -> bool;
-
-    fn dispatch(self, &Self::Impl, Self::Context)
-               -> Result<Self::Result, ()>;
-}
-
-impl<'a, T: Const> Args for UnaryArgs<'a, T> {
-    type Impl    = Box<Fn(Self, Context<'a>) -> Result<Operand<'a, T>, ()>>;
-    type Context = Context<'a>;
-    type Result  = Operand<'a, T>;
-
-    #[inline(always)]
-    fn all_const(&self) -> bool {
-        self.0.value.is_const()
-    }
-
-    #[inline(always)]
-    fn dispatch(self, f: &Self::Impl, ctx: Context<'a>)
-               -> Result<Self::Result, ()> {
-        f(self, ctx)
-    }
-}
-
-impl<'a, T: Const> Args for BinaryArgs<'a, T> {
-    type Impl    = Box<Fn(Self, Context<'a>) -> Result<Operand<'a, T>, ()>>;
-    type Context = Context<'a>;
-    type Result  = Operand<'a, T>;
-
-    #[inline(always)]
-    fn all_const(&self) -> bool {
-        self.0.value.is_const() &&
-        self.1.value.is_const()
-    }
-
-    #[inline(always)]
-    fn dispatch(self, f: &Self::Impl, ctx: Context<'a>)
-               -> Result<Self::Result, ()> {
-        f(self, ctx)
-    }
-}
-
-pub struct Dispatcher<A: Args> {
-    const_op:     Option<A::Impl>,
-    implicit_op:  Option<A::Impl>,
-    explicit_ops: HashMap<&'static str, A::Impl>,
-}
-
-impl<A: Args> Dispatcher<A> {
-    pub fn new() -> Self {
-        Dispatcher {
-            const_op:     None,
-            implicit_op:  None,
-            explicit_ops: HashMap::new()
-        }
-    }
-
-    pub fn dispatch<'a>(&self,
-                        sel:  Option<&str>,
-                        args: A,
-                        ctx:  A::Context,
-                       ) -> Result<A::Result, ()> {
-
-        // Get implementation
-        let op =
-            if let Some(s) = sel {
-                self.explicit_ops.get(s)
-            } else if args.all_const() {
-                self.const_op.as_ref()
-            } else {
-                self.implicit_op.as_ref()
-            };
-
-        // Invoke implementation
-        match op {
-            Some(op) => args.dispatch(op, ctx),
-            None     => panic!(),
-        }
-    }
-}
-
 pub type TypePtr<'a> = Cow<'a, Type<'a, 'a>>;
-pub type OpcodeTable = &'static [(u8, &'static str)];
 
-use aex::pos::Pos;
+// -----------------------------------------------------------------------------
+
+macro_rules! def_dispatch {
+    { $name:ident ( $($arg:ident),+ ) : $imp:ident } => {
+        pub type $imp<V> = for<'a>
+            fn ($($arg: Operand<'a, V>),+, ctx: &mut Context<'a>)
+            -> Result<Operand<'a, V>, ()>;
+
+        pub struct $name<V> {
+            const_op:     Option<$imp<V>>,
+            implicit_op:  Option<$imp<V>>,
+            explicit_ops: HashMap<&'static str, $imp<V>>,
+        }
+
+        impl<V: Const> $name<V> {
+            pub fn new() -> Self {
+                $name {
+                    const_op:     None,
+                    implicit_op:  None,
+                    explicit_ops: HashMap::new()
+                }
+            }
+
+            pub fn dispatch<'a>(&self,
+                                sel: Option<&str>,
+                                $($arg: Operand<'a, V>),+,
+                                ctx: &mut Context<'a>)
+                               -> Result<Operand<'a, V>, ()> {
+                // Get implementation
+                let op =
+                    if let Some(s) = sel {
+                        self.explicit_ops.get(s)
+                    } else if true $(&& $arg.value.is_const())+ {
+                        self.const_op.as_ref()
+                    } else {
+                        self.implicit_op.as_ref()
+                    };
+
+                // Invoke implementation
+                match op {
+                    Some(op) => op($($arg),+, ctx),
+                    None     => panic!(),
+                }
+            }
+        }
+    }
+}
+
+def_dispatch! {  UnaryDispatch (a   ) :  UnaryOp }
+def_dispatch! { BinaryDispatch (a, b) : BinaryOp }
+
+// -----------------------------------------------------------------------------
 
 macro_rules! op {
     ($name:ident ( $($arg:ident),+ ) :
      $opcodes:expr, $default:expr, $ret:ident :
-     $mode_ck:expr, $type_ck:expr, $form_ck:expr
-    ) => {
+     $mode_ck:expr, $type_ck:expr, $form_ck:expr) => {
         pub fn $name<'a, V>($($arg: Operand<'a, V>),+, ctx: Context<'a>)
                            -> Result<Operand<'a, V>, ()> {
             // Value/mode check
@@ -290,6 +246,8 @@ macro_rules! op {
         }
     }
 }
+
+pub type OpcodeTable = &'static [(u8, &'static str)];
 
 fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
     for &(op_width, op) in ops {
