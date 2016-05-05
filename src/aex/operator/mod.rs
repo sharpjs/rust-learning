@@ -34,21 +34,50 @@ use aex::types::Type;
 use aex::types::form::TypeForm;
 
 use self::Fixity::*;
-use self::context::*;
+use self::context::Context;
+
+// -----------------------------------------------------------------------------
 
 #[derive(Debug)]
-pub struct OperatorTable<T: Const> {
-    nonprefix: HashMap<&'static str, Operator<T>>, // infix and postfix ops
-    prefix:    HashMap<&'static str, Operator<T>>, // prefix ops
+pub struct OperatorTable<V> {
+    nonprefix: HashMap<&'static str, Operator<V>>, // infix and postfix ops
+    prefix:    HashMap<&'static str, Operator<V>>, // prefix ops
 }
 
+impl<V> OperatorTable<V> {
+    pub fn new() -> Self {
+        OperatorTable { 
+            nonprefix: HashMap::new(),
+            prefix:    HashMap::new(),
+        }
+    }
+
+    pub fn add(&mut self, op: Operator<V>) {
+        let map = match op.fixity {
+            Infix | Postfix => &mut self.nonprefix,
+            Prefix          => &mut self.prefix,
+        };
+        map.insert(op.chars, op);
+    }
+
+    pub fn get_nonprefix(&self, chars: &str) -> Option<&Operator<V>> {
+        self.nonprefix.get(chars)
+    }
+
+    pub fn get_prefix(&self, chars: &str) -> Option<&Operator<V>> {
+        self.prefix.get(chars)
+    }
+}
+
+// -----------------------------------------------------------------------------
+
 #[derive(Debug)]
-pub struct Operator<T: Const> {
+pub struct Operator<V> {
     pub chars:  &'static str,
     pub prec:   u8,
     pub assoc:  Assoc,
     pub fixity: Fixity,
-    pub disp:   Dispatch<T>
+    pub disp:   Dispatch<V>
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
@@ -57,51 +86,13 @@ pub enum Assoc { Left, Right }
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum Fixity { Prefix, Infix, Postfix }
 
-//impls Debug
-pub enum Dispatch<T: Const> {
-    Unary  ( UnaryDispatch<T>),
-    Binary (BinaryDispatch<T>),
-}
-
-pub trait Const {
-    type Expr;
-    fn    new_const (Self::Expr) -> Self;
-    fn     is_const (&self     ) -> bool;
-    fn unwrap_const ( self     ) -> Self::Expr; // or panic
-}
-
-impl<T: Const> OperatorTable<T> {
-    pub fn new() -> Self {
-        OperatorTable { 
-            nonprefix: HashMap::new(),
-            prefix:    HashMap::new(),
-        }
-    }
-
-    pub fn add(&mut self, op: Operator<T>) {
-        let map = match op.fixity {
-            Infix | Postfix => &mut self.nonprefix,
-            Prefix          => &mut self.prefix,
-        };
-        map.insert(op.chars, op);
-    }
-
-    pub fn get_nonprefix(&self, chars: &str) -> Option<&Operator<T>> {
-        self.nonprefix.get(chars)
-    }
-
-    pub fn get_prefix(&self, chars: &str) -> Option<&Operator<T>> {
-        self.prefix.get(chars)
-    }
-}
-
-impl<T: Const> Operator<T> {
+impl<V> Operator<V> {
     pub fn new(chars:  &'static str,
                prec:   u8,
                assoc:  Assoc,
                fixity: Fixity,
-               disp:   Dispatch<T>
-              ) -> Self {
+               disp:   Dispatch<V>)
+              -> Self {
         Operator {
             chars:  chars,
             prec:   prec,
@@ -112,13 +103,29 @@ impl<T: Const> Operator<T> {
     }
 }
 
-impl<T: Const> fmt::Debug for Dispatch<T> {
+// -----------------------------------------------------------------------------
+
+pub enum Dispatch<V> {
+    Unary  ( UnaryDispatch<V>),
+    Binary (BinaryDispatch<V>),
+}
+
+impl<V> fmt::Debug for Dispatch<V> {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
         f.write_str(match *self {
-            Dispatch::Unary  (_) => "Unary",
-            Dispatch::Binary (_) => "Binary",
+            Dispatch::Unary  (..) => "Unary",
+            Dispatch::Binary (..) => "Binary",
         })
     }
+}
+
+// -----------------------------------------------------------------------------
+
+pub trait Const {
+    type Expr;
+    fn    new_const (Self::Expr) -> Self;
+    fn     is_const (&self     ) -> bool;
+    fn unwrap_const ( self     ) -> Self::Expr; // or panic
 }
 
 // -----------------------------------------------------------------------------
@@ -270,7 +277,7 @@ static ADDA: OpcodeTable = &[
     (32, "adda.l"),
 ];
 
-fn check_values_2<T>(a: &T, b: &T) -> bool {
+fn check_values_2<V>(a: &V, b: &V) -> bool {
     panic!()
 }
 
@@ -287,13 +294,13 @@ fn check_forms_2(a: TypeForm, b: TypeForm,
 
 // Move this stuff somewhere eventually.
 //
-//pub fn create_op_table<T>() -> OperatorTable<T> {
+//pub fn create_op_table<V>() -> OperatorTable<V> {
 //    let mut table = OperatorTable::new();
 //    for &op in OPS { table.add(op) }
 //    table
 //}
 //
-//static OPS: &'static [Operator<T>] = &[
+//static OPS: &'static [Operator<V>] = &[
 //    // Postfix Unary
 //    Operator { chars: "++", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
 //    Operator { chars: "--", prec: 10, assoc: Left,  fixity: Postfix, eval: &42 },
