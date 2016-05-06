@@ -105,6 +105,14 @@ impl<V> Operator<V> {
     }
 }
 
+//impl<V> Clone for Operator<V> {
+//    fn clone(&self) -> Self {
+//        Operator::new(
+//            self.chars, self.prec, self.assoc, self.fixity, self.disp
+//        )
+//    }
+//}
+
 // -----------------------------------------------------------------------------
 
 pub enum Dispatch<V> {

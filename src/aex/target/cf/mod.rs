@@ -21,8 +21,8 @@
 
 use std::marker::PhantomData;
 
-//use aex::ast::Expr;
-//use aex::operator::{Operator, OperatorTable};
+use aex::ast::Expr;
+use aex::operator::{Operator, OperatorTable, Const, Assoc, Fixity, binary_op};
 //use aex::operator::Assoc::*;
 //use aex::operator::Fixity::*;
 //use aex::operator::Arity::*;
@@ -43,7 +43,7 @@ impl<'a> ColdFire<'a> {
 impl<'a> Target for ColdFire<'a> {
     type String   = &'a str;
     type Source   = Source<'a>;
-    type Operator = i32;
+    type Operator = u8; //Operator<Value<'a>>;
 
     //type Term    = CfTerm<'a>;
     //type Expr    = Expr<'a, Self::Term>;
@@ -57,6 +57,39 @@ impl<'a> Target for ColdFire<'a> {
     //    )));
     //}
 }
+
+/*
+type CfExpr<'a> = Expr<ColdFire<'a>>;
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+enum Value<'a> {
+    Const (Expr<ColdFire<'a>>),
+    Other
+}
+
+impl<'a> Const for Value<'a> {
+    type Expr = Expr<ColdFire<'a>>;
+
+    #[inline]
+    fn new_const(expr: Self::Expr) -> Self {
+        Value::Const(expr)
+    }
+
+    #[inline]
+    fn is_const(&self) -> bool { 
+        match *self { Value::Const(_) => true, _ => false }
+    }
+
+    #[inline]
+    fn unwrap_const(self) -> Self::Expr {
+        match self { Value::Const(e) => e, _ => panic!() }
+    }
+}
+
+fn def_operators<'a>(table: &mut OperatorTable<Value<'a>>) {
+    table.add(binary_op::<Value<'a>>("q", 1, Assoc::Left, Fixity::Infix));
+}
+*/
 
 //// Temporary
 //pub enum CfTerm<'a> { A(&'a str), B }
