@@ -21,8 +21,8 @@
 
 use std::marker::PhantomData;
 
-use aex::ast::Expr;
-use aex::operator::{Operator, OperatorTable, Const, Assoc, Fixity, binary_op};
+//use aex::ast::Expr;
+//use aex::operator::{Operator, OperatorTable, Const, Assoc, Fixity, binary_op};
 //use aex::operator::Assoc::*;
 //use aex::operator::Fixity::*;
 //use aex::operator::Arity::*;
