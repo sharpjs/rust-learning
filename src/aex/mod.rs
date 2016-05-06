@@ -16,29 +16,24 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod asm;
-mod ast;
+//mod asm;
+//mod ast;
 mod compiler;
 //mod codegen;
-mod mem;
+//mod mem;
+//mod message;
 //mod lexer;
-mod operator;
-mod output;
-mod pos;
+//mod operator;
+//mod output;
+//mod pos;
 //mod parser;
-mod scope;
-mod source;
-mod symbol;
-mod target;
-mod types;
+//mod scope;
+//mod source;
+//mod symbol;
+//mod target;
+//mod types;
 mod util;
 
 pub use aex::compiler::compile;
-pub use aex::target::ColdFire;
-
-// Not recently visited
-
-mod message;
-
-//mod analyze;
+//pub use aex::target::ColdFire;
 
