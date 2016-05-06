@@ -16,6 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+// Ideas on how to decomplexify this program:
+//
+// - Use handle type instead of &'a str / Source<'a>
+//   ... makes lots of things easier (less lifetimes!)
+//   ... makes asm display harder
+//
+// - Use single Value type that knows about all targets.
+//   ... removes need for a lot of generics
+//
+// - Just break down and use Vec for arguments.
+//   ... removes need for macros
+//   ... unify fn/operator invoke exprs
+
 //mod loc;
 //mod code_gen;
 
