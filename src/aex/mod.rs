@@ -20,7 +20,7 @@
 //mod ast;
 mod compiler;
 //mod codegen;
-//mod mem;
+mod mem;
 //mod message;
 //mod lexer;
 //mod operator;
@@ -32,7 +32,7 @@ mod compiler;
 //mod symbol;
 //mod target;
 //mod types;
-mod util;
+//mod util;
 
 pub use aex::compiler::compile;
 //pub use aex::target::ColdFire;

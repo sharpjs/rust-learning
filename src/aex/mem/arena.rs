@@ -21,63 +21,176 @@
 // - https://github.com/rust-lang/rust/blob/1.4.0/src/libarena/lib.rs
 
 use std::cell::RefCell;
-use std::mem::{replace, transmute};
+use std::mem;
 
-const CHUNK_SIZE: usize = 256;
+use aex::mem::Id;
 
+const CHUNK_SIZE_MIN:     u32 = 0x0000_0001; //   1
+const CHUNK_SIZE_DEFAULT: u32 = 0x0000_0100; // 256
+const CHUNK_SIZE_MAX:     u32 = 0x0001_0000; // 64K
+
+// -----------------------------------------------------------------------------
+// Arena
+
+#[derive(Clone, Debug)]
 pub struct Arena<T> {
     chunks: RefCell<Chunks<T>>,
+    scale:  Scale,
 }
 
+impl<T> Arena<T> {
+    pub fn new() -> Self {
+        Self::with_chunk_size(CHUNK_SIZE_DEFAULT)
+    }
+
+    pub fn with_chunk_size(size: u32) -> Self {
+        Arena {
+            chunks: RefCell::new(Chunks {
+                current: Chunk::new(size as usize),
+                filled:  vec![]
+            }),
+            scale: Scale::new(size),
+        }
+    }
+
+    pub fn alloc(&self, obj: T) -> Id<T> {
+        let mut chunks = self.chunks.borrow_mut();
+        let     num    = chunks.ensure(self.scale);
+        let     idx    = chunks.current.alloc(obj);
+
+        // Return handle to retrieve the value later
+        Id::from(self.scale.pack(num, idx))
+    }
+
+    pub fn get(&self, id: Id<T>) -> &T {
+        let chunks     = self.chunks.borrow();
+        let (num, idx) = self.scale.unpack(u32::from(id));
+        let obj        = chunks.get(num).get(idx);
+
+        // Promote ref lifetime to that of &self
+        unsafe { mem::transmute::<&T, &T>(obj) }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Chunks
+
+#[derive(Clone, Debug)]
 struct Chunks<T> {
     current: Chunk<T>,
     filled:  Vec<Chunk<T>>,
 }
 
-struct Chunk<T> (Vec<T>);
+impl<T> Chunks<T> {
+    #[inline]
+    fn ensure(&mut self, scale: Scale) -> usize {
+        let mut num = self.filled.len();
 
-impl<T> Arena<T> {
-    pub fn new() -> Self {
-        Arena {
-            chunks: RefCell::new(Chunks {
-                current: Chunk::new(),
-                filled:  vec![]
-            }),
+        // Use current chunk if it's not full yet
+        if !self.current.is_full() {
+            return num
         }
+
+        // Check if arena is growable
+        num += 1;
+        if num == scale.max_chunks() {
+            panic!("Allocation failed. Arena is full.");
+        }
+
+        // Grow arena by one chunk
+        let size = self.current.size();
+        let full = mem::replace(&mut self.current, Chunk::new(size));
+        self.filled.push(full);
+
+        num
     }
 
-    pub fn alloc(&self, object: T) -> &mut T {
-        let mut chunks = self.chunks.borrow_mut();
+    #[inline]
+    fn get(&self, num: usize) -> &Chunk<T> {
+        let count = self.filled.len();
 
-        // Start a new chunk if current one is full
-        if chunks.current.is_full() {
-            let full = replace(&mut chunks.current, Chunk::new());
-            chunks.filled.push(full);
-        }
-
-        // Move object into current chunk, and obtain a ref to its new home
-        let object = chunks.current.alloc(object);
-
-        // Promote ref lifetime to that of &self
-        unsafe { transmute::<&mut T, &mut T>(object) }
+        if      num == count { &self.current     }
+        else if num <  count { &self.filled[num] }
+        else                 { panic!("Chunk number out of range.") }
     }
 }
 
+// -----------------------------------------------------------------------------
+// Chunk
+
+#[derive(Clone, Debug)]
+struct Chunk<T> (Vec<T>);
+
 impl<T> Chunk<T> {
-    fn new() -> Self {
-        Chunk(Vec::with_capacity(CHUNK_SIZE))
+    #[inline]
+    fn new(size: usize) -> Self {
+        Chunk(Vec::with_capacity(size))
     }
 
+    #[inline]
+    fn size(&self) -> usize {
+        self.0.capacity()
+    }
+
+    #[inline]
     fn is_full(&self) -> bool {
-        self.0.len() == CHUNK_SIZE
+        self.0.len() == self.0.capacity()
     }
 
-    fn alloc(&mut self, object: T) -> &mut T {
-        let vec   = &mut self.0;
-        let index = vec.len();
-        vec.push(object);
-        &mut vec[index]
+    #[inline]
+    fn alloc(&mut self, obj: T) -> usize {
+        let idx = self.0.len();
+        self.0.push(obj);
+        idx
     }
+
+    #[inline]
+    fn get(&self, idx: usize) -> &T {
+        &self.0[idx]
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Scale
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+struct Scale {
+    bits: u32,
+    mask: u32,
+}
+
+impl Scale {
+    fn new(size: u32) -> Self {
+        let size =
+            if      size < CHUNK_SIZE_MIN { CHUNK_SIZE_MIN }
+            else if size > CHUNK_SIZE_MAX { CHUNK_SIZE_MAX }
+            else                          { size.next_power_of_two() }
+        ;
+
+        let bits = size.trailing_zeros();
+
+        Scale {
+            bits: bits,
+            mask: (1 << bits) - 1,
+        }
+    }
+
+    #[inline]
+    fn max_chunks(&self) -> usize {
+        (1 as usize) << (32 - self.bits)
+    }
+
+    #[inline]
+    fn pack(&self, num: usize, idx: usize) -> u32 {
+        (num as u32) << self.bits |
+        (idx as u32)  & self.mask
+    }
+
+    #[inline]
+    fn unpack(&self, n: u32) -> (usize, usize) {(
+        (n >> self.bits) as usize, // num
+        (n  & self.mask) as usize, // idx
+    )}
 }
 
 // -----------------------------------------------------------------------------
@@ -88,9 +201,13 @@ mod tests {
     use std::cell::RefCell;
     use std::char;
     use std::collections::HashSet;
+    use std::marker::PhantomData;
     use super::*;
-    use super::CHUNK_SIZE;
+    use aex::mem::Id;
 
+    const CHUNK_SIZE: u32 = 8;
+
+    #[derive(Clone, Debug)]
     struct Foo<'a> (
         char,                       // id
         &'a RefCell<HashSet<char>>, // ids of dropped Foos
@@ -103,31 +220,76 @@ mod tests {
     }
 
     #[test]
-    fn test() {
+    fn alloc_1() {
+        let arena = Arena::new();
+
+        let a = arena.alloc('a');
+
+        assert_eq!(a, Id(0, PhantomData));
+        assert_eq!(arena.get(a), &'a');
+    }
+
+    #[test]
+    fn alloc_2() {
+        let arena = Arena::new();
+
+        let a = arena.alloc('a');
+        let b = arena.alloc('b');
+
+        assert_eq!(a, Id(0, PhantomData));
+        assert_eq!(b, Id(1, PhantomData));
+        assert_eq!(arena.get(a), &'a');
+        assert_eq!(arena.get(b), &'b');
+    }
+
+    #[test]
+    fn alloc_expand() {
+        let arena = Arena::with_chunk_size(CHUNK_SIZE);
+
+        // Ensure arena has to grow a new chunk
+        fill_chunk(&arena, |c| c);
+
+        let a = arena.alloc('a');
+        let b = arena.alloc('b');
+
+        assert_eq!(a, Id(CHUNK_SIZE as u32 + 0, PhantomData));
+        assert_eq!(b, Id(CHUNK_SIZE as u32 + 1, PhantomData));
+        assert_eq!(arena.get(a), &'a');
+        assert_eq!(arena.get(b), &'b');
+    }
+
+    #[test]
+    fn drop() {
         let dropped = RefCell::new(HashSet::new());
 
         {
-            let arena = Arena::new();
+            let arena = Arena::with_chunk_size(CHUNK_SIZE);
             let a = arena.alloc(Foo('a', &dropped));
             let b = arena.alloc(Foo('b', &dropped));
 
             // Ensure arena has to grow a new chunk
-            for n in 0..CHUNK_SIZE {
-                let c = char::from_u32('c' as u32 + n as u32).unwrap();
-                arena.alloc(Foo(c, &dropped));
-            }
+            fill_chunk(&arena, |c| Foo(c, &dropped));
 
-            assert!(a.0 == 'a');
-            assert!(b.0 == 'b');
-            assert!(dropped.borrow().len() == 0);
+            assert_eq!(arena.get(a).0, 'a');
+            assert_eq!(arena.get(b).0, 'b');
+            assert_eq!(dropped.borrow().len(), 0);
 
             // arena is dropped here
         }
 
         let dropped = dropped.into_inner();
-        assert!(dropped.len() == CHUNK_SIZE + 2);
+        assert_eq!(dropped.len(), (CHUNK_SIZE + 2) as usize);
         assert!(dropped.contains(&'a'));
         assert!(dropped.contains(&'b'));
+    }
+
+    fn fill_chunk<T, F>(arena: &Arena<T>, f: F)
+                       where F: Fn(char) -> T {
+        for n in 0..CHUNK_SIZE {
+            let c = 'c' as u32 + n;
+            let c = char::from_u32(c).unwrap();
+            arena.alloc(f(c));
+        }
     }
 }
 
