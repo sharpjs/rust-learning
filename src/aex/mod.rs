@@ -26,7 +26,7 @@ mod mem;
 //mod lexer;
 //mod operator;
 //mod output;
-//mod pos;
+mod pos;
 //mod parser;
 //mod scope;
 //mod source;
