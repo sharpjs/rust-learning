@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt;
 use std::marker::PhantomData;
 
 // -----------------------------------------------------------------------------
@@ -47,6 +48,12 @@ impl<T: ?Sized> From<usize> for Id<T> {
 impl<T: ?Sized> From<Id<T>> for usize {
     #[inline(always)]
     fn from(id: Id<T>) -> usize { id.0 }
+}
+
+impl<T: ?Sized> fmt::Display for Id<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<{}>", self.0)
+    }
 }
 
 // -----------------------------------------------------------------------------
