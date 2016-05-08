@@ -1,4 +1,4 @@
-// Aex Root Module
+// Formatting Trait
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,25 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//mod asm;
-//mod ast;
-mod compiler;
-//mod codegen;
-mod fmt;
-mod mem;
-//mod message;
-//mod lexer;
-//mod operator;
-//mod output;
-//mod pos;
-//mod parser;
-//mod scope;
-//mod source;
-//mod symbol;
-//mod target;
-//mod types;
-//mod util;
+use std::fmt::Display;
+use std::io::{self, Write};
 
-pub use aex::compiler::compile;
-//pub use aex::target::ColdFire;
+pub trait Format<C> {
+    fn fmt<W: Write>(&self, &C, &mut W) -> io::Result<()>;
+}
+
+impl<C, T: Display> Format<C> for T {
+    fn fmt<W: Write>(&self, _: &C, w: &mut W) -> io::Result<()> {
+        write!(w, "{}", self)
+    }
+}
 
