@@ -20,8 +20,13 @@ use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hash;
+use std::ops::Index;
 
 use aex::mem::Id;
+
+// -----------------------------------------------------------------------------
+
+pub type Strings = Interner<'static, str>;
 
 // -----------------------------------------------------------------------------
 
@@ -32,8 +37,6 @@ pub struct Interner<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> {
     // Map from identifiers to objects
     vec: RefCell<Vec<*const B>>,
 }
-
-pub type StringInterner<'a> = Interner<'a, str>;
 
 const DEFAULT_CAPACITY: usize = 256;
 
@@ -89,11 +92,21 @@ impl<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> Interner<'a, B> {
     }
 }
 
+impl<'a, B: 'a + ToOwned + Hash + Eq + ?Sized>
+Index<Id<B>> for Interner<'a, B> {
+    type Output = B;
+
+    #[inline(always)]
+    fn index(&self, id: Id<B>) -> &B { self.get(id) }
+}
+
 // -----------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    type StringInterner<'a> = Interner<'a, str>;
 
     #[test]
     fn intern_equal() {

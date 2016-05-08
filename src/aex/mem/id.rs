@@ -20,16 +20,18 @@ use std::marker::PhantomData;
 
 // -----------------------------------------------------------------------------
 
-#[derive(Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
 pub struct Id<T: ?Sized> (usize, PhantomData<T>);
 
 pub type Name = Id<str>;
 
 impl<T: ?Sized> Clone for Id<T> {
+    #[inline(always)]
     fn clone(&self) -> Self {
         Id(self.0, PhantomData)
     }
 
+    #[inline(always)]
     fn clone_from(&mut self, source: &Self) {
         self.0 = source.0
     }
@@ -38,10 +40,12 @@ impl<T: ?Sized> Clone for Id<T> {
 impl<T: ?Sized> Copy for Id<T> { }
 
 impl<T: ?Sized> From<usize> for Id<T> {
+    #[inline(always)]
     fn from(n: usize) -> Id<T> { Id(n, PhantomData) }
 }
 
 impl<T: ?Sized> From<Id<T>> for usize {
+    #[inline(always)]
     fn from(id: Id<T>) -> usize { id.0 }
 }
 
