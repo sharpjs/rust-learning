@@ -16,69 +16,74 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::borrow::Borrow;
+use std::borrow::{Borrow, Cow};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use aex::mem::arena::*;
+use aex::mem::Id;
 
-pub type StringInterner<'a> = Interner<'a, String, str>;
+pub type StringInterner<'a> = Interner<'a, str>;
 
-pub struct Interner<'a, T, B: ?Sized = T>
-where T: 'a + Borrow<B>,
-      B: 'a + Hash + Eq {
+const DEFAULT_CAPACITY: usize = 256;
 
-    // Map from object to its interned object
-    map: RefCell<HashMap<&'a B, &'a B>>,
+pub struct Interner<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> {
+    // Map from objects to identifiers
+    map: RefCell<HashMap<Cow<'a, B>, usize>>,
 
-    // The objects owned by this interner
-    arena: Arena<T>,
+    // Map from identifiers to objects
+    vec: RefCell<Vec<*const B>>,
 }
 
-impl<'a, T, B: ?Sized> Interner<'a, T, B>
-where T: 'a + Borrow<B>,
-      B: 'a + Hash + Eq {
-
+impl<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> Interner<'a, B> {
+    #[inline(always)]
     pub fn new() -> Self {
+        Self::with_capacity(DEFAULT_CAPACITY)
+    }
+
+    pub fn with_capacity(capacity: usize) -> Self {
         Interner {
-            map:   RefCell::new(HashMap::new()),
-            arena: Arena::new(),
+            map: RefCell::new(HashMap::with_capacity(capacity)),
+            vec: RefCell::new(Vec    ::with_capacity(capacity)),
         }
     }
 
-    pub fn intern(&self, object: T) -> &B {
-        use std::mem::transmute;
-
-        let mut map = self.map.borrow_mut();
-
-        if let Some(&object) = map.get(&object.borrow()) {
-            return object;
-        }
-
-        // SAFETY: We move the object into the arena and receive a borrow to it.
-        //   We then must use transmute to promote the borrow's lifetime to that
-        //   required by `map`.  The new lifetime might exceed the arena's
-        //   lifetime.  That is OK, because the lifetime is reconstrained to
-        //   that of &self on return from this function, and the arena will not
-        //   drop the object within the lifetime of &self.
-        //   
-        let object: &   T = self.arena.alloc(object);
-        let object: &'a T = unsafe { transmute(object) };
-        let object: &'a B = object.borrow();
-        map.insert(object, object);
-        object
+    pub fn capacity(&self) -> usize {
+        self.vec.borrow().capacity()
     }
 
-    pub fn intern_ref(&self, object: &'a B) -> &'a B {
+    #[inline(always)]
+    pub fn intern(&self, obj: B::Owned) -> Id<B> {
+        self.intern_cow(Cow::Owned(obj))
+    }
+
+    #[inline(always)]
+    pub fn intern_ref(&self, obj: &'a B) -> Id<B> {
+        self.intern_cow(Cow::Borrowed(obj))
+    }
+
+    fn intern_cow(&self, obj: Cow<'a, B>) -> Id<B> {
         let mut map = self.map.borrow_mut();
 
-        if let Some(&object) = map.get(&object) {
-            return object;
+        if let Some(&idx) = map.get(&obj) {
+            return Id::from(idx);
         }
 
-        map.insert(object, object);
-        object
+        let mut vec = self.vec.borrow_mut();
+        let     idx = vec.len();
+
+        // SAFETY: While obj will move, the address it points to will not.
+        vec.push(obj.as_ref() as *const _);
+        map.insert(obj, idx);
+        Id::from(idx)
+    }
+
+    pub fn get(&self, id: Id<B>) -> &B {
+        let idx = usize::from(id);
+        let ptr = self.vec.borrow()[idx];
+
+        // SAFETY: obj lives at least as long as self.
+        unsafe { &*ptr }
     }
 }
 
@@ -90,44 +95,112 @@ mod tests {
     use super::*;
 
     #[test]
-    fn intern() {
-        let a_str = "Hello".to_string();
-        let b_str = "Hello".to_string();
-        let c_str = "olleH".to_string();
+    fn intern_equal() {
+        let a_val = "Hello".to_string();
+        let b_val = "Hello".to_string();
 
-        assert!(&a_str as *const String != &b_str as *const String);
+        // Verify separate Strings with same chars
+        assert!(&a_val as *const _ != &b_val as *const _);
 
-        let interner = StringInterner::new();
-        let a_intern = interner.intern(a_str);
-        let b_intern = interner.intern(b_str);
-        let c_intern = interner.intern(c_str);
+        let i    = StringInterner::new();
+        let a_id = i.intern(a_val);
+        let b_id = i.intern(b_val);
 
-        assert!(a_intern as *const str == b_intern as *const str);
-        assert!(a_intern as *const str != c_intern as *const str);
-        assert!(b_intern == "Hello");
-        assert!(c_intern == "olleH");
+        assert!(a_id == b_id);
+        assert_eq!(i.get(a_id), "Hello");
+        assert_eq!(i.get(b_id), "Hello");
+
+        assert!(i.get(a_id) as *const _ == i.get(b_id) as *const _);
     }
 
     #[test]
-    fn intern_ref() {
-        let a_str = "Hello".to_string();
-        let b_str = "Hello".to_string();
-        let c_str = "olleH".to_string();
+    fn intern_ref_equal() {
+        let a_val = "Hello".to_string();
+        let b_val = "Hello".to_string();
+        let a_ref = a_val.as_ref();
+        let b_ref = b_val.as_ref();
 
-        let a_ref = a_str.as_ref();
-        let b_ref = b_str.as_ref();
-        let c_ref = c_str.as_ref();
+        // Verify separate Strings with same chars
+        assert!(a_ref as *const _ != b_ref as *const _);
 
-        assert!(a_ref as *const str != b_ref as *const str);
+        let i    = StringInterner::new();
+        let a_id = i.intern_ref(a_ref);
+        let b_id = i.intern_ref(b_ref);
 
-        let interner = StringInterner::new();
-        let a_intern = interner.intern_ref(a_ref);
-        let b_intern = interner.intern_ref(b_ref);
-        let c_intern = interner.intern_ref(c_ref);
+        assert!(a_id == b_id);
 
-        assert!(a_intern as *const str == a_ref as *const str);
-        assert!(b_intern as *const str == a_ref as *const str);
-        assert!(c_intern as *const str == c_ref as *const str);
+        assert_eq!(i.get(a_id), "Hello");
+        assert_eq!(i.get(b_id), "Hello");
+
+        assert!(i.get(a_id) as *const _ == a_ref as *const _);
+        assert!(i.get(b_id) as *const _ == a_ref as *const _); // NOT b_ref
+    }
+
+    #[test]
+    fn intern_diff() {
+        let a_val = "Hello".to_string();
+        let b_val = "elloH".to_string();
+
+        let i    = StringInterner::with_capacity(2);
+        let a_id = i.intern(a_val);
+        let b_id = i.intern(b_val);
+
+        assert!(a_id != b_id);
+        assert_eq!(i.get(a_id), "Hello");
+        assert_eq!(i.get(b_id), "elloH");
+    }
+
+    #[test]
+    fn intern_ref_diff() {
+        let a_val = "Hello".to_string();
+        let b_val = "elloH".to_string();
+
+        let a_ref = a_val.as_ref();
+        let b_ref = b_val.as_ref();
+
+        let i    = StringInterner::with_capacity(2);
+        let a_id = i.intern_ref(a_ref);
+        let b_id = i.intern_ref(b_ref);
+
+        assert!(a_id != b_id);
+
+        assert_eq!(i.get(a_id), "Hello");
+        assert_eq!(i.get(b_id), "elloH");
+
+        assert!(i.get(a_id) as *const _ == a_ref as *const _);
+        assert!(i.get(b_id) as *const _ == b_ref as *const _);
+    }
+
+    #[test]
+    fn no_move() {
+        let i = StringInterner::with_capacity(2);
+
+        let a_id = i.intern("a".to_string());
+
+        assert!(i.capacity() == 2);
+        let a_p0 = i.get(a_id) as *const _;
+
+        i.intern("b".to_string());
+        i.intern("c".to_string());
+        i.intern("d".to_string());
+        i.intern("e".to_string());
+        i.intern("f".to_string());
+
+        assert!(i.capacity() != 2);
+        let a_p1 = i.get(a_id) as *const _;
+
+        // When the internal vector grows, the interned values do not move.
+        assert!(a_p0 == a_p1);
+    }
+
+    #[test]
+    #[should_panic]
+    fn id_out_of_range() {
+        use std::marker::PhantomData;
+        use aex::mem::Id;
+
+        let i = StringInterner::with_capacity(2);
+        i.get(Id(42, PhantomData));
     }
 }
 
