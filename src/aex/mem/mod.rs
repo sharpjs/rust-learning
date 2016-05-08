@@ -1,4 +1,4 @@
-// Aex Memory Utilities Module
+// Memory Utilities
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,58 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+pub mod id;
 pub mod interner;
 
-use std::marker::PhantomData;
-use std::mem;
-
-pub type Name = Id<str>;
-
-// -----------------------------------------------------------------------------
-// Id
-
-#[derive(/*Clone, Copy,*/ Eq, PartialEq, Debug)]
-pub struct Id<T: ?Sized> (usize, PhantomData<T>);
-
-impl<T: ?Sized> Clone for Id<T> {
-    fn clone(&self) -> Self {
-        Id(self.0, PhantomData)
-    }
-
-    fn clone_from(&mut self, source: &Self) {
-        self.0 = source.0
-    }
-}
-
-impl<T: ?Sized> Copy for Id<T> {}
-
-impl<T: ?Sized> From<usize> for Id<T> {
-    fn from(n: usize) -> Id<T> { Id(n, PhantomData) }
-}
-
-impl<T: ?Sized> From<Id<T>> for usize {
-    fn from(id: Id<T>) -> usize { id.0 }
-}
-
-// -----------------------------------------------------------------------------
-// Functions
-
-pub unsafe fn promote_lifetime<'old, 'new: 'old, T: ?Sized>
-                              (r: &'old T) -> &'new T {
-    mem::transmute(r)
-}
-
-// -----------------------------------------------------------------------------
-// Tests
-
-#[cfg(test)]
-mod tests {
-    use super::Name;
-
-    #[test]
-    fn roundtrip() {
-        let n = usize::from(Name::from(42));
-        assert_eq!(n, 42);
-    }
-}
+pub use self::id::*;
+pub use self::interner::*;
 

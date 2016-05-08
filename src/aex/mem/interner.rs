@@ -23,9 +23,7 @@ use std::hash::Hash;
 
 use aex::mem::Id;
 
-pub type StringInterner<'a> = Interner<'a, str>;
-
-const DEFAULT_CAPACITY: usize = 256;
+// -----------------------------------------------------------------------------
 
 pub struct Interner<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> {
     // Map from objects to identifiers
@@ -34,6 +32,10 @@ pub struct Interner<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> {
     // Map from identifiers to objects
     vec: RefCell<Vec<*const B>>,
 }
+
+pub type StringInterner<'a> = Interner<'a, str>;
+
+const DEFAULT_CAPACITY: usize = 256;
 
 impl<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> Interner<'a, B> {
     #[inline(always)]
@@ -88,7 +90,6 @@ impl<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> Interner<'a, B> {
 }
 
 // -----------------------------------------------------------------------------
-// Tests
 
 #[cfg(test)]
 mod tests {
@@ -196,11 +197,10 @@ mod tests {
     #[test]
     #[should_panic]
     fn id_out_of_range() {
-        use std::marker::PhantomData;
         use aex::mem::Id;
 
         let i = StringInterner::with_capacity(2);
-        i.get(Id(42, PhantomData));
+        i.get(Id::from(42));
     }
 }
 
