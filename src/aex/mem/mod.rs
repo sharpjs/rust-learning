@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod id;
-pub mod interner;
+mod id;
+mod interner;
 
 pub use self::id::*;
 pub use self::interner::*;
