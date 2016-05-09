@@ -16,11 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+#[macro_use]
+mod fmt;
+
 //mod asm;
 //mod ast;
 mod compiler;
 //mod codegen;
-mod fmt;
 mod mem;
 //mod message;
 //mod lexer;
