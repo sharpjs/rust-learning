@@ -59,8 +59,11 @@ impl<T: ?Sized> fmt::Display for Id<T> {
 // -----------------------------------------------------------------------------
 
 #[cfg(test)]
-mod tests {
-    use super::Name;
+pub mod tests {
+    use std::marker::PhantomData;
+    use super::*;
+
+    pub const NAME_ZERO: Name = Id(0, PhantomData);
 
     #[test]
     fn id_roundtrip() {
