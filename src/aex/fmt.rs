@@ -29,3 +29,19 @@ impl<C, T: Display> Format<C> for T {
     }
 }
 
+#[macro_export]
+macro_rules! format_with {
+    ($obj:expr, $ctx:expr) => {{
+        use std::io::Cursor;
+        use aex::fmt::Format;
+
+        let     vec = Vec::with_capacity(16);
+        let mut buf = Cursor::new(vec);
+
+        $obj.fmt($ctx, &mut buf).unwrap();
+
+        let vec = buf.into_inner();
+        String::from_utf8(vec).unwrap()
+    }}
+}
+
