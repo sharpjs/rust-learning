@@ -66,54 +66,58 @@ impl Format<Strings> for Pos {
 
 impl Debug for Pos {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "#{}[{}]:{}:{}", self.file, self.byte, self.line, self.column)
+        write!(f, "{}[{}]:{}:{}", self.file, self.byte, self.line, self.column)
     }
 }
 
-//#[cfg(test)]
-//pub mod tests {
-//    use super::*;
-//
-//    pub static BOF: Source<'static> = Source::File {
-//        pos: &Pos { file: "f", byte: 0, line: 1, column: 1 },
-//        len: 0
-//    };
-//
-//    #[test]
-//    fn bof() {
-//        let p = Pos::bof("f");
-//        assert_eq!(p, Pos { file: "f", byte: 0, line: 1, column: 1 });
-//    }
-//
-//    #[test]
-//    fn advance() {
-//        let mut p = Pos::bof("f");
-//        p.advance('a');
-//        assert_eq!(p, Pos { file: "f", byte: 1, line: 1, column: 2 });
-//        p.advance('\u{10ABCD}');
-//        assert_eq!(p, Pos { file: "f", byte: 5, line: 1, column: 3 });
-//    }
-//
-//    #[test]
-//    fn newline() {
-//        let mut p = Pos::bof("f");
-//        p.advance('\n');
-//        p.newline();
-//        assert_eq!(p, Pos { file: "f", byte: 1, line: 2, column: 1 });
-//    }
-//
-//    #[test]
-//    fn fmt_display() {
-//        let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
-//        let s = format!("{}", &p);
-//        assert_eq!(s, "f:2:3");
-//    }
-//
-//    #[test]
-//    fn fmt_debug() {
-//        let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
-//        let s = format!("{:?}", &p);
-//        assert_eq!(s, "f[1]:2:3");
-//    }
-//}
-//
+#[cfg(test)]
+pub mod tests {
+    use aex::mem::Strings;
+    use aex::mem::tests::{NAME_ZERO as FILE};
+    use super::*;
+
+    pub static BOF: Source = Source::File {
+        pos: Pos { file: FILE, byte: 0, line: 1, column: 1 },
+        len: 0
+    };
+
+    #[test]
+    fn bof() {
+        let pos = Pos::bof(FILE);
+        assert_eq!(pos, Pos { file: FILE, byte: 0, line: 1, column: 1 });
+    }
+
+    #[test]
+    fn advance() {
+        let mut pos = Pos::bof(FILE);
+        pos.advance('a');
+        assert_eq!(pos, Pos { file: FILE, byte: 1, line: 1, column: 2 });
+        pos.advance('\u{10ABCD}');
+        assert_eq!(pos, Pos { file: FILE, byte: 5, line: 1, column: 3 });
+    }
+
+    #[test]
+    fn newline() {
+        let mut pos = Pos::bof(FILE);
+        pos.advance('\n');
+        pos.newline();
+        assert_eq!(pos, Pos { file: FILE, byte: 1, line: 2, column: 1 });
+    }
+
+    #[test]
+    fn fmt_format() {
+        let strs = Strings::with_capacity(1);
+        let file = strs.intern_ref("file.ext");
+        let pos  = Pos { file: file, byte: 1, line: 2, column: 3 };
+        let text = format_with!(&pos, &strs);
+        assert_eq!(text, "file.ext:2:3");
+    }
+
+    #[test]
+    fn fmt_debug() {
+        let pos  = Pos { file: FILE, byte: 1, line: 2, column: 3 };
+        let text = format!("{:?}", &pos);
+        assert_eq!(text, "<0>[1]:2:3");
+    }
+}
+
