@@ -58,8 +58,8 @@ impl Pos {
     }
 }
 
-impl Format<Strings> for Pos {
-    fn fmt<W: Write>(&self, s: &Strings, w: &mut W) -> io::Result<()> {
+impl<'a> Format<Strings<'a>> for Pos {
+    fn fmt<W: Write>(&self, s: &Strings<'a>, w: &mut W) -> io::Result<()> {
         write!(w, "{}:{}:{}", &s[self.file], self.line, self.column)
     }
 }

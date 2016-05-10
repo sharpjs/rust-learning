@@ -26,7 +26,7 @@ use aex::mem::Id;
 
 // -----------------------------------------------------------------------------
 
-pub type Strings = Interner<'static, str>;
+pub type Strings<'a> = Interner<'a, str>;
 
 // -----------------------------------------------------------------------------
 
@@ -106,8 +106,6 @@ Index<Id<B>> for Interner<'a, B> {
 mod tests {
     use super::*;
 
-    type StringInterner<'a> = Interner<'a, str>;
-
     #[test]
     fn intern_equal() {
         let a_val = "Hello".to_string();
@@ -116,7 +114,7 @@ mod tests {
         // Verify separate Strings with same chars
         assert!(&a_val as *const _ != &b_val as *const _);
 
-        let i    = StringInterner::new();
+        let i    = Strings::new();
         let a_id = i.intern(a_val);
         let b_id = i.intern(b_val);
 
@@ -137,7 +135,7 @@ mod tests {
         // Verify separate Strings with same chars
         assert!(a_ref as *const _ != b_ref as *const _);
 
-        let i    = StringInterner::new();
+        let i    = Strings::new();
         let a_id = i.intern_ref(a_ref);
         let b_id = i.intern_ref(b_ref);
 
@@ -155,7 +153,7 @@ mod tests {
         let a_val = "Hello".to_string();
         let b_val = "elloH".to_string();
 
-        let i    = StringInterner::with_capacity(2);
+        let i    = Strings::with_capacity(2);
         let a_id = i.intern(a_val);
         let b_id = i.intern(b_val);
 
@@ -172,7 +170,7 @@ mod tests {
         let a_ref = a_val.as_ref();
         let b_ref = b_val.as_ref();
 
-        let i    = StringInterner::with_capacity(2);
+        let i    = Strings::with_capacity(2);
         let a_id = i.intern_ref(a_ref);
         let b_id = i.intern_ref(b_ref);
 
@@ -187,7 +185,7 @@ mod tests {
 
     #[test]
     fn no_move() {
-        let i = StringInterner::with_capacity(2);
+        let i = Strings::with_capacity(2);
 
         let a_id = i.intern("a".to_string());
 
@@ -212,7 +210,7 @@ mod tests {
     fn id_out_of_range() {
         use aex::mem::Id;
 
-        let i = StringInterner::with_capacity(2);
+        let i = Strings::with_capacity(2);
         i.get(Id::from(42));
     }
 }
