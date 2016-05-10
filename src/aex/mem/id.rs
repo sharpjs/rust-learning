@@ -17,40 +17,71 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 
 // -----------------------------------------------------------------------------
 
-#[derive(Eq, PartialEq, Ord, PartialOrd, Hash, Debug)]
-pub struct Id<T: ?Sized> (usize, PhantomData<T>);
-
 pub type Name = Id<str>;
+
+// -----------------------------------------------------------------------------
+
+pub struct Id<T: ?Sized> (u32, PhantomData<T>);
+
+// #[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+//
+// #[derive] doesn't know (yet) to ignore the T from PhantomData<T>.
+// Thus we have to implement these traits explicitly.
+// This probably will be fixed in a later version of Rust.
+
+impl<T: ?Sized> From<usize> for Id<T> {
+    #[inline(always)]
+    fn from(n: usize) -> Id<T> {
+        Id(n as u32, PhantomData)
+    }
+}
+
+impl<T: ?Sized> From<Id<T>> for usize {
+    #[inline(always)]
+    fn from(id: Id<T>) -> usize {
+        id.0 as usize
+    }
+}
 
 impl<T: ?Sized> Clone for Id<T> {
     #[inline(always)]
     fn clone(&self) -> Self {
         Id(self.0, PhantomData)
     }
-
-    #[inline(always)]
-    fn clone_from(&mut self, source: &Self) {
-        self.0 = source.0
-    }
 }
 
 impl<T: ?Sized> Copy for Id<T> { }
 
-impl<T: ?Sized> From<usize> for Id<T> {
+impl<T: ?Sized> PartialEq for Id<T> {
     #[inline(always)]
-    fn from(n: usize) -> Id<T> { Id(n, PhantomData) }
+    fn eq(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
 }
 
-impl<T: ?Sized> From<Id<T>> for usize {
+impl<T: ?Sized> Eq for Id<T> { }
+
+impl<T: ?Sized> Hash for Id<T> {
     #[inline(always)]
-    fn from(id: Id<T>) -> usize { id.0 }
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.0.hash(state)
+    }
 }
 
 impl<T: ?Sized> fmt::Display for Id<T> {
+    #[inline(always)]
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "<{}>", self.0)
+    }
+}
+
+impl<T: ?Sized> fmt::Debug for Id<T> {
+    #[inline(always)]
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "<{}>", self.0)
     }
