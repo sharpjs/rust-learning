@@ -35,7 +35,7 @@ mod pos;
 //mod symbol;
 //mod target;
 mod types;
-//mod util;
+mod util;
 
 pub use aex::compiler::compile;
 //pub use aex::target::ColdFire;

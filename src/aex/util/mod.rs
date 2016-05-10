@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod fmap;
+//pub mod fmap;
 
-pub trait Lookup<K: ?Sized, V: ?Sized> {
-    fn lookup(&self, key: &K) -> Option<&V>;
-}
+//pub trait Lookup<K: ?Sized, V: ?Sized> {
+//    fn lookup(&self, key: &K) -> Option<&V>;
+//}
 
 #[inline(always)]
 pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
