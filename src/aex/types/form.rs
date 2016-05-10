@@ -22,7 +22,9 @@ use aex::types::contains::Contains;
 use aex::types::float::FloatSpec;
 use aex::types::int::IntSpec;
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub enum TypeForm {
     Inty    (Option<  IntSpec>),    // Int, Ptr
     Floaty  (Option<FloatSpec>),    // Float

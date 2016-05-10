@@ -20,7 +20,7 @@ use num::{BigInt, Zero, One};
 
 use super::contains::Contains;
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct IntSpec {
     pub value_width: u8,    // count of value bits
     pub store_width: u8,    // count of value + padding bits

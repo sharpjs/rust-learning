@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
 pub struct FloatSpec {
     pub value_width: u8,    // count of value bits
     pub store_width: u8,    // count of value + padding bits
