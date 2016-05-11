@@ -58,6 +58,11 @@ impl<'a> Target for ColdFire<'a> {
     //}
 }
 
+pub enum CfValue {
+    DataReg,
+    AddrReg,
+}
+
 /*
 type CfExpr<'a> = Expr<ColdFire<'a>>;
 
