@@ -19,21 +19,21 @@
 //use aex::asm::Assembly;
 //use aex::codegen::CodeGenerator;
 //use aex::lexer::Lexer;
-use aex::mem::arena::Arena;
-use aex::mem::interner::StringInterner;
+//use aex::mem::arena::Arena;
+//use aex::mem::interner::StringInterner;
 //use aex::message::Messages;
 //use aex::operator::{self, OpTable};
 //use aex::parser::parse;
-use aex::pos::Pos;
-use aex::target::Target;
+//use aex::pos::Pos;
+//use aex::target::Target;
 
-use aex::target::ColdFire;
+//use aex::target::ColdFire;
 
 pub fn compile<I>(input: I, filename: &str)
 where I: Iterator<Item=char> {
-    let target   = ColdFire::new();
-    let memory   = Memory::new();
-    let compiler = Compiler::new(target, &memory);
+//    let target   = ColdFire::new();
+//    let memory   = Memory::new();
+//    let compiler = Compiler::new(target, &memory);
 
 //    let ast = {
 //        let mut lexer = Lexer::new(&mut compilation, input);
@@ -45,41 +45,41 @@ where I: Iterator<Item=char> {
 //    println!("{:#?}", ast);
 }
 
-struct Compiler<'a, T: Target> {
-    pub target:    T,
-    pub strings:   &'a StringInterner<'a>,
-    pub positions: &'a Arena<Pos<'a>>,
+//struct Compiler<'a> {
+//    pub target:    T,
+//    pub strings:   &'a StringInterner<'a>,
+//    pub positions: &'a Arena<Pos<'a>>,
     //pub code:      Assembly,
     //pub log:       Messages<'a>,
     //pub ops:       OpTable,
-}
+//}
 
-impl<'a, T: Target> Compiler<'a, T> {
-    pub fn new(target: T, memory: &'a Memory<'a>) -> Self {
-        Compiler {
-            target:    target,
-            strings:   &memory.strings,
-            positions: &memory.positions,
+//impl<'a, T: Target> Compiler<'a, T> {
+//    pub fn new(target: T, memory: &'a Memory<'a>) -> Self {
+//        Compiler {
+//            target:    target,
+//            strings:   &memory.strings,
+//            positions: &memory.positions,
 //            code:      Assembly::new(),
 //            log:       Messages::new(),
 //            ops:       operator::create_op_table()
-        }
-    }
-}
+//        }
+//    }
+//}
 
 // This type is separate, so that rustc generates a useful 'a.
 //
-struct Memory<'a> {
-    strings:   StringInterner<'a>,
-    positions: Arena<Pos<'a>>,
-}
-
-impl<'a> Memory<'a> {
-    pub fn new() -> Self {
-        Memory {
-            strings:   StringInterner::new(),
-            positions: Arena::new(),
-        }
-    }
-}
+//struct Memory<'a> {
+//    strings:   StringInterner<'a>,
+//    positions: Arena<Pos<'a>>,
+//}
+//
+//impl<'a> Memory<'a> {
+//    pub fn new() -> Self {
+//        Memory {
+//            strings:   StringInterner::new(),
+//            positions: Arena::new(),
+//        }
+//    }
+//}
 
