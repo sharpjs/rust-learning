@@ -20,7 +20,7 @@
 //mod ast;
 mod compiler;
 //mod codegen;
-//mod mem;
+mod mem;
 //mod lexer;
 //mod operator;
 //mod output;
