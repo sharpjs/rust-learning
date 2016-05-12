@@ -24,7 +24,7 @@ use std::ops::Deref;
 // -----------------------------------------------------------------------------
 
 /// A raw pointer that is assumed to be safely derefable
-/// for the lifetime of its owner.  Use with care.
+/// for its entire lifetime.  Use with care.
 ///
 pub struct Ptr<T: ?Sized> (*const T);
 

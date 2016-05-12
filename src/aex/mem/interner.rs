@@ -40,11 +40,21 @@ where T: Borrow<B>, B: Hash + Eq {
 
     // The objects owned by this interner
     arena: Arena<T>,
+
+    // SAFETY:
+    //
+    // Ptr requires that referenced values live at least as long as the Ptr.
+    // That is ensured here in two ways:
+    //
+    // - intern() makes values owned by the arena.  They will not move or drop
+    //   during the interner's lifetime.
+    //
+    // - intern_ref() requires &'static references.
+    //
 }
 
 impl<T, B: ?Sized> Interner<T, B>
 where T: Borrow<B>, B: Hash + Eq {
-
     pub fn new() -> Self {
         Interner {
             map:   RefCell::new(HashMap::new()),
@@ -52,36 +62,28 @@ where T: Borrow<B>, B: Hash + Eq {
         }
     }
 
-    pub fn intern(&self, object: T) -> &B {
+    pub fn intern(&self, obj: T) -> &B {
         let mut map = self.map.borrow_mut();
 
-        if let Some(&ptr) = map.get(object.borrow()) {
+        if let Some(&ptr) = map.get(obj.borrow()) {
             return ptr.as_ref()
         }
 
-        // TODO: Reword
-        //
-        // SAFETY: We move the object into the arena and receive a borrow to it.
-        //   We then must use transmute to promote the borrow's lifetime to that
-        //   required by `map`.  The new lifetime might exceed the arena's
-        //   lifetime.  That is OK, because the lifetime is reconstrained to
-        //   that of &self on return from this function, and the arena will not
-        //   drop the object within the lifetime of &self.
-        //
-        let ptr = self.arena.alloc(object) as &T;
-        let ptr = Ptr::from(ptr.borrow());
+        let obj = self.arena.alloc(obj) as &T;
+
+        let ptr = Ptr::from(obj.borrow());
         map.insert(ptr, ptr);
         ptr.as_ref()
     }
 
-    pub fn intern_ref(&self, object: &'static B) -> &B {
+    pub fn intern_ref(&self, obj: &'static B) -> &B {
         let mut map = self.map.borrow_mut();
 
-        if let Some(&ptr) = map.get(object) {
+        if let Some(&ptr) = map.get(obj) {
             return ptr.as_ref()
         }
 
-        let ptr = Ptr::from(object);
+        let ptr = Ptr::from(obj);
         map.insert(ptr, ptr);
         ptr.as_ref()
     }
@@ -90,49 +92,50 @@ where T: Borrow<B>, B: Hash + Eq {
 // -----------------------------------------------------------------------------
 // Tests
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//
-//    #[test]
-//    fn intern() {
-//        let a_str = "Hello".to_string();
-//        let b_str = "Hello".to_string();
-//        let c_str = "olleH".to_string();
-//
-//        assert!(&a_str as *const String != &b_str as *const String);
-//
-//        let interner = StringInterner::new();
-//        let a_intern = interner.intern(a_str);
-//        let b_intern = interner.intern(b_str);
-//        let c_intern = interner.intern(c_str);
-//
-//        assert!(a_intern as *const str == b_intern as *const str);
-//        assert!(a_intern as *const str != c_intern as *const str);
-//        assert!(b_intern == "Hello");
-//        assert!(c_intern == "olleH");
-//    }
-//
-//    #[test]
-//    fn intern_ref() {
-//        let a_str = "Hello".to_string();
-//        let b_str = "Hello".to_string();
-//        let c_str = "olleH".to_string();
-//
-//        let a_ref = a_str.as_ref();
-//        let b_ref = b_str.as_ref();
-//        let c_ref = c_str.as_ref();
-//
-//        assert!(a_ref as *const str != b_ref as *const str);
-//
-//        let interner = StringInterner::new();
-//        let a_intern = interner.intern_ref(a_ref);
-//        let b_intern = interner.intern_ref(b_ref);
-//        let c_intern = interner.intern_ref(c_ref);
-//
-//        assert!(a_intern as *const str == a_ref as *const str);
-//        assert!(b_intern as *const str == a_ref as *const str);
-//        assert!(c_intern as *const str == c_ref as *const str);
-//    }
-//}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Prefixes guarantee that rustc will emit two separate "Hello" strings.
+    static A: str = *"A Hello";
+    static B: str = *"B Hello";
+    static C: str = *"C olleH";
+
+    #[test]
+    fn intern() {
+        let a_str = (&A[2..]).to_string();
+        let b_str = (&B[2..]).to_string();
+        let c_str = (&C[2..]).to_string();
+
+        assert!(a_str.as_ptr() != b_str.as_ptr());
+
+        let interner = StringInterner::new();
+        let a_intern = interner.intern(a_str);
+        let b_intern = interner.intern(b_str);
+        let c_intern = interner.intern(c_str);
+
+        assert!(a_intern.as_ptr() == b_intern.as_ptr());
+        assert!(a_intern.as_ptr() != c_intern.as_ptr());
+        assert!(b_intern == "Hello");
+        assert!(c_intern == "olleH");
+    }
+
+    #[test]
+    fn intern_ref() {
+        let a_ref = &A[2..];
+        let b_ref = &B[2..];
+        let c_ref = &C[2..];
+
+        assert!(a_ref.as_ptr() != b_ref.as_ptr());
+
+        let interner = StringInterner::new();
+        let a_intern = interner.intern_ref(a_ref);
+        let b_intern = interner.intern_ref(b_ref);
+        let c_intern = interner.intern_ref(c_ref);
+
+        assert!(a_intern.as_ptr() == a_ref.as_ptr());
+        assert!(b_intern.as_ptr() == a_ref.as_ptr());
+        assert!(c_intern.as_ptr() == c_ref.as_ptr());
+    }
+}
 
