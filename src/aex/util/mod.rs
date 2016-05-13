@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-pub mod fmap;
+//pub mod fmap;
 
-pub trait Lookup<K: ?Sized, V: ?Sized> {
-    fn lookup(&self, key: &K) -> Option<&V>;
-}
+//pub trait Lookup<K: ?Sized, V: ?Sized> {
+//    fn lookup(&self, key: &K) -> Option<&V>;
+//}
 
 #[inline(always)]
 pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
@@ -31,17 +31,27 @@ pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
 mod tests {
     use super::*;
 
+    static X: str = *"xax";
+    static Y: str = *"yay";
+
     #[test]
     fn ref_eq_true() {
-        let x = &"".to_string();
-        let y = x;
+        let x = &X;
+        let y =  x;
         assert_eq!(ref_eq(x, y), true);
     }
 
     #[test]
-    fn ref_eq_false() {
-        let x = &"".to_string();
-        let y = &"".to_string();
+    fn ref_eq_false_by_ptr() {
+        let x = &X[1..2];
+        let y = &Y[1..2];
+        assert_eq!(ref_eq(x, y), false);
+    }
+
+    #[test]
+    fn ref_eq_false_by_len() {
+        let x = &X[1..2];
+        let y = &X[1.. ];
         assert_eq!(ref_eq(x, y), false);
     }
 }
