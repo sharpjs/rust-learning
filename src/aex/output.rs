@@ -20,9 +20,9 @@ use aex::asm::Assembly;
 use aex::message::Messages;
 
 #[derive(Clone, Debug)]
-pub struct Output<'str> {
+pub struct Output<'a> {
     pub asm: Assembly,
-    pub log: Messages<'str>,
+    pub log: Messages<'a>,
 }
 
 impl<'str> Output<'str> {

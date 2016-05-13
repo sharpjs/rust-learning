@@ -27,9 +27,9 @@ use aex::util::Lookup;
 
 // TODO: Do we need to add 'a here, or can we take Type<> down to 1 lifetime param?
 
-pub struct Scope<'me> {
-    pub symbols: ScopeMap<'me, Symbol<'me, 'me>>,
-    pub types:   ScopeMap<'me, Type  <'me, 'me>>,
+pub struct Scope<'a> {
+    pub symbols: ScopeMap<'a, Symbol<'a>>,
+    pub types:   ScopeMap<'a, Type  <'a>>,
 }
 
 impl<'me> Scope<'me> {
