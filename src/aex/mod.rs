@@ -30,7 +30,7 @@ mod pos;
 //mod source;
 //mod symbol;
 //mod target;
-//mod types;
+mod types;
 mod util;
 //mod value;
 

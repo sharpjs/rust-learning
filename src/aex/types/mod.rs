@@ -21,7 +21,7 @@ pub mod builtin;
 pub mod float;
 pub mod form;
 pub mod int;
-pub mod res;
+//pub mod res;
 
 use num::{BigInt, BigUint};
 
@@ -32,24 +32,26 @@ use aex::types::form::TypeForm;
 use aex::types::int::IntSpec;
 use aex::util::ref_eq;
 
+// -----------------------------------------------------------------------------
+
 // Type expression
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Type<'s, 'a: 's> {
-    Ident   (Source<'a>, &'a str, Option<&'s Type<'s, 'a>>),
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub enum Type<'a> {
+    Ident   (Source<'a>, &'a str, Option<&'a Type<'a>>),
     Int     (Source<'a>, Option<IntSpec>),
     Float   (Source<'a>, Option<FloatSpec>),
-    Array   (Source<'a>, Box<Type<'s, 'a>>, Option<BigUint>),
-    Ptr     (Source<'a>, Box<Type<'s, 'a>>, Box<Type<'s, 'a>>),
-    Struct  (Source<'a>, Vec<Member<'s, 'a>>),
-    Union   (Source<'a>, Vec<Member<'s, 'a>>),
-    Func    (Source<'a>, Vec<Member<'s, 'a>>, Vec<Member<'s, 'a>>),
+    Array   (Source<'a>, Box<Type<'a>>, Option<BigUint>),
+    Ptr     (Source<'a>, Box<Type<'a>>, Box<Type<'a>>),
+    Struct  (Source<'a>, Vec<Member<'a>>),
+    Union   (Source<'a>, Vec<Member<'a>>),
+    Func    (Source<'a>, Vec<Member<'a>>, Vec<Member<'a>>),
 }
 
 // Complex type member
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Member<'s, 'a: 's> (&'a str, Type<'s, 'a>);
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+pub struct Member<'a> (&'a str, Type<'a>);
 
-impl<'s, 'a: 's> Type<'s, 'a> {
+impl<'a> Type<'a> {
     pub fn form(&self) -> TypeForm {
         match *self {
             Type::Int   (_, s)          => TypeForm::Inty   (s),
@@ -155,7 +157,7 @@ impl<'s, 'a: 's> Type<'s, 'a> {
         }
     }
 
-    fn check_compat_members(x: &[Member<'s, 'a>], y: &[Member<'s, 'a>]) -> CheckResult {
+    fn check_compat_members(x: &[Member<'a>], y: &[Member<'a>]) -> CheckResult {
         // Member lists must have same length.
         if x.len() != y.len() {
             return CheckResult::None
@@ -220,7 +222,7 @@ impl<'s, 'a: 's> Type<'s, 'a> {
 //    }
 }
 
-impl<'s, 'a: 's> Contains<BigInt> for Type<'s, 'a> {
+impl<'a> Contains<BigInt> for Type<'a> {
     #[inline(always)]
     fn contains(&self, item: &BigInt) -> Option<bool> {
         self.form().contains(item)

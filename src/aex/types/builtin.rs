@@ -21,25 +21,6 @@ use aex::types::Type;
 use aex::types::float::FloatSpec;
 use aex::types::int::IntSpec;
 
-struct BuiltInTypes<'s, 'a: 's> {
-    // Abstract
-    pub int:      Type<'s, 'a>,
-    pub float:    Type<'s, 'a>,
-    // Concrete unsigned integer
-    pub uint_8:   Type<'s, 'a>,
-    pub uint_16:  Type<'s, 'a>,
-    pub uint_32:  Type<'s, 'a>,
-    pub uint_64:  Type<'s, 'a>,
-    // Concrete signed integer
-    pub int_8:    Type<'s, 'a>,
-    pub int_16:   Type<'s, 'a>,
-    pub int_32:   Type<'s, 'a>,
-    pub int_64:   Type<'s, 'a>,
-    // Concrete floating-point
-    pub float_32: Type<'s, 'a>,
-    pub float_64: Type<'s, 'a>,
-}
-
 macro_rules! int {
     () => (Type::Int(Source::BuiltIn, None));
 
@@ -58,29 +39,25 @@ macro_rules! float {
     ))
 }
 
-impl<'s, 'a: 's> Default for BuiltInTypes<'s, 'a> {
-    fn default() -> Self {
-        BuiltInTypes {
-            // Abstract
-            int:      int!   (),
-            float:    float! (),
-            // Concrete unsigned integer
-            uint_8:   int!   ( 8,  8, false),
-            uint_16:  int!   (16, 16, false),
-            uint_32:  int!   (32, 32, false),
-            uint_64:  int!   (64, 64, false),
-            // Concrete signed integer
-            int_8:    int!   ( 8,  8, true),
-            int_16:   int!   (16, 16, true),
-            int_32:   int!   (32, 32, true),
-            int_64:   int!   (64, 64, true),
-            // Concrete floating-point
-            float_32: float! (32, 32),
-            float_64: float! (64, 64),
-        }
-    }
-}
+// Abstract integer
+pub static INT:   Type<'static> = int!   ();
 
-pub static U16: Type<'static, 'static> = int!(16, 16, false);
-pub static U32: Type<'static, 'static> = int!(32, 32, false);
+// Concrete unsigned integer
+pub static U8:    Type<'static> = int!   ( 8,  8, false);
+pub static U16:   Type<'static> = int!   (16, 16, false);
+pub static U32:   Type<'static> = int!   (32, 32, false);
+pub static U64:   Type<'static> = int!   (64, 64, false);
+
+// Concrete signed integer
+pub static I8:    Type<'static> = int!   ( 8,  8, true);
+pub static I16:   Type<'static> = int!   (16, 16, true);
+pub static I32:   Type<'static> = int!   (32, 32, true);
+pub static I64:   Type<'static> = int!   (64, 64, true);
+
+// Abstract floating-point
+pub static FLOAT: Type<'static> = float! ();
+
+// Concrete floating-point
+pub static F32:   Type<'static> = float! (32, 32);
+pub static F64:   Type<'static> = float! (64, 64);
 
