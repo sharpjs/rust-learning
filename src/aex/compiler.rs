@@ -16,11 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(unused_mut)]
+
 //use aex::asm::Assembly;
 //use aex::codegen::CodeGenerator;
 //use aex::lexer::Lexer;
 //use aex::mem::arena::Arena;
-//use aex::mem::interner::StringInterner;
+use aex::mem::StringInterner;
 //use aex::message::Messages;
 //use aex::operator::{self, OpTable};
 //use aex::parser::parse;
@@ -29,57 +31,76 @@
 
 //use aex::target::ColdFire;
 
-pub fn compile<I>(input: I, filename: &str)
-where I: Iterator<Item=char> {
-//    let target   = ColdFire::new();
-//    let memory   = Memory::new();
-//    let compiler = Compiler::new(target, &memory);
-
-//    let ast = {
-//        let mut lexer = Lexer::new(&mut compilation, input);
-//        parse(&mut lexer)
-//    };
-//
-//    let generator = CodeGenerator::new(&mut compilation);
-//
-//    println!("{:#?}", ast);
+pub struct Compiler {
+    //pub target:  T,
+    pub strings:   StringInterner,
+    //pub code:    Assembly,
+    //pub log:     Messages<'a>,
+    //pub ops:     OpTable,
 }
 
-//struct Compiler<'a> {
-//    pub target:    T,
-//    pub strings:   &'a StringInterner<'a>,
-//    pub positions: &'a Arena<Pos<'a>>,
-    //pub code:      Assembly,
-    //pub log:       Messages<'a>,
-    //pub ops:       OpTable,
-//}
+impl Compiler {
+    pub fn new() -> Self {
+        Compiler {
+            //target:  target,
+            strings:   StringInterner::new(),
+            //code:    Assembly::new(),
+            //log:     Messages::new(),
+            //ops:     operator::create_op_table()
+        }
+    }
 
-//impl<'a, T: Target> Compiler<'a, T> {
-//    pub fn new(target: T, memory: &'a Memory<'a>) -> Self {
-//        Compiler {
-//            target:    target,
-//            strings:   &memory.strings,
-//            positions: &memory.positions,
-//            code:      Assembly::new(),
-//            log:       Messages::new(),
-//            ops:       operator::create_op_table()
-//        }
-//    }
-//}
+    pub fn compile<I>(mut self, input: I, filename: &str)
+    where I: Iterator<Item=char> {
 
-// This type is separate, so that rustc generates a useful 'a.
-//
-//struct Memory<'a> {
-//    strings:   StringInterner<'a>,
-//    positions: Arena<Pos<'a>>,
-//}
-//
-//impl<'a> Memory<'a> {
-//    pub fn new() -> Self {
-//        Memory {
-//            strings:   StringInterner::new(),
-//            positions: Arena::new(),
-//        }
-//    }
-//}
+        // Step 1
+        let mut ast = self.parse(input, filename);
+
+        // Step 2
+        self.check_types(&mut ast);
+
+        // Step 3
+        self.generate_code(&ast);
+
+        // Step 4
+        // Do something with output
+
+        println!("{:#?}", ast);
+    }
+
+    fn parse<'a, I>(&mut self, input: I, filename: &'a str) -> Ast<'a>
+    where I: Iterator<Item=char> {
+        Ast(PhantomData)
+        //let lexer = Lexer::new(&mut self, input);
+        //parse(lexer)
+    }
+
+    fn check_types<'a>(&mut self, ast: &mut Ast<'a>) {
+    }
+
+    fn generate_code<'a>(&mut self, ast: &Ast<'a>) {
+        // let generator = CodeGenerator::new(&mut compilation);
+    }
+}
+
+// Stubs
+
+use std::marker::PhantomData;
+
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
+struct Ast<'a>
+    (PhantomData<&'a ()>);
+
+struct Lexer<'a, I: Iterator<Item=char>>
+    (&'a mut Compiler, I);
+
+impl<'a, I: Iterator<Item=char>> Lexer<'a, I> {
+    pub fn new(compiler: &'a mut Compiler, input: I) -> Self {
+        Lexer(compiler, input)
+    }
+}
+
+fn parse<'a, I: Iterator<Item=char>>(mut lexer: Lexer<'a, I>) -> Ast<'a> {
+    Ast(PhantomData)
+}
 

@@ -34,12 +34,9 @@ mod types;
 mod util;
 //mod value;
 
-pub use aex::compiler::compile;
+pub use aex::compiler::Compiler;
 //pub use aex::target::ColdFire;
 
-// Not recently visited
-
 //mod message;
-
 //mod analyze;
 
