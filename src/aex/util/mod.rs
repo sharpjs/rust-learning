@@ -18,9 +18,9 @@
 
 //pub mod fmap;
 
-//pub trait Lookup<K: ?Sized, V: ?Sized> {
-//    fn lookup(&self, key: &K) -> Option<&V>;
-//}
+pub trait Lookup<K: ?Sized, V: ?Sized> {
+    fn lookup(&self, key: &K) -> Option<&V>;
+}
 
 #[inline(always)]
 pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
