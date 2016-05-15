@@ -34,9 +34,6 @@ use aex::mem::StringInterner;
 pub struct Compiler {
     //pub target:  T,
     pub strings:   StringInterner,
-    //pub code:    Assembly,
-    //pub log:     Messages<'a>,
-    //pub ops:     OpTable,
 }
 
 impl Compiler {
@@ -44,23 +41,20 @@ impl Compiler {
         Compiler {
             //target:  target,
             strings:   StringInterner::new(),
-            //code:    Assembly::new(),
-            //log:     Messages::new(),
-            //ops:     operator::create_op_table()
         }
     }
 
-    pub fn compile<I>(mut self, input: I, filename: &str)
-    where I: Iterator<Item=char> {
+    pub fn compile(mut self, name: &str, input: &str) {
+        let out = &mut Output::new();
 
         // Step 1
-        let mut ast = self.parse(input, filename);
+        let mut ast = self.parse(name, input, out);
 
         // Step 2
-        self.check_types(&mut ast);
+        self.check_types(&mut ast, out);
 
         // Step 3
-        self.generate_code(&ast);
+        self.generate_code(&ast, out);
 
         // Step 4
         // Do something with output
@@ -68,39 +62,78 @@ impl Compiler {
         println!("{:#?}", ast);
     }
 
-    fn parse<'a, I>(&mut self, input: I, filename: &'a str) -> Ast<'a>
-    where I: Iterator<Item=char> {
-        Ast(PhantomData)
-        //let lexer = Lexer::new(&mut self, input);
-        //parse(lexer)
+    fn parse<'a>(&'a self,
+                 input: &'a str,
+                 name:  &'a str,
+                 out:   &mut Output<'a>
+                ) -> Ast<'a> {
+        let lexer = Lexer::new(self, input.chars(), name);
+        parse(lexer)
     }
 
-    fn check_types<'a>(&mut self, ast: &mut Ast<'a>) {
+    fn check_types<'a>(&'a self,
+                       ast: &mut Ast<'a>,
+                       out: &mut Output<'a>) {
+        // todo
     }
 
-    fn generate_code<'a>(&mut self, ast: &Ast<'a>) {
+    fn generate_code<'a>(&'a self,
+                         ast: &Ast<'a>,
+                         out: &mut Output<'a>) {
+        // todo
         // let generator = CodeGenerator::new(&mut compilation);
     }
 }
 
-// Stubs
+// -----------------------------------------------------------------------------
+// STUBS
+// -----------------------------------------------------------------------------
 
 use std::marker::PhantomData;
 
+// -----------------------------------------------------------------------------
+
+pub struct Output<'a> (PhantomData<&'a ()>);
+
+impl<'a> Output<'a> { pub fn new() -> Self { Output(PhantomData) } }
+
+// -----------------------------------------------------------------------------
+
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
-struct Ast<'a>
-    (PhantomData<&'a ()>);
+struct Ast<'a> (PhantomData<&'a ()>);
 
-struct Lexer<'a, I: Iterator<Item=char>>
-    (&'a mut Compiler, I);
+// -----------------------------------------------------------------------------
 
-impl<'a, I: Iterator<Item=char>> Lexer<'a, I> {
-    pub fn new(compiler: &'a mut Compiler, input: I) -> Self {
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+struct Token<'a> (PhantomData<&'a ()>);
+
+// -----------------------------------------------------------------------------
+
+struct Lexer<'a, I: Iterator<Item=char>> (&'a Compiler, I);
+
+impl<'a, I> Lexer<'a, I> where I: Iterator<Item=char> {
+    pub fn new(compiler: &'a Compiler, input: I, name: &'a str) -> Self {
         Lexer(compiler, input)
     }
 }
 
-fn parse<'a, I: Iterator<Item=char>>(mut lexer: Lexer<'a, I>) -> Ast<'a> {
+trait Lex<'a> {
+    fn lex(&mut self) -> Token<'a>;
+}
+
+impl<'a, I> Lex<'a> for Lexer<'a, I> where I: Iterator<Item=char> {
+    fn lex(&mut self) -> Token<'a> {
+        self.1.next();
+        self.1.next();
+        Token(PhantomData)
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+fn parse<'a, L>(mut lexer: L) -> Ast<'a> where L: Lex<'a> {
+    lexer.lex();
+    lexer.lex();
     Ast(PhantomData)
 }
 

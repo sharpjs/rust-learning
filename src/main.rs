@@ -38,6 +38,6 @@ fn main() {
 
     // Set compiler options here
 
-    compiler.compile(input.chars(), "(stdin)");
+    compiler.compile("(stdin)", &input);
 }
 
