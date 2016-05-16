@@ -56,6 +56,9 @@ impl Compiler {
         // Step 3
         self.generate_code(&ast, out);
 
+        // Why can't we do type checking during code generation?
+        // There was a reason, but I forget.
+
         // Step 4
         // Do something with output
 
@@ -84,6 +87,40 @@ impl Compiler {
         // let generator = CodeGenerator::new(&mut compilation);
     }
 }
+
+// Type Declaration Pass:
+//
+// create queue for forward resolutions
+//
+// for each typedef n = t {
+//   create hash of forbidden types
+//   add t to hash
+//
+//   t @ Ident n'     // look up t' by n'
+//                    //  - if none, enqueue
+//                    //  - if t' forbidden, error
+//                    //  - else, ok (t' already checked)
+//   t @ Int          // ok
+//   t @ Float        // ok
+//   t @ Array t'     // recurse for t'
+//   t @ Ptr p v      // recurse for p, v (forbidden v is ok!)
+//   t @ Struct       // recurse for members
+//   t @ Union        // recurse for members
+//   t @ Func         // recurse for members
+//   m @ Member n t'  // recurse for t'
+//   ... check forbidden t' before recurse (except ptr v)
+// }
+//
+// consume each item in queue {
+//   t @ Ident n'   // look up t' by n'
+//                  // - if none, enqueue
+//                  // - if t' forbidden, error
+//                  // else, ok (t' already checked)
+// }
+//
+// if queue size didn't decrease, we have undefined types
+//
+// Q. Can typedefs include types from other scopes?  A. No
 
 // -----------------------------------------------------------------------------
 // STUBS
