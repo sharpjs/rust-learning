@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //mod asm;
-//mod ast;
+mod ast;
 mod compiler;
 //mod codegen;
 mod mem;

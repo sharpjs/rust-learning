@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use aex::types::Type;
+use aex::types::res::ResolvedType;
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub struct Symbol<'a> {
-    pub name: &'a str,
-    pub ty:   &'a Type<'a>,
+    pub id: &'a str,
+    pub ty: ResolvedType<'a>,
 }
 

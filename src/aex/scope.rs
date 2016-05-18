@@ -20,14 +20,14 @@ use std::collections::HashMap;
 
 use aex::mem::Arena;
 use aex::symbol::Symbol;
-use aex::types::Type;
+use aex::types::res::ResolvedType;
 use aex::util::Lookup;
 
 // -----------------------------------------------------------------------------
 
 pub struct Scope<'a> {
     pub symbols: ScopeMap<'a, Symbol<'a>>,
-    pub types:   ScopeMap<'a, Type  <'a>>,
+    pub types:   ScopeMap<'a, ResolvedType<'a>>,
 }
 
 impl<'a> Scope<'a> {
@@ -65,7 +65,7 @@ pub struct ScopeMap<'a, T: 'a> {
     parent: Option<&'a ScopeMap<'a, T>>,
 }
 
-impl<'a, T> ScopeMap<'a, T> {
+impl<'a, T: 'a> ScopeMap<'a, T> {
     fn new(parent: Option<&'a ScopeMap<'a, T>>) -> Self {
         ScopeMap {
             map:    HashMap::new(),
@@ -74,7 +74,7 @@ impl<'a, T> ScopeMap<'a, T> {
         }
     }
 
-    pub fn define(&mut self, name: &'a str, obj: T) -> Result<(), &T> {
+    pub fn define(&mut self, name: &'a str, obj: T) -> Result<(), &'a T> {
         // SAFETY:  We move obj into the arena and receive a borrow to it.
         // We then promote the borrow's lifetime to 'a, as required by the map.
         // The new lifetime 'a might exceed the arena's lifetime.  That is OK,
@@ -87,14 +87,14 @@ impl<'a, T> ScopeMap<'a, T> {
         self.define_ref(name, obj)
     }
 
-    pub fn define_ref(&mut self, name: &'a str, obj: &'a T) -> Result<(), &T> {
+    pub fn define_ref(&mut self, name: &'a str, obj: &'a T) -> Result<(), &'a T> {
         match self.map.insert(name, obj) {
             None      => Ok(()),
             Some(obj) => Err(obj)
         }
     }
 
-    pub fn lookup(&self, name: &str) -> Option<&T> {
+    pub fn lookup(&self, name: &str) -> Option<&'a T> {
         // First, look in this map
         if let Some(&obj) = self.map.get(name) {
             return Some(obj);

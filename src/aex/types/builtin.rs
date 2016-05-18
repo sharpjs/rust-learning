@@ -17,47 +17,66 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use aex::pos::Source;
-use aex::types::Type;
+use aex::types::{Type, IntTy, FloatTy};
 use aex::types::float::FloatSpec;
 use aex::types::int::IntSpec;
 
 macro_rules! int {
-    () => (Type::Int(Source::BuiltIn, None));
+    () => (Type::Int(IntTy::Abstract));
 
     ($vw:expr, $sw:expr, $sg:expr) => (Type::Int(
-        Source::BuiltIn,
-        Some(IntSpec { value_width: $vw, store_width: $sw, signed: $sg })
+        IntTy::Concrete {
+            spec: IntSpec {
+                value_width: $vw,
+                store_width: $sw,
+                signed:      $sg,
+            },
+            src: Source::BuiltIn,
+        }
     ))
 }
 
 macro_rules! float {
-    () => (Type::Float(Source::BuiltIn, None));
+    () => (Type::Float(FloatTy::Abstract));
 
     ($vw:expr, $sw:expr) => (Type::Float(
-        Source::BuiltIn,
-        Some(FloatSpec { value_width: $vw, store_width: $sw })
+        FloatTy::Concrete {
+            spec: FloatSpec {
+                value_width: $vw,
+                store_width: $sw
+            },
+            src: Source::BuiltIn,
+        }
     ))
 }
 
-// Abstract integer
-pub static INT:   Type<'static> = int!   ();
+macro_rules! types {
+    ($($id:ident = $ty:expr;)*) => ($(
+        pub static $id: Type<'static> = $ty;
+    )*)
+}
 
-// Concrete unsigned integer
-pub static U8:    Type<'static> = int!   ( 8,  8, false);
-pub static U16:   Type<'static> = int!   (16, 16, false);
-pub static U32:   Type<'static> = int!   (32, 32, false);
-pub static U64:   Type<'static> = int!   (64, 64, false);
+types! {
+    // Abstract integer
+    INT   = int!();
 
-// Concrete signed integer
-pub static I8:    Type<'static> = int!   ( 8,  8, true);
-pub static I16:   Type<'static> = int!   (16, 16, true);
-pub static I32:   Type<'static> = int!   (32, 32, true);
-pub static I64:   Type<'static> = int!   (64, 64, true);
+    // Concrete unsigned integer
+    U8    = int!( 8,  8, false);
+    U16   = int!(16, 16, false);
+    U32   = int!(32, 32, false);
+    U64   = int!(64, 64, false);
 
-// Abstract floating-point
-pub static FLOAT: Type<'static> = float! ();
+    // Concrete signed integer
+    I8    = int!( 8,  8, true);
+    I16   = int!(16, 16, true);
+    I32   = int!(32, 32, true);
+    I64   = int!(64, 64, true);
 
-// Concrete floating-point
-pub static F32:   Type<'static> = float! (32, 32);
-pub static F64:   Type<'static> = float! (64, 64);
+    // Abstract floating-point
+    FLOAT = float!();
+
+    // Concrete floating-point
+    F32   = float!(32, 32);
+    F64   = float!(64, 64);
+}
 
