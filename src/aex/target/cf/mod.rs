@@ -28,22 +28,10 @@
 //use aex::pos::{Source /*, Pos*/};
 use aex::target::*;
 //use aex::types::builtin::*;
-use aex::types::form::{TypeForm, TypeInfo};
 
 pub struct ColdFire;
 
 impl Target for ColdFire {}
-
-impl Types for ColdFire {
-    fn is_valid_ptr(t: &TypeInfo) -> bool {
-        match t.form {
-            TypeForm::Inty(Some(s))
-                => s.store_width == 32 && s.signed == false
-                || s.store_width == 16 && s.signed == true,
-            _ => false
-        }
-    }
-}
 
 pub enum CfValue {
     DataReg,

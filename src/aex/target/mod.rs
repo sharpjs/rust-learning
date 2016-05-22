@@ -20,25 +20,14 @@ mod cf; // Freescale ColdFire
 
 pub use self::cf::ColdFire;
 
-use aex::types::form::TypeInfo;
-
-pub trait Target: Types {}
-
-pub trait Types {
-    fn is_valid_ptr(&TypeInfo) -> bool;
-}
+pub trait Target {}
 
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use aex::types::form::TypeInfo;
 
     pub struct TestTarget;
 
     impl Target for TestTarget {}
-
-    impl Types for TestTarget {
-        fn is_valid_ptr(t: &TypeInfo) -> bool { true }
-    }
 }
 

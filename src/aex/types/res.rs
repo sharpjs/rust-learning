@@ -265,7 +265,6 @@ impl<'r, 'a: 'r, C: 'r + Context<'a>> TypeResolver<'r, 'a, C> {
         let info = try!(self      .resolve(&p.ptr_ty));
                    try!(self.sub().resolve(&p.val_ty));
 
-        // TODO: Target needs to verify pointer type
         if let TypeForm::Inty(..) = info.form {
             Ok(info)
         } else {
