@@ -18,38 +18,27 @@
 
 mod cf; // Freescale ColdFire
 
-pub use std::fmt::{Debug, Display};
-pub use std::hash::Hash;
-
 pub use self::cf::ColdFire;
 
-//use aex::operator::*;
-//use aex::types::Type;
+use aex::types::form::TypeInfo;
 
-pub trait Target {
-    type String:    Clone + Copy + Eq + PartialEq + Hash + Debug + AsRef<str>;
-    type Source:    Clone + Copy + Eq + PartialEq        + Debug;
-    type Operator:  Clone        + Eq + PartialEq        + Debug;
+pub trait Target: Types {}
 
-    // Target-specific information in an operand
-    //type Term: Constness<Expr=Self::Expr>;
-    //type Expr;
-    //type Operand;
-
-    //fn init_operators(&self, &mut OperatorTable<Self::Term>);
+pub trait Types {
+    fn is_valid_ptr(&TypeInfo) -> bool;
 }
 
 #[cfg(test)]
 pub mod tests {
-    use super::Target;
-    use aex::pos::Source;
+    use super::*;
+    use aex::types::form::TypeInfo;
 
     pub struct TestTarget;
 
-    impl Target for TestTarget {
-        type String   = &'static str;
-        type Source   = Source<'static>;
-        type Operator = i32;
+    impl Target for TestTarget {}
+
+    impl Types for TestTarget {
+        fn is_valid_ptr(t: &TypeInfo) -> bool { true }
     }
 }
 

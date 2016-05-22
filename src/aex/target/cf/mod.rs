@@ -19,43 +19,30 @@
 //mod loc;
 //mod code_gen;
 
-use std::marker::PhantomData;
-
 //use aex::ast::Expr;
 //use aex::operator::{Operator, OperatorTable, Const, Assoc, Fixity, binary_op};
 //use aex::operator::Assoc::*;
 //use aex::operator::Fixity::*;
 //use aex::operator::Arity::*;
 //use aex::operator::{Constness, Operand};
-use aex::pos::{Source /*, Pos*/};
+//use aex::pos::{Source /*, Pos*/};
 use aex::target::*;
+//use aex::types::builtin::*;
+use aex::types::form::{TypeForm, TypeInfo};
 
-pub struct ColdFire<'a> {
-    _x: PhantomData<&'a ()>
-}
+pub struct ColdFire;
 
-impl<'a> ColdFire<'a> {
-    pub fn new() -> Self {
-        ColdFire { _x: PhantomData }
+impl Target for ColdFire {}
+
+impl Types for ColdFire {
+    fn is_valid_ptr(t: &TypeInfo) -> bool {
+        match t.form {
+            TypeForm::Inty(Some(s))
+                => s.store_width == 32 && s.signed == false
+                || s.store_width == 16 && s.signed == true,
+            _ => false
+        }
     }
-}
-
-impl<'a> Target for ColdFire<'a> {
-    type String   = &'a str;
-    type Source   = Source<'a>;
-    type Operator = u8; //Operator<Value<'a>>;
-
-    //type Term    = CfTerm<'a>;
-    //type Expr    = Expr<'a, Self::Term>;
-    //type Operand = Operand<'a, Self::Term>;
-
-    //fn init_operators(&self, operators: &mut OperatorTable<Self::Term>) {
-    //    operators.add(Operator::new("+", 7, Left, Infix, Binary(
-    //        Box::new(|src, sel, args| Operand {
-    //            term: CfTerm::B, kind: 42, src: src
-    //        })
-    //    )));
-    //}
 }
 
 pub enum CfValue {

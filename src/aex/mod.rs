@@ -29,7 +29,7 @@ mod pos;
 mod scope;
 //mod source;
 mod symbol;
-//mod target;
+mod target;
 mod types;
 mod util;
 //mod value;
