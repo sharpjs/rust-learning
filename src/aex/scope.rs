@@ -26,9 +26,12 @@ use aex::util::Lookup;
 // -----------------------------------------------------------------------------
 
 pub struct Scope<'a> {
-    pub symbols: ScopeMap<'a, Symbol<'a>>,
-    pub types:   ScopeMap<'a, ResolvedType<'a>>,
+    pub symbols: SymbolScope<'a>,
+    pub types:   TypeScope  <'a>,
 }
+
+pub type SymbolScope<'a> = ScopeMap<'a, Symbol      <'a>>;
+pub type TypeScope  <'a> = ScopeMap<'a, ResolvedType<'a>>;
 
 impl<'a> Scope<'a> {
     pub fn new() -> Self {

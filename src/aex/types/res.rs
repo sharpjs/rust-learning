@@ -16,10 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashSet;
+use std::cell::RefCell;
+use std::collections::{HashMap, HashSet};
+use std::collections::hash_map::Entry::*;
 
-use aex::ast::{Ast, Stmt};
-use aex::scope::ScopeMap;
+use aex::ast::{Ast, Stmt, TypeDef};
+use aex::scope::{ScopeMap, TypeScope};
 use aex::types::*;
 use aex::types::form::{TypeForm, TypeInfo};
 
@@ -31,13 +33,15 @@ pub struct ResolvedType<'a> {
     pub info: TypeInfo,
 }
 
-impl<'a> ResolvedType<'a> {
-    pub fn compute<'r: 'a>(ty:    &'a Type<'a>,
-                           scope: &'r ScopeMap<'a, Type<'a>>,
-                           log:   &'r mut ()
-                          ) -> Result<Self, ()> {
-        TypeResolver
-            ::new(scope, log)
+// -----------------------------------------------------------------------------
+
+pub trait ResolveType<'a> {
+    fn resolve(&self, ty: &'a Type<'a>) -> Result<ResolvedType<'a>, ()>;
+}
+
+impl<'a> ResolveType<'a> for TypeScope<'a> {
+    fn resolve(&self, ty: &'a Type<'a>) -> Result<ResolvedType<'a>, ()> {
+        TypeResolver::new(self)
             .resolve(ty)
             .map(|info| ResolvedType { ast: ty, info: info })
     }
@@ -45,32 +49,165 @@ impl<'a> ResolvedType<'a> {
 
 // -----------------------------------------------------------------------------
 
-struct TypeResolver<'r, 'a: 'r> {
-    used:  Used<'a>,
-    scope: &'r ScopeMap<'a, Type<'a>>,
-    log:   &'r mut (),
+/// Defines types as expressed by type definitions in an AST scope.
+/// Does not recurse into subscopes.
+///
+pub fn define_types<'a>(ast:   &'a Ast<'a>,
+                        scope: &mut ScopeMap<'a, ResolvedType<'a>>,
+                       ) -> Result<(), ()> {
+    // Collect type definitions into vec
+    let vec = tydefs_to_vec(ast);
+    if vec.is_empty() { return Ok(()) }
+
+    // Collect type definitions into map
+    let map = try!(tydefs_to_map(&vec));
+
+    // Verify soundness and define the types
+    process_typedefs(&vec, &map, scope)
 }
 
-impl<'r, 'a: 'r> TypeResolver<'r, 'a> {
-    fn new(scope: &'r ScopeMap<'a, Type<'a>>,
-           log:   &'r mut (),
-          ) -> Self {
-        TypeResolver {
-            used:  Used::none(),
-            scope: scope,
-            log:   log,
+fn tydefs_to_vec<'a>(ast: &'a Ast<'a>)
+                    -> Vec<&'a TypeDef<'a>> {
+    ast
+        .iter()
+        .filter_map(|s| match *s {
+            Stmt::TypeDef(ref tydef) => Some(tydef),
+            _                        => None,
+        })
+        .collect()
+}
+
+fn tydefs_to_map<'a>(vec: &Vec<&'a TypeDef<'a>>)
+                    -> Result<HashMap<&'a str, &'a TypeDef<'a>>, ()> {
+    let mut map = HashMap::new();
+    let mut ok  = true;
+
+    for &tydef in vec {
+        match map.entry(tydef.id.name) {
+            Vacant   (e) => { e.insert(tydef); },
+            Occupied (e) => {
+                // err: "Duplicate type definition."
+                ok = false
+            }
         }
     }
 
-    fn child<'c>(&'c mut self) -> TypeResolver<'c, 'a> {
-        TypeResolver {
-            used:  Used::none(),
-            scope: self.scope,
-            log:   self.log,
+    if ok { Ok(map) } else { Err(()) }
+}
+
+fn process_typedefs<'a>(vec:   &Vec<&'a TypeDef<'a>>,
+                        map:   &HashMap<&'a str, &'a TypeDef<'a>>,
+                        scope: &mut ScopeMap<'a, ResolvedType<'a>>,
+                       ) -> Result<(), ()>
+{
+    let ctx = InTypeDef {
+        defs:  &map,
+        scope: RefCell::new(scope)
+    };
+
+    let mut ok = true;
+
+    for &tydef in vec {
+        let mut res = TypeResolver::new(&ctx);
+        match res.resolve(&tydef.ty) {
+            Ok(info) => {
+                ok &= ctx.scope
+                    .borrow_mut()
+                    .define(tydef.id.name, ResolvedType {
+                        ast:  &tydef.ty,
+                        info: info
+                    })
+                    .is_ok()
+            },
+            Err(_) => {
+                ok = false
+            }
         }
     }
 
-    pub fn resolve(&mut self, ty: &Type<'a>) -> Result<TypeInfo, ()> {
+    if ok { Ok(()) } else { Err(()) }
+}
+
+// -----------------------------------------------------------------------------
+
+trait Context<'a>: Sized {
+    fn lookup<'b>(&self,
+                  name: &'a str,
+                  res:  &mut TypeResolver<'b, 'a, Self>
+                 ) -> Result<TypeInfo, ()>;
+
+    fn err_not_found(&self, name: &str) -> Result<TypeInfo, ()> { Err(()) }
+    fn err_duplicate(&self, name: &str) -> Result<TypeInfo, ()> { Err(()) }
+    fn err_circular (&self, name: &str) -> Result<TypeInfo, ()> { Err(()) }
+}
+
+// -----------------------------------------------------------------------------
+
+impl<'a> Context<'a> for TypeScope<'a> {
+    fn lookup<'b>(&self,
+                  name: &'a str,
+                  res:  &mut TypeResolver<'b, 'a, Self>
+                 ) -> Result<TypeInfo, ()> {
+        // Look up type; if found it's already resolved
+        match self.lookup(name) {
+            Some(ty) => Ok(ty.info),
+            None     => self.err_not_found(name),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+struct InTypeDef<'r, 'a: 'r> {
+    defs:  &'r HashMap<&'a str, &'a TypeDef<'a>>,
+    scope: RefCell<&'r mut TypeScope<'a>>,
+}
+
+impl<'r, 'a: 'r> Context<'a> for InTypeDef<'r, 'a> {
+    fn lookup<'b>(&self,
+                  name: &'a str,
+                  res:  &mut TypeResolver<'b, 'a, Self>
+                 ) -> Result<TypeInfo, ()> {
+
+        // Check if type is resolved already
+        match self.scope.borrow().lookup(name) {
+            Some(ty) => return Ok(ty.info),
+            None     => (),
+        }
+
+        // Check if type is defined in current scope
+        let def = match self.defs.get(name) {
+            Some(&def) => def,
+            None       => return self.err_not_found(name),
+        };
+
+        // Resolve definition
+        let info = try!(res.resolve(&def.ty));
+        let ty   = ResolvedType { ast: &def.ty, info: info };
+
+        let ty = self.scope.borrow_mut().define(name, ty);
+        let ty = self.scope.borrow().lookup(name).unwrap();
+        Ok(ty.info)
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+struct TypeResolver<'r, 'a: 'r, C: 'r + Context<'a>> {
+    used: Used<'a>,
+    ctx:  &'r C
+}
+
+impl<'r, 'a: 'r, C: 'r + Context<'a>> TypeResolver<'r, 'a, C> {
+    fn new(ctx: &'r C) -> Self {
+        TypeResolver { used: Used::none(), ctx: ctx }
+    }
+
+    fn sub(&self) -> Self {
+        Self::new(self.ctx)
+    }
+
+    fn resolve(&mut self, ty: &Type<'a>) -> Result<TypeInfo, ()> {
         match *ty {
             Type::Ref    (ref r) => self.resolve_ref    (r),
             Type::Int    (ref i) => self.resolve_int    (i),
@@ -84,22 +221,7 @@ impl<'r, 'a: 'r> TypeResolver<'r, 'a> {
     }
 
     fn resolve_ref(&mut self, r: &TyRef<'a>) -> Result<TypeInfo, ()> {
-        // Look up type name
-        let ty = match self.scope.lookup(r.id.name) {
-            Some(ty) => ty,
-            _ => {
-                // Type not found
-                return Err(())
-            }
-        };
-
-        // Disallow circular reference
-        if !self.used.mark(r.id.name) {
-            // Unsupported circular reference
-            return Err(())
-        }
-
-        self.resolve(ty)
+        self.ctx.lookup(r.id.name, self)
     }
 
     fn resolve_int(&mut self, i: &IntTy<'a>) -> Result<TypeInfo, ()> {
@@ -140,8 +262,8 @@ impl<'r, 'a: 'r> TypeResolver<'r, 'a> {
     }
 
     fn resolve_ptr(&mut self, p: &PtrTy<'a>) -> Result<TypeInfo, ()> {
-        let info = try!(self        .resolve(&p.ptr_ty));
-                   try!(self.child().resolve(&p.val_ty));
+        let info = try!(self      .resolve(&p.ptr_ty));
+                   try!(self.sub().resolve(&p.val_ty));
 
         // TODO: Target needs to verify pointer type
         if let TypeForm::Inty(..) = info.form {
@@ -154,126 +276,40 @@ impl<'r, 'a: 'r> TypeResolver<'r, 'a> {
 
     fn resolve_struct(&mut self, s: &StructTy<'a>) -> Result<TypeInfo, ()> {
         Err(())
+//            let size = try!(verify_members(&s.members[..], tys, used));
+//            Ok(TypeForm::Opaque(size))
     }
 
     fn resolve_union(&mut self, u: &UnionTy<'a>) -> Result<TypeInfo, ()> {
         Err(())
+//            let size = try!(verify_members(&u.members[..], tys, used));
+//            Ok(TypeForm::Opaque(size))
     }
 
     fn resolve_func(&mut self, f: &FuncTy<'a>) -> Result<TypeInfo, ()> {
         Err(())
-    }
-}
-
-// -----------------------------------------------------------------------------
-
-pub fn process_typedefs<'a>(ast: &'a Ast<'a>,
-                            tys: &mut ScopeMap<'a, Type<'a>>,
-                           ) -> Result<(), ()> {
-    // Collect type definitions
-    let tydefs: Vec<_> = ast
-        .iter()
-        .filter_map(|n| match *n {
-            Stmt::TypeDef(ref tydef) => Some(tydef),
-            _ => None,
-        })
-        .collect();
-
-    // Add defined types to scope
-    for &tydef in &tydefs {
-        if let Err(e) = tys.define_ref(tydef.id.name, &tydef.ty) {
-            panic!("Duplicate type definition.")
-        }
+//            let a    = verify_members(&f.params[..], tys, &mut Used::none());
+//            let b    = verify_members(&f.rets  [..], tys, &mut Used::none());
+//            let size = try!(a) + try!(b);
+//            Ok(TypeForm::Opaque(size))
     }
 
-    // Verify type definitions are sound
-    let mut ok = true;
-    for &tydef in &tydefs {
-        let used = &mut Used::one(tydef.id.name);
-        ok &= verify_type(&tydef.ty, tys, used).is_ok();
-    }
-
-    // Done
-    if ok { Ok(()) } else { Err(()) }
-}
-
-fn verify_type<'a>(ty:   &Type<'a>,
-                   tys:  &ScopeMap<'a, Type<'a>>,
-                   used: &mut Used<'a>
-                  ) -> Result<TypeForm, ()> {
-    match *ty {
-        Type::Ref(ref r) => {
-            let ty = match tys.lookup(r.id.name) {
-                Some(ty) => ty,
-                _ => {
-                    // Type not found
-                    return Err(())
-                }
-            };
-            if !used.mark(r.id.name) {
-                // Unsupported circular reference
-                return Err(())
-            }
-            verify_type(ty, tys, used)
-        },
-        Type::Array(ref a) => {
-            // must be sized type, or a ref to one
-            let form = try!(verify_type(&a.ty, tys, used));
-            if form.size_bytes() != 0 {
-                Ok(form)
-            } else {
-                // Array elements must have a known size
-                return Err(())
-            }
-        },
-        Type::Ptr(ref p) => {
-            // ptr_ty must be integral type, or a ref to one
-            let form = try!(verify_type(&p.ptr_ty, tys, used));
-                       try!(verify_type(&p.val_ty, tys, &mut Used::none()));
-            if let TypeForm::Inty(..) = form {
-                Ok(form)
-            } else {
-                // Pointers must have an integral type
-                // TODO: Target needs to verify pointers too
-                return Err(())
-            }
-        },
-        Type::Struct(ref s) => {
-            let size = try!(verify_members(&s.members[..], tys, used));
-            Ok(TypeForm::Opaque(size))
-        },
-        Type::Union(ref u) => {
-            let size = try!(verify_members(&u.members[..], tys, used));
-            Ok(TypeForm::Opaque(size))
-        },
-        Type::Func(ref f) => {
-            let a    = verify_members(&f.params[..], tys, &mut Used::none());
-            let b    = verify_members(&f.rets  [..], tys, &mut Used::none());
-            let size = try!(a) + try!(b);
-            Ok(TypeForm::Opaque(size))
-        },
-        _ => {
-            // Remaining types are in resolved form already
-            Err(()) // TODO: Should be Ok
-        }
-    }
-}
-
-fn verify_members<'a>(members: &[Member<'a>],
-                      tys:     &ScopeMap<'a, Type<'a>>,
-                      used:    &mut Used<'a>
-                     ) -> Result<usize, ()> {
-    let mut size = 0;
-    let mut ok   = true;
-
-    for member in members {
-        match verify_type(&member.ty, tys, used) {
-            Ok(form) => size += 1,
-            Err(())  => ok    = false,
-        }
-    }
-
-    if ok { Ok(size) } else { Err(()) }
+//    fn verify_members<'a>(members: &[Member<'a>],
+//                          tys:     &ScopeMap<'a, Type<'a>>,
+//                          used:    &mut Used<'a>
+//                         ) -> Result<usize, ()> {
+//        let mut size = 0;
+//        let mut ok   = true;
+//    
+//        for member in members {
+//            match verify_type(&member.ty, tys, used) {
+//                Ok(form) => size += 1,
+//                Err(())  => ok    = false,
+//            }
+//        }
+//    
+//        if ok { Ok(size) } else { Err(()) }
+//    }
 }
 
 // -----------------------------------------------------------------------------
