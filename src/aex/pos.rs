@@ -27,6 +27,15 @@ pub enum Source<'a> {
     }
 }
 
+impl<'a> fmt::Display for Source<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Source::BuiltIn          => write!(f, "(built-in)"),
+            Source::File { pos, .. } => write!(f, "{}", pos),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub struct Pos<'a> {
     pub file:   &'a str,    // file name

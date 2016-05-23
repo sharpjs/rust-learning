@@ -19,7 +19,7 @@
 use std::fmt::{self, Display, Write};
 use std::ops::Deref;
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug)]
 pub struct Assembly (String);
 
 const INITIAL_CAPACITY: usize = 4096;

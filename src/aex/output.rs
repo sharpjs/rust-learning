@@ -25,7 +25,7 @@ pub struct Output<'a> {
     pub log: Messages<'a>,
 }
 
-impl<'str> Output<'str> {
+impl<'a> Output<'a> {
     pub fn new() -> Self {
         Output {
             asm: Assembly::new(),
