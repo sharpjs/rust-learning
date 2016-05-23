@@ -31,12 +31,9 @@ pub struct TypeInfo {
 
 #[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum TypeForm {
-    Inty    (Option<  IntSpec>),    // Int, Ptr
+    Inty    (Option<IntSpec  >),    // Int, Ptr
     Floaty  (Option<FloatSpec>),    // Float
-    Opaque  (usize            ),    // Array, Union, Struct, Func
-}
-
-impl TypeInfo {
+    Opaque  (Option<usize    >),    // Array, Union, Struct, Func
 }
 
 impl TypeForm {
@@ -80,7 +77,9 @@ impl TypeForm {
             TypeForm::Floaty(Some(FloatSpec { store_width, .. })) => {
                 bits_to_bytes(store_width)
             },
-            TypeForm::Opaque(size) => size,
+            TypeForm::Opaque(Some(size)) => {
+                size
+            },
             _ => 0,
         }
     }

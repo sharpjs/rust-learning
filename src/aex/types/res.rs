@@ -274,41 +274,82 @@ impl<'r, 'a: 'r, C: 'r + Context<'a>> TypeResolver<'r, 'a, C> {
     }
 
     fn resolve_struct(&mut self, s: &StructTy<'a>) -> Result<TypeInfo, ()> {
-        Err(())
-//            let size = try!(verify_members(&s.members[..], tys, used));
-//            Ok(TypeForm::Opaque(size))
+        let size = try!(
+            self.resolve_members(&s.members[..], sum)
+        );
+        Ok(TypeInfo {
+            form:  TypeForm::Opaque(Some(size)),
+            step:  0,
+            count: 1,
+        })
     }
 
     fn resolve_union(&mut self, u: &UnionTy<'a>) -> Result<TypeInfo, ()> {
-        Err(())
-//            let size = try!(verify_members(&u.members[..], tys, used));
-//            Ok(TypeForm::Opaque(size))
+        let size = try!(
+            self.resolve_members(&u.members[..], max)
+        );
+        Ok(TypeInfo {
+            form:  TypeForm::Opaque(Some(size)),
+            step:  0,
+            count: 1,
+        })
     }
 
     fn resolve_func(&mut self, f: &FuncTy<'a>) -> Result<TypeInfo, ()> {
-        Err(())
-//            let a    = verify_members(&f.params[..], tys, &mut Used::none());
-//            let b    = verify_members(&f.rets  [..], tys, &mut Used::none());
-//            let size = try!(a) + try!(b);
-//            Ok(TypeForm::Opaque(size))
+        try!(self.sub_resolve_members(&f.params[..]));
+        try!(self.sub_resolve_members(&f.rets  [..]));
+        Ok(TypeInfo {
+            form:  TypeForm::Opaque(None),
+            step:  0,
+            count: 1,
+        })
     }
 
-//    fn verify_members<'a>(members: &[Member<'a>],
-//                          tys:     &ScopeMap<'a, Type<'a>>,
-//                          used:    &mut Used<'a>
-//                         ) -> Result<usize, ()> {
-//        let mut size = 0;
-//        let mut ok   = true;
-//    
-//        for member in members {
-//            match verify_type(&member.ty, tys, used) {
-//                Ok(form) => size += 1,
-//                Err(())  => ok    = false,
-//            }
-//        }
-//    
-//        if ok { Ok(size) } else { Err(()) }
-//    }
+    fn resolve_members<F>(&mut self, members: &[Member<'a>], f: F)
+                         -> Result<usize, ()>
+                         where F: Fn(usize, usize) -> usize {
+        let mut size = 0;
+        let mut ok   = true;
+    
+        for member in members {
+            let bytes = match self.resolve(&member.ty) {
+                Ok  (ref info) => info.form.size_bytes(),
+                Err (()      ) => { ok = false; continue }
+            };
+
+            if bytes == 0 {
+                // err: unsized type
+                ok = false; continue
+            }
+
+            size = f(size, bytes)
+        }
+    
+        if ok { Ok(size) } else { Err(()) }
+    }
+
+    fn sub_resolve_members(&mut self, members: &[Member<'a>])
+                          -> Result<(), ()> {
+        let mut ok = true;
+    
+        for member in members {
+            if self.sub().resolve(&member.ty).is_err() {
+                ok = false
+            }
+        }
+
+        if ok { Ok(()) } else { Err(()) }
+    }
+}
+
+#[inline]
+fn sum(a: usize, b: usize) -> usize {
+    a + b
+}
+
+#[inline]
+fn max(a: usize, b: usize) -> usize {
+    if a > b { a } else { b }
 }
 
 // -----------------------------------------------------------------------------
