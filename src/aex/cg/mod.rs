@@ -16,24 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//mod eval;
-//mod types;
-
-use aex::compiler::Compiler;
-//use aex::scope::Scope;
-
-//use self::eval::Eval;
-
-//use aex::analyze::*;
 use aex::ast::*;
+use aex::compiler::Compiler;
 use aex::output::Output;
 use aex::scope::Scope;
 use aex::types::res::define_types;
-//
-//use self::eval::Eval;
-//
-//pub mod eval;
-//pub mod ops;
 
 // -----------------------------------------------------------------------------
 // Code Generator
@@ -48,52 +35,18 @@ pub fn generate_code<'a>(compiler: &Compiler,
 
     // Pass 2: Evaluation
     for stmt in ast {
+        evaluate(compiler, stmt, scope, out)
     }
 
     Ok(())
 }
 
-//pub struct CodeGenerator<'me, 'str: 'me> {
-//    context:   Context<'me, 'str>,
-//    evaluator: &'me Eval,
-//}
-//
-//pub struct Context<'me, 'str: 'me> {
-//    pub scope: Scope<'me>,
-//    pub out:   &'me mut Output<'str>,
-//}
-//
-//impl<'me, 'str> CodeGenerator<'me, 'str> {
-//    pub fn new(out:       &'me mut Output <'str>,
-//               evaluator: &'me     Eval,
-//              ) -> Self {
-//        CodeGenerator {
-//            evaluator: evaluator,
-//            context:   Context {
-//                scope: Scope::new(),
-//                out:   out,
-//            },
-//        }
-//    }
-//
-//    pub fn with_parent<'p: 'me>
-//                      (parent: &'me mut CodeGenerator<'p, 'str>)
-//                      -> Self {
-//        CodeGenerator {
-//            evaluator: parent.evaluator,
-//            context:   Context {
-//                scope: Scope::with_parent(&parent.context.scope),
-//                out:   parent.context.out,
-//            }
-//        }
-//    }
-//
-//    pub fn subscope<'sub>
-//                   (&'sub mut self)
-//                   -> CodeGenerator<'sub, 'str>
-//                   where 'me: 'sub {
-//        CodeGenerator::with_parent(self)
-//    }
+pub fn evaluate<'a>(compiler: &Compiler,
+                    ast:      &'a Stmt<'a>,
+                    scope:    &mut Scope<'a>,
+                    out:      &mut Output<'a>
+                   ) /*-> Result<(), ()>*/ {
+}
 //
 //    pub fn visit(&mut self, stmts: &'me [Stmt<'str>]) {
 //        // Collect declarations first
@@ -128,11 +81,10 @@ pub fn generate_code<'a>(compiler: &Compiler,
 //            }
 //        }
 //    }
-//}
-//
-//// -----------------------------------------------------------------------------
-//// Tests
-//
+
+// -----------------------------------------------------------------------------
+// Tests
+
 //#[cfg(test)]
 //mod tests {
 //    use super::*;
@@ -160,4 +112,4 @@ pub fn generate_code<'a>(compiler: &Compiler,
 //        {}
 //    }
 //}
-//
+

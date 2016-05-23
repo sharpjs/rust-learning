@@ -48,22 +48,16 @@ impl Compiler {
     }
 
     pub fn compile(mut self, name: &str, input: &str) {
-        let mut ast;
+        let ast;
         let out = &mut Output::new();
 
         // Step 1
         ast = self.parse(name, input, out);
 
         // Step 2
-        self.check_types(&mut ast, out);
-
-        // Step 3
         self.generate_code(&ast, out);
 
-        // Why can't we do type checking during code generation?
-        // There was a reason, but I forget.
-
-        // Step 4
+        // Step 3
         // Do something with output
 
         println!("{:#?}", ast);
@@ -76,12 +70,6 @@ impl Compiler {
                 ) -> Ast<'a> {
         let lexer = Lexer::new(self, input.chars(), name);
         parse(lexer)
-    }
-
-    fn check_types<'a>(&'a self,
-                       ast: &mut Ast<'a>,
-                       out: &mut Output<'a>) {
-        // todo
     }
 
     fn generate_code<'a>(&'a self,
