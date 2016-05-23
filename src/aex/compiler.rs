@@ -19,13 +19,16 @@
 #![allow(unused_mut)]
 
 //use aex::asm::Assembly;
-//use aex::codegen::CodeGenerator;
+use aex::ast::Ast;
+use aex::cg;
 //use aex::lexer::Lexer;
 //use aex::mem::arena::Arena;
 use aex::mem::StringInterner;
 //use aex::message::Messages;
 //use aex::operator::{self, OpTable};
+use aex::output::Output;
 //use aex::parser::parse;
+use aex::scope::Scope;
 //use aex::pos::Pos;
 //use aex::target::Target;
 
@@ -45,10 +48,11 @@ impl Compiler {
     }
 
     pub fn compile(mut self, name: &str, input: &str) {
+        let mut ast;
         let out = &mut Output::new();
 
         // Step 1
-        let mut ast = self.parse(name, input, out);
+        ast = self.parse(name, input, out);
 
         // Step 2
         self.check_types(&mut ast, out);
@@ -81,63 +85,18 @@ impl Compiler {
     }
 
     fn generate_code<'a>(&'a self,
-                         ast: &Ast<'a>,
+                         ast: &'a Ast<'a>,
                          out: &mut Output<'a>) {
-        // todo
-        // let generator = CodeGenerator::new(&mut compilation);
+        let scope = &mut Scope::new();
+        cg::generate_code(self, ast, scope, out).unwrap();
     }
 }
-
-// Type Declaration Pass:
-//
-// create queue for forward resolutions
-//
-// for each typedef n = t {
-//   create hash of forbidden types
-//   add t to hash
-//
-//   t @ Ident n'     // look up t' by n'
-//                    //  - if none, enqueue
-//                    //  - if t' forbidden, error
-//                    //  - else, ok (t' already checked)
-//   t @ Int          // ok
-//   t @ Float        // ok
-//   t @ Array t'     // recurse for t'
-//   t @ Ptr p v      // recurse for p, v (forbidden v is ok!)
-//   t @ Struct       // recurse for members
-//   t @ Union        // recurse for members
-//   t @ Func         // recurse for members
-//   m @ Member n t'  // recurse for t'
-//   ... check forbidden t' before recurse (except ptr v)
-// }
-//
-// consume each item in queue {
-//   t @ Ident n'   // look up t' by n'
-//                  // - if none, enqueue
-//                  // - if t' forbidden, error
-//                  // else, ok (t' already checked)
-// }
-//
-// if queue size didn't decrease, we have undefined types
-//
-// Q. Can typedefs include types from other scopes?  A. No
 
 // -----------------------------------------------------------------------------
 // STUBS
 // -----------------------------------------------------------------------------
 
 use std::marker::PhantomData;
-
-// -----------------------------------------------------------------------------
-
-pub struct Output<'a> (PhantomData<&'a ()>);
-
-impl<'a> Output<'a> { pub fn new() -> Self { Output(PhantomData) } }
-
-// -----------------------------------------------------------------------------
-
-#[derive(Clone, Eq, PartialEq, Hash, Debug)]
-struct Ast<'a> (PhantomData<&'a ()>);
 
 // -----------------------------------------------------------------------------
 
@@ -171,6 +130,6 @@ impl<'a, I> Lex<'a> for Lexer<'a, I> where I: Iterator<Item=char> {
 fn parse<'a, L>(mut lexer: L) -> Ast<'a> where L: Lex<'a> {
     lexer.lex();
     lexer.lex();
-    Ast(PhantomData)
+    vec![]
 }
 
