@@ -30,24 +30,31 @@ pub fn generate_code<'a>(compiler: &Compiler,
                          scope:    &mut Scope<'a>,
                          out:      &mut Output<'a>
                         ) -> Result<(), ()> {
-    // Pass 1: Type declaration
-    try!(define_types(ast, &mut scope.types));
-
-    // Pass 2: Evaluation
-    for stmt in ast {
-        evaluate(compiler, stmt, scope, out)
-    }
-
-    Ok(())
+    cg_block(compiler, ast, scope, out)
 }
 
-pub fn evaluate<'a>(compiler: &Compiler,
-                    ast:      &'a Stmt<'a>,
+pub fn cg_stmt<'a>(compiler: &Compiler,
+                   stmt:     &'a Stmt<'a>,
+                   scope:    &mut Scope<'a>,
+                   out:      &mut Output<'a>
+                  ) -> Result<(), ()> {
+    Err(())
+}
+
+pub fn cg_block<'a>(compiler: &Compiler,
+                    block:    &'a Ast<'a>,
                     scope:    &mut Scope<'a>,
                     out:      &mut Output<'a>
-                   ) /*-> Result<(), ()>*/ {
+                   ) -> Result<(), ()> {
+    try!(define_types(block, &mut scope.types));
+
+    result!(block
+        .iter()
+        .map(|stmt| cg_stmt(compiler, stmt, scope, out))
+        .fold(true, |ok, r| ok & r.is_ok())
+    )
 }
-//
+
 //    pub fn visit(&mut self, stmts: &'me [Stmt<'str>]) {
 //        // Collect declarations first
 //        DeclScanner
