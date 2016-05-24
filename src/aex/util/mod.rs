@@ -27,6 +27,19 @@ pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
     x as *const _ == y as *const _
 }
 
+#[macro_export]
+macro_rules! result {
+    ($cond:expr) => (
+        if $cond { Ok(()) } else { Err(()) }
+    );
+    ($cond:expr, $ok:expr) => (
+        if $cond { Ok($ok) } else { Err(()) }
+    );
+    ($cond:expr, $ok:expr, $err:expr) => (
+        if $cond { Ok($ok) } else { Err($err) }
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
