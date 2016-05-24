@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+#[macro_use]
+mod util;
+
 mod asm;
 mod ast;
 mod compiler;
@@ -32,7 +35,6 @@ mod scope;
 mod symbol;
 mod target;
 mod types;
-mod util;
 //mod value;
 
 pub use aex::compiler::Compiler;
