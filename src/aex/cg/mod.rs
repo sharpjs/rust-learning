@@ -20,6 +20,8 @@ use aex::ast::*;
 use aex::compiler::Compiler;
 use aex::output::Output;
 use aex::scope::Scope;
+use aex::target::Target;
+use aex::target::ColdFire; // temporary
 use aex::types::res::define_types;
 
 // -----------------------------------------------------------------------------
@@ -30,43 +32,64 @@ pub fn generate_code<'a>(compiler: &Compiler,
                          scope:    &mut Scope<'a>,
                          out:      &mut Output<'a>
                         ) -> Result<(), ()> {
-    cg_block(compiler, ast, scope, out)
+    let mut gen = Generator {
+        scope:    Scope::with_parent(scope),
+        compiler: compiler,
+        target:   &ColdFire,
+        out:      out,
+    };
+    gen.visit_block(ast)
 }
 
-pub fn cg_stmt<'a>(compiler: &Compiler,
-                   stmt:     &'a Stmt<'a>,
-                   scope:    &mut Scope,
-                   out:      &mut Output<'a>
-                  ) -> Result<(), ()> {
-    Err(())
+pub struct Generator<'g, 'a: 'g> {
+    pub scope:            Scope<'g>,
+    pub compiler: &'g     Compiler,
+    pub target:   &'g     Target,
+    pub out:      &'g mut Output<'a>,
 }
 
-pub fn cg_block<'a>(compiler: &Compiler,
-                    block:    &'a Ast<'a>,
-                    scope:    &mut Scope,
-                    out:      &mut Output<'a>
-                   ) -> Result<(), ()> {
-    let mut scope = Scope::with_parent(scope);
+type R = Result<(), ()>;
 
-    try!(define_types(block, &mut scope.types));
+impl<'g, 'a: 'g> Generator<'g, 'a> {
+    fn sub<'c>(&'c mut self) -> Generator<'c, 'a> {
+        Generator {
+            scope:    Scope::with_parent(&self.scope),
+            compiler: self.compiler,
+            target:   self.target,
+            out:      self.out,
+        }
+    }
 
-    result!(block
-        .iter()
-        .map(|stmt| cg_stmt(compiler, stmt, &mut scope, out))
-        .fold(true, |ok, r| ok & r.is_ok())
-    )
+    fn visit_block(&mut self, block: &'a Ast<'a>) -> R {
+        let mut sub = self.sub();
+
+        try!(define_types(block, &mut sub.scope.types));
+
+        result!(block
+            .iter()
+            .map(|stmt| sub.visit_stmt(stmt))
+            .fold(true, |ok, r| ok & r.is_ok())
+        )
+    }
+
+    fn visit_stmt(&mut self, stmt: &'a Stmt<'a>) -> R {
+        match *stmt {
+            Stmt::Block   (ref s) => self.visit_block    (s),
+            Stmt::Label   (ref s) => self.visit_label    (s),
+            Stmt::DataLoc (ref s) => self.visit_data_dec (s),
+            _                     => Ok(())
+        }
+    }
+
+    fn visit_label(&mut self, stmt: &'a Label<'a>) -> R {
+        Err(())
+    }
+
+    fn visit_data_dec(&mut self, stmt: &'a DataLoc<'a>) -> R {
+        Err(())
+    }
 }
 
-//    pub fn visit(&mut self, stmts: &'me [Stmt<'str>]) {
-//        // Collect declarations first
-//        DeclScanner
-//            ::new(self.context.out, &mut self.context.scope)
-//            .scan(stmts);
-//
-//        // Then generate code
-//        self.visit_stmts(stmts)
-//    }
-//
 //    pub fn visit_stmts(&mut self, stmts: &[Stmt<'str>]) {
 //        for stmt in stmts {
 //            match *stmt {
