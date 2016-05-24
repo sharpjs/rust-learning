@@ -35,7 +35,7 @@ pub fn generate_code<'a>(compiler: &Compiler,
 
 pub fn cg_stmt<'a>(compiler: &Compiler,
                    stmt:     &'a Stmt<'a>,
-                   scope:    &mut Scope<'a>,
+                   scope:    &mut Scope,
                    out:      &mut Output<'a>
                   ) -> Result<(), ()> {
     Err(())
@@ -43,14 +43,16 @@ pub fn cg_stmt<'a>(compiler: &Compiler,
 
 pub fn cg_block<'a>(compiler: &Compiler,
                     block:    &'a Ast<'a>,
-                    scope:    &mut Scope<'a>,
+                    scope:    &mut Scope,
                     out:      &mut Output<'a>
                    ) -> Result<(), ()> {
+    let mut scope = Scope::with_parent(scope);
+
     try!(define_types(block, &mut scope.types));
 
     result!(block
         .iter()
-        .map(|stmt| cg_stmt(compiler, stmt, scope, out))
+        .map(|stmt| cg_stmt(compiler, stmt, &mut scope, out))
         .fold(true, |ok, r| ok & r.is_ok())
     )
 }
