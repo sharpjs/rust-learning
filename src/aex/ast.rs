@@ -17,16 +17,13 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use std::fmt::{self, Display, Formatter, Write};
-//use num::{BigInt, ToPrimitive};
+use num::{BigInt}; //, ToPrimitive};
 
 use aex::pos::Source;
 use aex::types::Type;
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
-pub struct Id<'a> {
-    pub name: &'a str,
-    pub src:  Source<'a>,
-}
+// -----------------------------------------------------------------------------
+// Statements
 
 pub type Ast<'a> = Vec<Stmt<'a>>;
 
@@ -36,18 +33,17 @@ pub enum Stmt<'a> {
     Block   (Ast    <'a>),
 
     // Declaration
-    TypeDef (TypeDef<'a>),  // type foo = u8
-    Label   (Label  <'a>),  // foo:
-    DataLoc (DataLoc<'a>),  // foo: u8
-    //DataVal (DataVal<'a>),  // foo: u8 = 42
-    //Alias   (Source<'a>, T::String, Box<Type<T>>, Box<Expr<T>>),
-    //Func    (Source<'a>, T::String, Box<Type<T>>, Box<Stmt<T>>),
+    TypeDef (TypeDef <'a>), // type foo = u8
+    Label   (Label   <'a>), // foo:
+    DataLoc (DataLoc <'a>), // foo: u8
+    DataVal (DataVal <'a>), // foo: u8 = 42
+    Func    (Func    <'a>), // foo: u8 -> u8 { ... }
 
     // Execution
-    //Eval    (Source<'a>, Box<Expr<T>>),
-    //Loop    (Source<'a>, Box<Stmt<T>>),
-    //If      (Source<'a>, Cond<T>, Box<Stmt<T>>, Option<Box<Stmt<T>>>),
-    //While   (Source<'a>, Cond<T>, Box<Stmt<T>>),
+    Eval    (Expr    <'a>), // x + 42
+    Loop    (Loop    <'a>), // loop         { ... }
+    If      (If      <'a>), // if     x > 0 { ... } else { ... }
+    While   (While   <'a>), // while  x > 0 { ... }
 }
 
 #[derive(Clone, Eq, PartialEq, Debug)]
@@ -70,23 +66,122 @@ pub struct DataLoc<'a> {
     pub src: Source<'a>,
 }
 
-//#[derive(Clone, Eq, PartialEq, Debug)]
-//pub enum Expr<T: Target> {
-//    // Atomic
-//    Ident   (Source<'a>, T::String),
-//    Str     (Source<'a>, T::String),
-//    Int     (Source<'a>, BigInt),
-//    Deref   (Source<'a>, Vec<Expr<T>>),
-//    Member  (Source<'a>, Box<Expr<T>>, T::String),
-//
-//    // Composite
-//    Unary   (Source<'a>, T::Operator, T::String, Box<Expr<T>>),
-//    Binary  (Source<'a>, T::Operator, T::String, Box<Expr<T>>, Box<Expr<T>>),
-//}
-//
-//#[derive(Clone, Eq, PartialEq, Debug)]
-//pub struct Cond<T: Target> (T::String, Option<Box<Expr<T>>>);
-//
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct DataVal<'a> {
+    pub id:  Id<'a>,
+    pub ty:  Type<'a>,
+    pub val: Expr<'a>,
+    pub src: Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Func<'a> {
+    pub id:  Id<'a>,
+    pub ty:  Type<'a>,
+    pub ast: Ast<'a>,
+    pub src: Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Loop<'a> {
+    pub ast: Ast<'a>,
+    pub src: Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct If<'a> {
+    pub cond:     Cond   <'a>,
+    pub if_true:  Ast    <'a>,
+    pub if_false: Ast    <'a>,
+    pub src:      Source <'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct While<'a> {
+    pub cond: Cond<'a>,
+    pub ast:  Ast<'a>,
+    pub src:  Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct Cond<'a> {
+    pub sel:  Id<'a>,
+    pub expr: Option<Expr<'a>>,
+    pub src:  Source<'a>,
+}
+
+// -----------------------------------------------------------------------------
+// Expressions
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum Expr<'a> {
+    // Atomic
+    Id      (Id         <'a>),  // x
+    Str     (StrLit     <'a>),  // "hello"
+    Int     (IntLit     <'a>),  // 42
+
+    // Atomic-ish?
+    Deref   (DerefExpr  <'a>),  // [a0, 8, d0*4]
+    Member  (MemberExpr <'a>),  // x.y
+
+    // Composite
+    Unary   (UnaryExpr  <'a>),  // ~x
+    Binary  (BinaryExpr <'a>),  // x + y
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct DerefExpr<'a> {
+    pub expr: Vec<Expr<'a>>,
+    pub src:  Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct MemberExpr<'a> {
+    pub expr: Box<Expr<'a>>,
+    pub id:   Id<'a>,
+    pub src:  Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct UnaryExpr<'a> {
+    pub op:   (),
+    pub sel:  Id<'a>,
+    pub expr: Box<Expr<'a>>,
+    pub src:  Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct BinaryExpr<'a> {
+    pub op:   (),
+    pub sel:  Id<'a>,
+    pub l:    Box<Expr<'a>>,
+    pub r:    Box<Expr<'a>>,
+    pub src:  Source<'a>,
+}
+
+// -----------------------------------------------------------------------------
+// Terminals
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct Id<'a> {
+    pub name: &'a str,
+    pub src:  Source<'a>,
+}
+
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct StrLit<'a> {
+    pub val: &'a str,
+    pub src: Source<'a>,
+}
+
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub struct IntLit<'a> {
+    pub val: BigInt,
+    pub src: Source<'a>,
+}
+
+// -----------------------------------------------------------------------------
+
 //impl<T: Target> Display for Expr<T> {
 //    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
 //        match *self {
@@ -140,6 +235,7 @@ pub struct DataLoc<'a> {
 //    }
 //}
 //
+// -----------------------------------------------------------------------------
 //#[cfg(test)]
 //mod tests {
 //    use super::*;
