@@ -23,6 +23,7 @@ use aex::scope::Scope;
 use aex::target::Target;
 use aex::target::ColdFire; // temporary
 use aex::types::res::define_types;
+use aex::types::res::ResolveType;
 
 // -----------------------------------------------------------------------------
 // Code Generator
@@ -81,12 +82,17 @@ impl<'g, 'a: 'g> Generator<'g, 'a> {
         }
     }
 
-    fn visit_label(&mut self, stmt: &'a Label<'a>) -> R {
-        Err(())
+    fn visit_label(&mut self, label: &'a Label<'a>) -> R {
+        self.out.asm.write_label(label.id.name);
+        Ok(())
     }
 
-    fn visit_data_dec(&mut self, stmt: &'a DataLoc<'a>) -> R {
-        Err(())
+    fn visit_data_dec(&mut self, data: &'a DataLoc<'a>) -> R {
+        self.out.asm.write_label(data.id.name);
+        let ty = try!(self.scope.types.resolve(&data.ty));
+        let sz = ty.info.size_bytes();
+        self.out.asm.write_op_2(".lcomm", data.id.name, &sz);
+        Ok(())
     }
 }
 
