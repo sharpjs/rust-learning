@@ -36,6 +36,12 @@ pub enum TypeForm {
     Opaque  (Option<usize    >),    // Array, Union, Struct, Func
 }
 
+impl TypeInfo {
+    pub fn size_bytes(&self) -> usize {
+        self.form.size_bytes() * self.count
+    }
+}
+
 impl TypeForm {
     pub fn is_scalar(&self) -> bool {
         match *self {
