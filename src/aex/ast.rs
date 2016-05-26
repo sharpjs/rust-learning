@@ -30,7 +30,7 @@ pub type Ast<'a> = Vec<Stmt<'a>>;
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub enum Stmt<'a> {
     // Composite
-    Block   (Ast    <'a>),
+    Block   (Ast     <'a>), // { ... }
 
     // Declaration
     TypeDef (TypeDef <'a>), // type foo = u8
