@@ -48,23 +48,23 @@ impl Assembly {
     }
 
     #[inline]
-    pub fn write_op_1<A>(&mut self, op: &str, a: &A)
-    where A: Display {
+    pub fn write_op_1<A: ?Sized>
+                     (&mut self, op: &str, a: &A)
+                     where A: Display {
         writeln!(self, "{}{} {}", INDENT, op, a).unwrap();
     }
 
     #[inline]
-    pub fn write_op_2<A, B>(&mut self, op: &str, a: &A, b: &B)
-    where A: Display,
-          B: Display {
+    pub fn write_op_2<A: ?Sized, B: ?Sized>
+                     (&mut self, op: &str, a: &A, b: &B)
+                     where A: Display, B: Display {
         writeln!(self, "{}{} {}, {}", INDENT, op, a, b).unwrap();
     }
 
     #[inline]
-    pub fn write_op_3<A, B, C>(&mut self, op: &str, a: &A, b: &B, c: &C)
-    where A: Display,
-          B: Display,
-          C: Display {
+    pub fn write_op_3<A: ?Sized, B: ?Sized, C: ?Sized>
+                     (&mut self, op: &str, a: &A, b: &B, c: &C)
+                     where A: Display, B: Display, C: Display {
         writeln!(self, "{}{} {}, {}, {}", INDENT, op, a, b, c).unwrap();
     }
 
