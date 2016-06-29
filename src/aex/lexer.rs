@@ -18,12 +18,13 @@
 
 use std::collections::HashMap;
 use std::mem;
+use std::rc::Rc;
 use num::{self, BigInt, ToPrimitive};
 
-use aex::compilation::Compilation;
-use aex::mem::interner::StringInterner;
+use aex::compiler::Compiler;
+use aex::mem::StringInterner;
 use aex::message::Messages;
-use aex::operator::{self, OpTable};
+//use aex::operator::{self, OpTable};
 use aex::pos::Pos;
 
 // -----------------------------------------------------------------------------
@@ -31,7 +32,6 @@ use aex::pos::Pos;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Token<'a> {
-    Raw  (&'a str),     // Raw output
     Id   (&'a str),     // Identifier
     Flag (&'a str),     // Condition flag
 
@@ -58,7 +58,7 @@ pub enum Token<'a> {
     BracketL,           // [
     BracketR,           // ]
 
-    Op(&'a operator::Op), // any of: .@!~*/%+-&^|<=>? (how about #$ ?)
+  //Op(&'a operator::Op), // any of: .@!~*/%+-&^|<=>? (how about #$ ?)
 
     Dot,                // .
     At,                 // @
@@ -111,7 +111,7 @@ enum State {
     Initial, InSpace, AfterEos,
     InIdOrKw,
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
-    InChar, AtCharEnd, InStr, InRaw,
+    InChar, AtCharEnd, InStr,
     InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
     AfterDot, AfterPlus, AfterMinus,
     AfterLess, AfterMore,  AfterEqual, AfterBang,
@@ -144,7 +144,6 @@ enum Action {
     AccumStr,           //
     YieldChar,          //
     YieldStr,           //
-    YieldRaw,           //
     YieldIdOrKw,        //
 
     StartEsc,           //
@@ -204,7 +203,6 @@ enum Action {
     ErrorInvalidEsc,    //
     ErrorUntermChar,    //
     ErrorUntermStr,     //
-    ErrorUntermRaw,     //
     ErrorUntermEsc,     //
     ErrorLengthChar,    //
 }
@@ -213,19 +211,19 @@ use self::Action::*;
 // -----------------------------------------------------------------------------
 // Lexer
 
-pub struct Lexer<'l, 'a: 'l, I>
+pub struct Lexer<'a, I>
 where I: Iterator<Item=char>
 {
     iter:       I,                      // remaining chars
     ch:         Option<char>,           // char  after previous token
     state:      State,                  // state after previous token
-    context:    Context<'l, 'a>         // context object give to actions
+    context:    Context<'a>             // context object give to actions
 }
 
-impl<'l, 'a: 'l, I> Lexer<'l, 'a, I>
+impl<'a, I> Lexer<'a, I>
 where I: Iterator<Item=char>
 {
-    pub fn new(compilation: &'l mut Compilation<'a>, mut iter: I) -> Self {
+    pub fn new(compilation: &'a mut Compiler, mut iter: I) -> Self {
         let ch = iter.next();
 
         Lexer {
@@ -241,7 +239,7 @@ pub trait Lex<'a> {
     fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>);
 }
 
-impl<'l, 'a: 'l, I> Lex<'a> for Lexer<'l, 'a, I>
+impl<'a, I> Lex<'a> for Lexer<'a, I>
 where I: Iterator<Item=char>
 {
     fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>) {
@@ -307,7 +305,6 @@ where I: Iterator<Item=char>
                 AccumStr            => { consume!(); l.str_add(c); continue },
                 YieldChar           => { consume!(); l.str_get_char() },
                 YieldStr            => { consume!(); l.str_get_str()  },
-                YieldRaw            => { consume!(); l.str_get_raw()  },
                 YieldIdOrKw         => { l.str_get_id_or_keyword() },
 
                 // Strings & Chars
@@ -370,7 +367,6 @@ where I: Iterator<Item=char>
                 ErrorInvalidEsc     => { l.messages.err_unrec_esc   (l.start, c); Error },
                 ErrorUntermChar     => { l.messages.err_unterm_char (l.start,  ); Error },
                 ErrorUntermStr      => { l.messages.err_unterm_str  (l.start,  ); Error },
-                ErrorUntermRaw      => { l.messages.err_unterm_raw  (l.start,  ); Error },
                 ErrorUntermEsc      => { l.messages.err_unterm_esc  (l.start,  ); Error },
                 ErrorLengthChar     => { l.messages.err_length_char (l.start,  ); Error },
             };
@@ -447,7 +443,7 @@ const STATES: &'static [TransitionSet] = &[
         /*  7: 1-9 */ ( InNumDec,   AccumNumDec    ),
         /*  8:  '  */ ( InChar,     Skip           ),
         /*  9:  "  */ ( InStr,      Skip           ),
-        /* 10:  `  */ ( InRaw,      Skip           ),
+        /* 10:  `  */ ( AtEof,      ErrorInvalid   ), // was raw string
         /* 11:  {  */ ( Initial,    YieldBraceL    ),
         /* 12:  }  */ ( Initial,    YieldBraceR    ),
         /* 13:  (  */ ( Initial,    YieldParenL    ),
@@ -682,23 +678,6 @@ const STATES: &'static [TransitionSet] = &[
         /* 1: ??? */ ( InStr,   AccumStr       ),
         /* 2:  \  */ ( InStr,   StartEsc       ),
         /* 3:  "  */ ( Initial, YieldStr       ),
-    ]),
-
-    // InRaw <( ` )> : in a raw output block
-    ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   ErrorUntermRaw ),
-        /* 1: ??? */ ( InRaw,   AccumStr       ),
-        /* 3:  `  */ ( Initial, YieldRaw       ),
     ]),
 
     // InEsc <( ['"] \ )> : after escape characer
@@ -989,20 +968,20 @@ const KEYWORDS: &'static [(&'static str, Token<'static>)] = &[
 // -----------------------------------------------------------------------------
 // Context
 
-struct Context<'l, 'a: 'l> {
+struct Context<'a> {
     start:      Pos<'a>,                        // position of token start
     current:    Pos<'a>,                        // position of current character
     number:     BigInt,                         // number builder
     buffer:     String,                         // string builder
-    strings:    &'a StringInterner<'a>,         // string interner
+    strings:    &'a StringInterner,             // string interner
     keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
-    operators:  &'l OpTable,                    // operator table
-    messages:   &'l mut Messages<'a>            // messages collector
+  //operators:  &'a OpTable,                    // operator table
+    messages:   Rc<Messages<'a>>                // messages collector
 }
 
-impl<'l, 'a: 'l> Context<'l, 'a> {
-    fn new(compilation: &'l mut Compilation<'a>) -> Self {
-        let strings = compilation.strings;
+impl<'a> Context<'a> {
+    fn new(compiler: &'a Compiler, log: Rc<Messages<'a>>) -> Self {
+        let strings = compiler.strings;
 
         let mut keywords = HashMap::new();
         for &(k, t) in KEYWORDS {
@@ -1016,8 +995,8 @@ impl<'l, 'a: 'l> Context<'l, 'a> {
             number:    num::zero(),
             strings:   strings,
             keywords:  keywords,
-            operators: &    compilation.ops,
-            messages:  &mut compilation.log
+          //operators: &    compilation.ops,
+            messages:  log
         }
     }
 
@@ -1134,11 +1113,6 @@ impl<'l, 'a: 'l> Context<'l, 'a> {
     #[inline]
     fn str_get_str(&mut self) -> Token<'a> {
         Str(self.str_intern())
-    }
-
-    #[inline]
-    fn str_get_raw(&mut self) -> Token<'a> {
-        Raw(self.str_intern())
     }
 
     #[inline]
@@ -1304,11 +1278,6 @@ mod tests {
     }
 
     #[test]
-    fn raw() {
-        lex("`a`", |it| { it.yields(Raw("a")); });
-    }
-
-    #[test]
     fn punctuation() {
         lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - << >> & ^ | .~ .! .= .? \
              <> == != < > <= >= => -> = : ,", |it| { it
@@ -1332,22 +1301,21 @@ mod tests {
     // Test Harness
 
     use std::str::Chars;
-    use aex::compilation::{Compilation, Memory};
+    use aex::compiler::Compiler;
 
     fn lex<'a, F>(input: &'a str, assert: F)
                  where F: FnOnce(&mut LexerHarness) {
 
-        let     memory      = Memory::new();
-        let mut compilation = Compilation::new(&memory);
-        let     lexer       = Lexer::new(&mut compilation, input.chars());
-        let mut harness     = LexerHarness(lexer);
+        let     compiler = Compiler::new();
+        let     lexer    = Lexer::new(&compiler, input.chars());
+        let mut harness  = LexerHarness(lexer);
 
         assert(&mut harness)
     }
 
-    struct LexerHarness<'l, 'a: 'l> (Lexer<'l, 'a, Chars<'a>>);
+    struct LexerHarness<'a> (Lexer<'a, Chars<'a>>);
 
-    impl<'l, 'a: 'l> LexerHarness<'l, 'a> {
+    impl<'a> LexerHarness<'a> {
         fn yields(&mut self, token: Token) -> &mut Self {
             assert_eq!(token, self.0.lex().1);
             self
