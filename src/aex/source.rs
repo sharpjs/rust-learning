@@ -17,8 +17,12 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt;
+use std::fs;
+use std::io::{self, Read};
 
 use aex::pos::Pos;
+
+// -----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub enum Source<'a> {
@@ -40,6 +44,41 @@ impl<'a> fmt::Display for Source<'a> {
         }
     }
 }
+
+// -----------------------------------------------------------------------------
+
+pub struct File<'a> {
+    pub name: &'a str,
+    pub data: String,
+}
+
+impl<'a> File<'a> {
+    pub fn from_stdin() -> Self {
+        Self::new("(stdin)", io::stdin())
+    }
+
+    pub fn from_path(path: &'a str) -> Self {
+        match fs::File::open(path) {
+            Ok  (f) => Self::new(path, f),
+            Err (e) => fail_read(path, e)
+        }
+    }
+
+    pub fn new<R: Read>(name: &'a str, mut reader: R) -> Self {
+        let mut data = String::new();
+
+        match reader.read_to_string(&mut data) {
+            Ok  (_) => File { name: name, data: data },
+            Err (e) => fail_read(name, e)
+        }
+    }
+}
+
+fn fail_read(name: &str, error: io::Error) -> ! {
+    panic!("error reading '{}': {}", name, error)
+}
+
+// -----------------------------------------------------------------------------
 
 #[cfg(test)]
 pub mod tests {

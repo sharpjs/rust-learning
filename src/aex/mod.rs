@@ -31,7 +31,7 @@ mod output;
 mod pos;
 //mod parser;
 mod scope;
-//mod source;
+mod source;
 mod symbol;
 mod target;
 mod types;
