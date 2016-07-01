@@ -16,40 +16,57 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
+use std::fmt::{self, Debug, Display, Formatter};
 use std::fs;
 use std::io::{self, Read};
 
-use aex::pos::Pos;
-
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Source<'a> {
     // Intrinsic language feature
     BuiltIn,
 
-    // Provided by source file
+    // In source file
     File {
-        pos: &'a Pos<'a>,   // position within file
-        len: usize          // length, in bytes
+        file: &'a File<'a>, // source file
+        pos:  Pos,          // position within file
+        len:  usize         // length in bytes
     }
 }
 
-impl<'a> fmt::Display for Source<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<'a> Display for Source<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Source::BuiltIn           => f.write_str("(built-in)"),
-            Source::File { pos, len } => (pos as &fmt::Display).fmt(f),
+            Source::BuiltIn => {
+                f.write_str("(built-in)")
+            },
+            Source::File { file, pos, len } => {
+                write!(f, "{}:{}", file, pos)
+            },
+        }
+    }
+}
+
+impl<'a> Debug for Source<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            Source::BuiltIn => {
+                f.write_str("Source::BuiltIn")
+            },
+            Source::File { file, pos, len } => {
+                write!(f, "Source::File({}:{}+{})", file, pos, len)
+            },
         }
     }
 }
 
 // -----------------------------------------------------------------------------
 
+#[derive(Clone, Hash, PartialEq, Eq)]
 pub struct File<'a> {
-    pub name: &'a str,
-    pub data: String,
+    name: &'a str,
+    data: String,
 }
 
 impl<'a> File<'a> {
@@ -72,10 +89,72 @@ impl<'a> File<'a> {
             Err (e) => fail_read(name, e)
         }
     }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        self.name
+    }
+
+    #[inline]
+    pub fn data(&self) -> &str {
+        &self.data
+    }
+}
+
+impl<'a> Display for File<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str(self.name)
+    }
+}
+
+impl<'a> Debug for File<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str(self.name)
+    }
 }
 
 fn fail_read(name: &str, error: io::Error) -> ! {
     panic!("error reading '{}': {}", name, error)
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Pos {
+    pub byte:   usize,      // 0-based byte offset
+    pub line:   u32,        // 1-based line number
+    pub column: u32,        // 1-based column number
+}
+
+impl Pos {
+    #[inline]
+    pub fn bof() -> Self {
+        Pos { byte: 0, line: 1, column: 1 }
+    }
+
+    #[inline]
+    pub fn advance(&mut self, c: char) {
+        self.byte   += c.len_utf8();
+        self.column += 1;
+    }
+
+    #[inline]
+    pub fn newline(&mut self) {
+        self.line  += 1;
+        self.column = 1;
+    }
+}
+
+impl<'a> Display for Pos {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
+impl<'a> Debug for Pos {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "[{}]:{}:{}", self.byte, self.line, self.column)
+    }
 }
 
 // -----------------------------------------------------------------------------
