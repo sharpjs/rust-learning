@@ -35,6 +35,19 @@ pub enum Source<'a> {
     }
 }
 
+impl<'a> AsRef<str> for Source<'a> {
+    fn as_ref(&self) -> &str {
+        match *self {
+            Source::BuiltIn => {
+                ""
+            },
+            Source::File { file, pos, len } => {
+                &file.data()[(pos.byte)..(pos.byte + len)]
+            }
+        }
+    }
+}
+
 impl<'a> Display for Source<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
@@ -165,6 +178,14 @@ pub mod tests {
     use std::io::Cursor;
 
     // -------------------------------------------------------------------------
+
+    #[test]
+    fn source_text() {
+        let f = File { name: "f", data: "abc".into() };
+        let s = Source::File { file: &f, pos:  Pos::bof(), len: 2 };
+        let t = s.as_ref();
+        assert_eq!(t, "ab")
+    }
 
     #[test]
     fn source_fmt_display() {
