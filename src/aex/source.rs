@@ -179,31 +179,33 @@ pub mod tests {
 
     // -------------------------------------------------------------------------
 
+    fn with_source<F: Fn(&Source)>(f: F) {
+        let file = File { name: "f", data: "abc".into() };
+        let src  = Source::File { file: &file, pos:  Pos::bof(), len: 2 };
+        f(&src);
+    }
+
     #[test]
     fn source_text() {
-        let f = File { name: "f", data: "abc".into() };
-        let s = Source::File { file: &f, pos:  Pos::bof(), len: 2 };
-        let t = s.as_ref();
-        assert_eq!(t, "ab")
+        with_source(|s| assert_eq!(s.as_ref(), "ab"));
     }
 
     #[test]
     fn source_fmt_display() {
-        let f = File { name: "f", data: "abc".into() };
-        let s = Source::File { file: &f, pos:  Pos::bof(), len: 2 };
-        let s = format!("{}", s);
-        assert_eq!(s, "f:1:1")
+        with_source(|s| assert_eq!(format!("{}", s), "f:1:1"));
     }
 
     #[test]
     fn source_fmt_debug() {
-        let f = File { name: "f", data: "abc".into() };
-        let s = Source::File { file: &f, pos:  Pos::bof(), len: 2 };
-        let s = format!("{:?}", s);
-        assert_eq!(s, "f(3):1:1[0]+2")
+        with_source(|s| assert_eq!(format!("{:?}", s), "f(3):1:1[0]+2"));
     }
 
     // -------------------------------------------------------------------------
+
+    fn with_file<F: Fn(&File)>(f: F) {
+        let file = File { name: "f", data: "abc".into() };
+        f(&file);
+    }
 
     #[test]
     fn file_new() {
@@ -226,28 +228,22 @@ pub mod tests {
 
     #[test]
     fn file_name() {
-        let f = File { name: "f", data: "abc".into() };
-        assert_eq!(f.name(), "f");
+        with_file(|f| assert_eq!(f.name(), "f"));
     }
 
     #[test]
     fn file_data() {
-        let f = File { name: "f", data: "abc".into() };
-        assert_eq!(f.data(), "abc");
+        with_file(|f| assert_eq!(f.data(), "abc"));
     }
 
     #[test]
     fn file_fmt_display() {
-        let f = File { name: "f", data: "abc".into() };
-        let s = format!("{}", &f);
-        assert_eq!(s, "f");
+        with_file(|f| assert_eq!(format!("{}", &f), "f"));
     }
 
     #[test]
     fn file_fmt_debug() {
-        let f = File { name: "f", data: "abc".into() };
-        let s = format!("{:?}", &f);
-        assert_eq!(s, "f(3)");
+        with_file(|f| assert_eq!(format!("{:?}", &f), "f(3)"));
     }
 
     // -------------------------------------------------------------------------
