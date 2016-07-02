@@ -55,7 +55,7 @@ impl<'a> Debug for Source<'a> {
                 f.write_str("Source::BuiltIn")
             },
             Source::File { file, pos, len } => {
-                write!(f, "Source::File({}:{}+{})", file, pos, len)
+                write!(f, "{:?}:{:?}+{}", file, pos, len)
             },
         }
     }
@@ -109,7 +109,7 @@ impl<'a> Display for File<'a> {
 
 impl<'a> Debug for File<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.write_str(self.name)
+        write!(f, "{}({})", self.name, self.data.len())
     }
 }
 
@@ -153,7 +153,7 @@ impl<'a> Display for Pos {
 
 impl<'a> Debug for Pos {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "[{}]:{}:{}", self.byte, self.line, self.column)
+        write!(f, "{}:{}[{}]", self.line, self.column, self.byte)
     }
 }
 
@@ -162,15 +162,83 @@ impl<'a> Debug for Pos {
 #[cfg(test)]
 pub mod tests {
     use super::*;
+    use std::io::Cursor;
+
+    // -------------------------------------------------------------------------
 
     #[test]
-    fn bof() {
+    fn source_fmt_display() {
+        let f = File { name: "f", data: "abc".into() };
+        let s = Source::File { file: &f, pos:  Pos::bof(), len: 2 };
+        let s = format!("{}", s);
+        assert_eq!(s, "f:1:1")
+    }
+
+    #[test]
+    fn source_fmt_debug() {
+        let f = File { name: "f", data: "abc".into() };
+        let s = Source::File { file: &f, pos:  Pos::bof(), len: 2 };
+        let s = format!("{:?}", s);
+        assert_eq!(s, "f(3):1:1[0]+2")
+    }
+
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn file_new() {
+        let c = Cursor::new("abc");
+        let f = File::new("f", c);
+        assert_eq!(f, File { name: "f", data: "abc".into() });
+    }
+
+    #[test]
+    fn file_from_path() {
+        let f = File::from_path("test/test.txt");
+        assert_eq!(f, File { name: "test/test.txt", data: "test data".into() });
+    }
+
+    #[test]
+    #[should_panic]
+    fn file_from_path_nonexistent() {
+        File::from_path("nonexistent");
+    }
+
+    #[test]
+    fn file_name() {
+        let f = File { name: "f", data: "abc".into() };
+        assert_eq!(f.name(), "f");
+    }
+
+    #[test]
+    fn file_data() {
+        let f = File { name: "f", data: "abc".into() };
+        assert_eq!(f.data(), "abc");
+    }
+
+    #[test]
+    fn file_fmt_display() {
+        let f = File { name: "f", data: "abc".into() };
+        let s = format!("{}", &f);
+        assert_eq!(s, "f");
+    }
+
+    #[test]
+    fn file_fmt_debug() {
+        let f = File { name: "f", data: "abc".into() };
+        let s = format!("{:?}", &f);
+        assert_eq!(s, "f(3)");
+    }
+
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn pos_bof() {
         let p = Pos::bof();
         assert_eq!(p, Pos { byte: 0, line: 1, column: 1 });
     }
 
     #[test]
-    fn advance() {
+    fn pos_advance() {
         let mut p = Pos::bof();
         p.advance('a');
         assert_eq!(p, Pos { byte: 1, line: 1, column: 2 });
@@ -179,7 +247,7 @@ pub mod tests {
     }
 
     #[test]
-    fn newline() {
+    fn pos_newline() {
         let mut p = Pos::bof();
         p.advance('\n');
         p.newline();
@@ -187,17 +255,17 @@ pub mod tests {
     }
 
     #[test]
-    fn fmt_display() {
+    fn pos_fmt_display() {
         let p = Pos { byte: 1, line: 2, column: 3 };
         let s = format!("{}", &p);
         assert_eq!(s, "2:3");
     }
 
     #[test]
-    fn fmt_debug() {
+    fn pos_fmt_debug() {
         let p = Pos { byte: 1, line: 2, column: 3 };
         let s = format!("{:?}", &p);
-        assert_eq!(s, "[1]:2:3");
+        assert_eq!(s, "2:3[1]");
     }
 }
 
