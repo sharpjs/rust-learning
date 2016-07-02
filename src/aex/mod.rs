@@ -23,7 +23,7 @@ mod asm;
 mod ast;
 mod compiler;
 mod cg;
-//mod lexer;
+mod lexer;
 mod mem;
 mod message;
 //mod operator;
