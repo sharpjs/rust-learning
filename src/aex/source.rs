@@ -162,11 +162,42 @@ impl<'a> Debug for Pos {
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use aex::pos::Pos;
 
-    pub static BOF: Source<'static> = Source::File {
-        pos: &Pos { file: "f", byte: 0, line: 1, column: 1 },
-        len: 0
-    };
+    #[test]
+    fn bof() {
+        let p = Pos::bof();
+        assert_eq!(p, Pos { byte: 0, line: 1, column: 1 });
+    }
+
+    #[test]
+    fn advance() {
+        let mut p = Pos::bof();
+        p.advance('a');
+        assert_eq!(p, Pos { byte: 1, line: 1, column: 2 });
+        p.advance('\u{10ABCD}');
+        assert_eq!(p, Pos { byte: 5, line: 1, column: 3 });
+    }
+
+    #[test]
+    fn newline() {
+        let mut p = Pos::bof();
+        p.advance('\n');
+        p.newline();
+        assert_eq!(p, Pos { byte: 1, line: 2, column: 1 });
+    }
+
+    #[test]
+    fn fmt_display() {
+        let p = Pos { byte: 1, line: 2, column: 3 };
+        let s = format!("{}", &p);
+        assert_eq!(s, "2:3");
+    }
+
+    #[test]
+    fn fmt_debug() {
+        let p = Pos { byte: 1, line: 2, column: 3 };
+        let s = format!("{:?}", &p);
+        assert_eq!(s, "[1]:2:3");
+    }
 }
 
