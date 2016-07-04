@@ -26,7 +26,7 @@ mod cg;
 mod lexer;
 mod mem;
 mod message;
-//mod operator;
+mod operator;
 mod output;
 mod pos;
 //mod parser;
@@ -35,7 +35,7 @@ mod source;
 mod symbol;
 mod target;
 mod types;
-//mod value;
+mod value;
 
 pub use aex::compiler::Compiler;
 //pub use aex::target::ColdFire;
