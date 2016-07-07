@@ -16,16 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::collections::HashMap;
-use std::marker::PhantomData;
-//use std::mem;
-use std::rc::Rc;
-
-use aex::compiler::Compiler;
-//use aex::mem::StringInterner;
-use aex::message::Messages;
-//use aex::pos::Pos;
-use aex::token::{Token};
+//use aex::compiler::Compiler;
+use aex::source::File;
+use aex::token::{Token, TokenBuilder, Compiler};
 use aex::token::Token::*;
 
 // -----------------------------------------------------------------------------
@@ -53,21 +46,21 @@ use self::State::*;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum Action {
-    //Start,              //
+    Start,              //
     Skip,               //
-    //SkipEol,            //
+    SkipEol,            //
 
-    //YieldEos,           //
-    //YieldEosEol,        //
+    YieldEos,           //
+    YieldEosEol,        //
     YieldEof,           //
 
-    //AccumNumDec,        //
-    //AccumNumHexDig,     //
-    //AccumNumHexUc,      //
-    //AccumNumHexLc,      //
-    //AccumNumOct,        //
-    //AccumNumBin,        //
-    //YieldNum,           //
+    AccumNumDec,        //
+    AccumNumHexDig,     //
+    AccumNumHexUc,      //
+    AccumNumHexLc,      //
+    AccumNumOct,        //
+    AccumNumBin,        //
+    YieldNum,           //
 
     //AccumStr,           //
     //YieldChar,          //
@@ -142,28 +135,25 @@ use self::Action::*;
 pub struct Lexer<'a, C>
 where C: Iterator<Item=char>
 {
-    chars:      C,                      // remaining chars
-    ch:         Option<char>,           // char  after previous token
-    state:      State,                  // state after previous token
-  //context:    Context<'a>             // context object give to actions
-    accum:      PhantomData<&'a ()>
+    chars:   C,                         // remaining chars
+    ch:      Option<char>,              // char  after previous token
+    state:   State,                     // state after previous token
+    builder: TokenBuilder<'a>           // used by actions to build tokens
 }
 
 impl<'a, C> Lexer<'a, C>
 where C: Iterator<Item=char>
 {
-    pub fn new(compiler:  &'a Compiler,
-               name:      &'a str,
+    pub fn new(compiler:  &'a Compiler <'a>,
+               file:      &'a File     <'a>,
                mut chars: C,
-               log:       Rc<Messages<'a>>
               ) -> Self {
         let ch = chars.next();
         Lexer {
             chars:   chars,
             ch:      ch,
             state:   match ch { Some(_) => Initial, None => AtEof },
-          //context: Context::new(compiler, log)
-            accum:   PhantomData
+            builder: TokenBuilder::new(compiler, file),
         }
     }
 }
@@ -179,7 +169,7 @@ where C: Iterator<Item=char>
         let mut ch    =      self.ch;
         let mut state =      self.state;
         let     chars = &mut self.chars;
-        let     l     = &mut self.accum;
+        let     t     = &mut self.builder;
 
         println!("\nlex: state = {:?}", state);
 
@@ -191,23 +181,19 @@ where C: Iterator<Item=char>
 
             // Action code helpers
             macro_rules! consume {
-                () => {{
-                    //l.current.byte   += c.len_utf8();
-                    //l.current.column += 1;
-                    ch                = chars.next();
-                }};
+                () => {{ t.advance(c); ch = chars.next(); }};
             }
             macro_rules! push {
-                ( $s:expr ) => {{ self.state = state; state = $s }};
+                ($s:expr) => {{ self.state = state; state = $s }};
             }
             macro_rules! pop {
                 () => {{ state = self.state }};
             }
             macro_rules! skip {
-                ( $($e:expr);* ) => {{ $($e;)* continue }};
+                ($($e:expr);*) => {{ $($e;)* continue }};
             }
             macro_rules! maybe {
-                ( $($e:expr);+ ) => {
+                ($($e:expr);+) => {
                     match { $($e);+ } { Some(e) => e, _ => continue }
                 };
             }
@@ -215,42 +201,42 @@ where C: Iterator<Item=char>
             // Invoke action code
             let token = match action {
                 // Space
-              //Start               => { l.start();               continue },
+                Start               => { t.start();               continue },
                 Skip                => { consume!();              continue },
-              //SkipEol             => { consume!(); l.newline(); continue },
+                SkipEol             => { consume!(); t.newline(); continue },
 
-              //// Terminators
-              //YieldEos            => { consume!();              Eos },
-              //YieldEosEol         => { consume!(); l.newline(); Eos },
+                // Terminators
+                YieldEos            => { consume!();              Eos },
+                YieldEosEol         => { consume!(); t.newline(); Eos },
                 YieldEof            => {                          Eof },
 
-              //// Numbers
-              //AccumNumDec         => { consume!(); maybe!(l.num_add_dec     (c)); continue },
-              //AccumNumHexDig      => { consume!(); maybe!(l.num_add_hex_dig (c)); continue },
-              //AccumNumHexUc       => { consume!(); maybe!(l.num_add_hex_uc  (c)); continue },
-              //AccumNumHexLc       => { consume!(); maybe!(l.num_add_hex_lc  (c)); continue },
-              //AccumNumOct         => { consume!(); maybe!(l.num_add_oct     (c)); continue },
-              //AccumNumBin         => { consume!(); maybe!(l.num_add_bin     (c)); continue },
+                // Numbers
+                AccumNumDec         => { consume!(); t.num_add_dec     (c); continue },
+                AccumNumHexDig      => { consume!(); t.num_add_hex_dig (c); continue },
+                AccumNumHexUc       => { consume!(); t.num_add_hex_uc  (c); continue },
+                AccumNumHexLc       => { consume!(); t.num_add_hex_lc  (c); continue },
+                AccumNumOct         => { consume!(); t.num_add_oct     (c); continue },
+                AccumNumBin         => { consume!(); t.num_add_bin     (c); continue },
 
-              //YieldNum            => { l.num_get() },
+                YieldNum            => { t.num_get() },
 
               //// Identifiers & Keywords
-              //AccumStr            => { consume!(); l.str_add(c); continue },
-              //YieldChar           => { consume!(); l.str_get_char() },
-              //YieldStr            => { consume!(); l.str_get_str()  },
-              //YieldIdOrKw         => { l.str_get_id_or_keyword() },
+              //AccumStr            => { consume!(); t.str_add(c); continue },
+              //YieldChar           => { consume!(); t.str_get_char() },
+              //YieldStr            => { consume!(); t.str_get_str()  },
+              //YieldIdOrKw         => { t.str_get_id_or_keyword() },
 
               //// Strings & Chars
               //StartEsc            => { consume!(); push!(InEsc);            continue },
-              //YieldEscNul         => { consume!(); pop!(); l.str_add('\0'); continue },
-              //YieldEscLf          => { consume!(); pop!(); l.str_add('\n'); continue },
-              //YieldEscCr          => { consume!(); pop!(); l.str_add('\r'); continue },
-              //YieldEscTab         => { consume!(); pop!(); l.str_add('\t'); continue },
-              //YieldEscChar        => { consume!(); pop!(); l.str_add(  c ); continue },
-              //YieldEscNum         => { consume!(); pop!(); maybe!(l.str_add_esc());          continue },
-              //YieldEscHexDig      => { consume!(); pop!(); maybe!(l.str_add_esc_hex_dig(c)); continue },
-              //YieldEscHexUc       => { consume!(); pop!(); maybe!(l.str_add_esc_hex_uc(c));  continue },
-              //YieldEscHexLc       => { consume!(); pop!(); maybe!(l.str_add_esc_hex_lc(c));  continue },
+              //YieldEscNul         => { consume!(); pop!(); t.str_add('\0'); continue },
+              //YieldEscLf          => { consume!(); pop!(); t.str_add('\n'); continue },
+              //YieldEscCr          => { consume!(); pop!(); t.str_add('\r'); continue },
+              //YieldEscTab         => { consume!(); pop!(); t.str_add('\t'); continue },
+              //YieldEscChar        => { consume!(); pop!(); t.str_add(  c ); continue },
+              //YieldEscNum         => { consume!(); pop!(); maybe!(t.str_add_esc());          continue },
+              //YieldEscHexDig      => { consume!(); pop!(); maybe!(t.str_add_esc_hex_dig(c)); continue },
+              //YieldEscHexUc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_uc(c));  continue },
+              //YieldEscHexLc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_lc(c));  continue },
 
               //// Simple Tokens
               //YieldBraceL         => { consume!(); BraceL      },
@@ -295,13 +281,13 @@ where C: Iterator<Item=char>
               //YieldComma          => { consume!(); Comma       },
 
                 // Errors
-                ErrorInvalid        => { /*l.messages.err_unrec       (l.start, c);*/ Error },
-              //ErrorInvalidNum     => { l.messages.err_unrec_num   (l.start, c); Error },
-              //ErrorInvalidEsc     => { l.messages.err_unrec_esc   (l.start, c); Error },
-              //ErrorUntermChar     => { l.messages.err_unterm_char (l.start,  ); Error },
-              //ErrorUntermStr      => { l.messages.err_unterm_str  (l.start,  ); Error },
-              //ErrorUntermEsc      => { l.messages.err_unterm_esc  (l.start,  ); Error },
-              //ErrorLengthChar     => { l.messages.err_length_char (l.start,  ); Error },
+                ErrorInvalid        => { /*t.messages.err_unrec       (t.start, c);*/ Error },
+              //ErrorInvalidNum     => { t.messages.err_unrec_num   (t.start, c); Error },
+              //ErrorInvalidEsc     => { t.messages.err_unrec_esc   (t.start, c); Error },
+              //ErrorUntermChar     => { t.messages.err_unterm_char (t.start,  ); Error },
+              //ErrorUntermStr      => { t.messages.err_unterm_str  (t.start,  ); Error },
+              //ErrorUntermEsc      => { t.messages.err_unterm_esc  (t.start,  ); Error },
+              //ErrorLengthChar     => { t.messages.err_length_char (t.start,  ); Error },
             };
 
             // Remember state for next invocation
@@ -309,8 +295,8 @@ where C: Iterator<Item=char>
             self.state = state;
 
             // Yield
-            //let start = l.start; l.start();
-            //let end   = l.current;
+            //let start = t.start; t.start();
+            //let end   = t.current;
             //println!("lex: yield {:?}", (start, token, end));
             //return (start, token, end);
             return token;

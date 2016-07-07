@@ -27,7 +27,7 @@ use aex::message::Messages;
 use aex::source::*;
 
 // Placeholder
-struct Compiler<'a> {
+pub struct Compiler<'a> {
     strings:    StringInterner,
     operators:  OperatorTable,
     log:        RefCell<Messages<'a>>
@@ -82,7 +82,7 @@ pub enum Token<'a> {
 // -----------------------------------------------------------------------------
 // TokenBuilder
 
-struct TokenBuilder<'a> {
+pub struct TokenBuilder<'a> {
     // Source
     file:       &'a File<'a>,                   // source file
     start:      Pos,                            // position of token start
@@ -102,7 +102,7 @@ struct TokenBuilder<'a> {
 }
 
 impl<'a> TokenBuilder<'a> {
-    fn new(compiler: &'a Compiler <'a>,
+    pub fn new(compiler: &'a Compiler <'a>,
            file:     &'a File     <'a>,
           ) -> Self {
         TokenBuilder {
@@ -121,17 +121,22 @@ impl<'a> TokenBuilder<'a> {
     // Position actions
 
     #[inline]
-    fn start(&mut self) {
+    pub fn start(&mut self) {
         self.start = self.current;
     }
 
     #[inline]
-    fn newline(&mut self) {
+    pub fn advance(&mut self, c: char) {
+        self.current.advance(c);
+    }
+
+    #[inline]
+    pub fn newline(&mut self) {
         self.current.newline();
     }
 
     #[inline]
-    fn source(&self) -> Source<'a> {
+    pub fn source(&self) -> Source<'a> {
         let len = self.current.byte - self.start.byte;
         Source::File { file: self.file, pos: self.start, len: len }
     }
@@ -139,45 +144,44 @@ impl<'a> TokenBuilder<'a> {
     // Number actions
 
     #[inline]
-    fn num_add_dec(&mut self, c: char) -> Option<Token<'a>> {
+    pub fn num_add_dec(&mut self, c: char) {
         self.num_add(10, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
+    pub fn num_add_hex_dig(&mut self, c: char) {
         self.num_add(16, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
+    pub fn num_add_hex_uc(&mut self, c: char) {
         self.num_add(16, int_from_hex_uc(c))
     }
 
     #[inline]
-    fn num_add_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
+    pub fn num_add_hex_lc(&mut self, c: char) {
         self.num_add(16, int_from_hex_lc(c))
     }
 
     #[inline]
-    fn num_add_oct(&mut self, c: char) -> Option<Token<'a>> {
+    pub fn num_add_oct(&mut self, c: char) {
         self.num_add(8, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add_bin(&mut self, c: char) -> Option<Token<'a>> {
+    pub fn num_add_bin(&mut self, c: char) {
         self.num_add(2, int_from_dig(c))
     }
 
     #[inline]
-    fn num_add(&mut self, base: u8, digit: u8) -> Option<Token<'a>> {
-        self.number = self.number.clone()
+    fn num_add(&mut self, base: u8, digit: u8) {
+        self.number = &self.number
             * BigInt::from(base)
             + BigInt::from(digit);
-        None
     }
 
     #[inline]
-    fn num_get(&mut self) -> Token<'a> {
+    pub fn num_get(&mut self) -> Token<'a> {
         let number = self.number.clone();
         self.number = num::zero();
         Token::Int(number)
@@ -186,12 +190,12 @@ impl<'a> TokenBuilder<'a> {
     // Character/String Actions
 
     #[inline]
-    fn str_add(&mut self, c: char) {
+    pub fn str_add(&mut self, c: char) {
         self.buffer.push(c);
     }
 
     #[inline]
-    fn str_add_esc(&mut self) -> Option<Token<'a>> {
+    pub fn str_add_esc(&mut self) -> Option<Token<'a>> {
         use std::mem;
         let n = match self.number.to_u32() {
             Some(n) if n <= UNICODE_MAX => n,
@@ -203,21 +207,18 @@ impl<'a> TokenBuilder<'a> {
     }
 
     #[inline]
-    fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_dig(c)
-            .or_else(|| self.str_add_esc())
+    pub fn str_add_esc_hex_dig(&mut self, c: char) {
+        self.num_add_hex_dig(c);
     }
 
     #[inline]
-    fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_uc(c)
-            .or_else(|| self.str_add_esc())
+    pub fn str_add_esc_hex_uc(&mut self, c: char) {
+        self.num_add_hex_uc(c);
     }
 
     #[inline]
-    fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_lc(c)
-            .or_else(|| self.str_add_esc())
+    pub fn str_add_esc_hex_lc(&mut self, c: char) {
+        self.num_add_hex_lc(c);
     }
 
     #[inline]
@@ -228,19 +229,19 @@ impl<'a> TokenBuilder<'a> {
     }
 
     #[inline]
-    fn str_get_char(&mut self) -> Token<'a> {
+    pub fn str_get_char(&mut self) -> Token<'a> {
         let c = self.buffer.chars().next().unwrap();
         self.buffer.clear();
         Token::Char(c)
     }
 
     #[inline]
-    fn str_get_str(&mut self) -> Token<'a> {
+    pub fn str_get_str(&mut self) -> Token<'a> {
         Token::Str(self.str_intern())
     }
 
     #[inline]
-    fn str_get_id_or_keyword(&mut self) -> Token<'a> {
+    pub fn str_get_id_or_keyword(&mut self) -> Token<'a> {
         let id = self.str_intern();
 
         match self.keywords.get(&id) {
