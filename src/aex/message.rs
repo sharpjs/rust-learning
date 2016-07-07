@@ -20,7 +20,7 @@ use std::borrow::{Cow};
 use std::fmt::{self, Display};
 use std::io::{stderr, Write};
 
-use aex::pos::Source;
+use aex::source::Source;
 
 use self::MessageId::*;
 use self::MessageLevel::*;
@@ -254,7 +254,8 @@ impl<'a> Display for Message<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::pos::{Pos, Source};
+    use std::io::Cursor;
+    use aex::source::{File, Pos, Source};
 
     #[test]
     fn messages_empty() {
@@ -267,8 +268,9 @@ mod tests {
 
     #[test]
     fn messages_single() {
-        let     p = Pos::bof("file");
-        let     s = Source::File { pos: &p, len: 1 };
+        let     f = File::new("file", Cursor::new(""));
+        let     p = Pos::bof();
+        let     s = Source::File { file: &f, pos: p, len: 1 };
         let mut m = Messages::new();
 
         m.err_unrec(s, 'c');
@@ -283,14 +285,15 @@ mod tests {
 
     #[test]
     fn messages_multiple() {
-        let     p0 = Pos::bof("file");
-        let mut p1 = Pos::bof("file");
+        let     f  = File::new("file", Cursor::new(""));
+        let     p0 = Pos::bof();
+        let mut p1 = Pos::bof();
         let mut m  = Messages::new();
 
         p1.advance('c');
 
-        let s0 = Source::File { pos: &p0, len: 1 };
-        let s1 = Source::File { pos: &p1, len: 1 };
+        let s0 = Source::File { file: &f, pos: p0, len: 1 };
+        let s1 = Source::File { file: &f, pos: p1, len: 1 };
 
         m.err_unrec(s0, 'c');
         m.err_unrec(s1, 'd');
