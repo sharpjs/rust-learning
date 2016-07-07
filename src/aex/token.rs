@@ -132,7 +132,8 @@ impl<'a> TokenBuilder<'a> {
 
     #[inline]
     fn source(&self) -> Source<'a> {
-        Source::File { file: self.file, pos: self.start, len: 0 }
+        let len = self.current.byte - self.start.byte;
+        Source::File { file: self.file, pos: self.start, len: len }
     }
 
     // Number actions
