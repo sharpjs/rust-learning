@@ -26,6 +26,13 @@ use aex::mem::StringInterner;
 use aex::message::Messages;
 use aex::source::*;
 
+// Placeholder
+struct Compiler<'a> {
+    strings:    StringInterner,
+    operators:  OperatorTable,
+    log:        RefCell<Messages<'a>>
+}
+
 // -----------------------------------------------------------------------------
 // Token
 
@@ -38,24 +45,24 @@ pub enum Token<'a> {
     Char (char),        // Literal: character
     Str  (&'a str),     // Literal: string
 
-  //KwType,             // Keyword: type
-  //KwStruct,           // Keyword: struct
-  //KwUnion,            // Keyword: union
-  //KwIf,               // Keyword: if
-  //KwElse,             // Keyword: else
-  //KwLoop,             // Keyword: loop
-  //KwWhile,            // Keyword: while
-  //KwBreak,            // Keyword: break
-  //KwContinue,         // Keyword: continue
-  //KwReturn,           // Keyword: return
-  //KwJump,             // Keyword: jump
+    KwType,             // Keyword: type
+    KwStruct,           // Keyword: struct
+    KwUnion,            // Keyword: union
+    KwIf,               // Keyword: if
+    KwElse,             // Keyword: else
+    KwLoop,             // Keyword: loop
+    KwWhile,            // Keyword: while
+    KwBreak,            // Keyword: break
+    KwContinue,         // Keyword: continue
+    KwReturn,           // Keyword: return
+    KwJump,             // Keyword: jump
 
-  //BraceL,             // {
-  //BraceR,             // }
-  //ParenL,             // (
-  //ParenR,             // )
-  //BracketL,           // [
-  //BracketR,           // ]
+    BraceL,             // {
+    BraceR,             // }
+    ParenL,             // (
+    ParenR,             // )
+    BracketL,           // [
+    BracketR,           // ]
 
     Op(&'a OperatorEntry),   // any of: .@!~*/%+-&^|<=>? (how about #$ ?)
 
@@ -85,40 +92,31 @@ struct TokenBuilder<'a> {
     number:     BigInt,                         // number builder
     buffer:     String,                         // string builder
 
-    // Memory
-    strings:    &'a StringInterner,             // string interner
-
     // Language
     keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
     operators:  &'a OperatorTable,              // operator table
 
-    // Output
+    // Session
+    strings:    &'a StringInterner,             // string interner
     log:        &'a RefCell<Messages<'a>>       // message log
 }
 
 impl<'a> TokenBuilder<'a> {
-//    fn new( //compiler: &'a Compiler,
-//           name:     &'a str,
-//           log:      Rc<Messages<'a>>
-//          ) -> Self {
-//        let strings = &compiler.strings;
-//
-//        let mut keywords = HashMap::new();
-//        for &(k, t) in KEYWORDS {
-//            keywords.insert(strings.intern_ref(k), t);
-//        }
-//
-//        Context {
-//            start:     Pos::bof(name),
-//            current:   Pos::bof(name),
-//            buffer:    String::with_capacity(128),
-//            number:    num::zero(),
-//            strings:   strings,
-//            keywords:  keywords,
-//          //operators: &compiler.ops,
-//            log:  log
-//        }
-//    }
+    fn new(compiler: &'a Compiler <'a>,
+           file:     &'a File     <'a>,
+          ) -> Self {
+        TokenBuilder {
+            file:      file,
+            start:     Pos::bof(),
+            current:   Pos::bof(),
+            buffer:    String::with_capacity(128),
+            number:    num::zero(),
+            keywords:  keywords(&compiler.strings),
+            operators: &compiler.operators,
+            strings:   &compiler.strings,
+            log:       &compiler.log,
+        }
+    }
 
     // Position actions
 
@@ -283,17 +281,30 @@ fn int_from_hex_lc(c: char) -> u8 {
 // -----------------------------------------------------------------------------
 // Keywords
 
+// TODO: Consider moving this to Compiler, so that targets can add custom keywords.
+
+#[inline]
+fn keywords<'a>(strings: &'a StringInterner) -> HashMap<&'a str, Token<'a>> {
+    let mut map = HashMap::new();
+
+    for &(key, ref tok) in KEYWORDS {
+        map.insert(strings.intern_ref(key), tok.clone());
+    }
+
+    map
+}
+
 const KEYWORDS: &'static [(&'static str, Token<'static>)] = &[
-//    ( "type"     , KwType     ),
-//    ( "struct"   , KwStruct   ),
-//    ( "union"    , KwUnion    ),
-//    ( "if"       , KwIf       ),
-//    ( "else"     , KwElse     ),
-//    ( "loop"     , KwLoop     ),
-//    ( "while"    , KwWhile    ),
-//    ( "break"    , KwBreak    ),
-//    ( "continue" , KwContinue ),
-//    ( "return"   , KwReturn   ),
-//    ( "jump"     , KwJump     ),
+    ( "type"     , Token::KwType     ),
+    ( "struct"   , Token::KwStruct   ),
+    ( "union"    , Token::KwUnion    ),
+    ( "if"       , Token::KwIf       ),
+    ( "else"     , Token::KwElse     ),
+    ( "loop"     , Token::KwLoop     ),
+    ( "while"    , Token::KwWhile    ),
+    ( "break"    , Token::KwBreak    ),
+    ( "continue" , Token::KwContinue ),
+    ( "return"   , Token::KwReturn   ),
+    ( "jump"     , Token::KwJump     ),
 ];
 
