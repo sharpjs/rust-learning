@@ -40,6 +40,16 @@ macro_rules! result {
     );
 }
 
+// From http://stackoverflow.com/a/28392068/142138
+#[macro_export]
+macro_rules! hash_map {
+    ($( $key:expr => $val:expr ),*) => {{
+         let mut map = ::std::collections::HashMap::new();
+         $( map.insert($key, $val); )*
+         map
+    }}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
