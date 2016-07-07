@@ -39,7 +39,7 @@ struct Compiler<'a> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Token<'a> {
     Id   (&'a str),     // Identifier
-  //Flag (&'a str),     // Condition flag
+    Flag (&'a str),     // Condition flag
 
     Int  (BigInt),      // Literal: integer
     Char (char),        // Literal: character
@@ -70,10 +70,10 @@ pub enum Token<'a> {
   //At,                 // @
   //Equal,              // =
 
-  //Colon,              // :
-  //Comma,              // ,
+    Colon,              // :
+    Comma,              // ,
 
-  //Eos,                // End of statement
+    Eos,                // End of statement
     Eof,                // End of file
 
     Error               // Lexical error
