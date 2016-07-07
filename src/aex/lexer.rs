@@ -17,90 +17,16 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use std::collections::HashMap;
+use std::marker::PhantomData;
 //use std::mem;
 use std::rc::Rc;
-use num::{/*self,*/ BigInt /*, ToPrimitive*/};
 
 use aex::compiler::Compiler;
 //use aex::mem::StringInterner;
 use aex::message::Messages;
-//use aex::operator::{self, OpTable};
 //use aex::pos::Pos;
-
-// -----------------------------------------------------------------------------
-// Tokens
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum Token<'a> {
-    Id   (&'a str),     // Identifier
-  //Flag (&'a str),     // Condition flag
-
-    Int  (BigInt),      // Literal: integer
-  //Char (char),        // Literal: character
-  //Str  (&'a str),     // Literal: string
-
-  //KwType,             // Keyword: type
-  //KwStruct,           // Keyword: struct
-  //KwUnion,            // Keyword: union
-  //KwIf,               // Keyword: if
-  //KwElse,             // Keyword: else
-  //KwLoop,             // Keyword: loop
-  //KwWhile,            // Keyword: while
-  //KwBreak,            // Keyword: break
-  //KwContinue,         // Keyword: continue
-  //KwReturn,           // Keyword: return
-  //KwJump,             // Keyword: jump
-
-  //BraceL,             // {
-  //BraceR,             // }
-  //ParenL,             // (
-  //ParenR,             // )
-  //BracketL,           // [
-  //BracketR,           // ]
-
-  //Op(&'a operator::Op), // any of: .@!~*/%+-&^|<=>? (how about #$ ?)
-
-  //Dot,                // .
-  //At,                 // @
-  //PlusPlus,           // ++
-  //MinusMinus,         // --
-  //Bang,               // !
-  //Tilde,              // ~
-  //Star,               // *
-  //Slash,              // /
-  //Percent,            // %
-  //Plus,               // +
-  //Minus,              // -
-  //LessLess,           // <<
-  //MoreMore,           // >>
-  //Ampersand,          // &
-  //Caret,              // ^
-  //Pipe,               // |
-  //DotTilde,           // .~
-  //DotBang,            // .!
-  //DotEqual,           // .=
-  //DotQuestion,        // .?
-  //Question,           // ?
-  //LessMore,           // <>
-  //EqualEqual,         // ==
-  //BangEqual,          // !=
-  //Less,               // <
-  //More,               // >
-  //LessEqual,          // <=
-  //MoreEqual,          // >=
-  //EqualArrow,         // =>
-  //MinusArrow,         // ->
-  //Equal,              // =
-
-  //Colon,              // :
-  //Comma,              // ,
-
-  //Eos,                // End of statement
-    Eof,                // End of file
-
-    Error               // Lexical error
-}
-use self::Token::*;
+use aex::token::{Token};
+use aex::token::Token::*;
 
 // -----------------------------------------------------------------------------
 // State
@@ -114,6 +40,7 @@ enum State {
   //AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
   //InChar, AtCharEnd, InStr,
   //InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
+    InOp,
   //AfterDot, AfterPlus, AfterMinus,
   //AfterLess, AfterMore,  AfterEqual, AfterBang,
     AtEof
@@ -211,8 +138,6 @@ use self::Action::*;
 
 // -----------------------------------------------------------------------------
 // Lexer
-
-use std::marker::PhantomData;
 
 pub struct Lexer<'a, C>
 where C: Iterator<Item=char>
@@ -972,216 +897,6 @@ const STATES: &'static [TransitionSet] = &[
     //    /* 0: eof */ ( AtEof, YieldEof ),
     //]),
 ];
-
-// -----------------------------------------------------------------------------
-// Keywords
-
-const KEYWORDS: &'static [(&'static str, Token<'static>)] = &[
-//    ( "type"     , KwType     ),
-//    ( "struct"   , KwStruct   ),
-//    ( "union"    , KwUnion    ),
-//    ( "if"       , KwIf       ),
-//    ( "else"     , KwElse     ),
-//    ( "loop"     , KwLoop     ),
-//    ( "while"    , KwWhile    ),
-//    ( "break"    , KwBreak    ),
-//    ( "continue" , KwContinue ),
-//    ( "return"   , KwReturn   ),
-//    ( "jump"     , KwJump     ),
-];
-
-// -----------------------------------------------------------------------------
-// Context
-
-//struct Context<'a> {
-//    start:      Pos<'a>,                        // position of token start
-//    current:    Pos<'a>,                        // position of current character
-//    number:     BigInt,                         // number builder
-//    buffer:     String,                         // string builder
-//    strings:    &'a StringInterner,             // string interner
-//    keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
-//  //operators:  &'a OpTable,                    // operator table
-//    messages:   Rc<Messages<'a>>                // messages collector
-//}
-//
-//impl<'a> Context<'a> {
-//    fn new(compiler: &'a Compiler,
-//           name:     &'a str,
-//           log:      Rc<Messages<'a>>
-//          ) -> Self {
-//        let strings = &compiler.strings;
-//
-//        let mut keywords = HashMap::new();
-//        for &(k, t) in KEYWORDS {
-//            keywords.insert(strings.intern_ref(k), t);
-//        }
-//
-//        Context {
-//            start:     Pos::bof(name),
-//            current:   Pos::bof(name),
-//            buffer:    String::with_capacity(128),
-//            number:    num::zero(),
-//            strings:   strings,
-//            keywords:  keywords,
-//          //operators: &compiler.ops,
-//            messages:  log
-//        }
-//    }
-//
-//    #[inline]
-//    fn start(&mut self) {
-//        self.start = self.current;
-//    }
-//
-//    #[inline]
-//    fn newline(&mut self) {
-//        self.current.column = 1;
-//        self.current.line  += 1;
-//    }
-//
-//    // Number actions
-//
-//    #[inline]
-//    fn num_add_dec(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add(10, int_from_dig(c))
-//    }
-//
-//    #[inline]
-//    fn num_add_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add(16, int_from_dig(c))
-//    }
-//
-//    #[inline]
-//    fn num_add_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add(16, int_from_hex_uc(c))
-//    }
-//
-//    #[inline]
-//    fn num_add_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add(16, int_from_hex_lc(c))
-//    }
-//
-//    #[inline]
-//    fn num_add_oct(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add(8, int_from_dig(c))
-//    }
-//
-//    #[inline]
-//    fn num_add_bin(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add(2, int_from_dig(c))
-//    }
-//
-//    #[inline]
-//    fn num_add(&mut self, base: u8, digit: u8) -> Option<Token<'a>> {
-//        self.number = self.number.clone()
-//            * BigInt::from(base)
-//            + BigInt::from(digit);
-//        None
-//    }
-//
-//    #[inline]
-//    fn num_get(&mut self) -> Token<'a> {
-//        // TODO: Need to convert Int(n) to use BigInt, but this requires us to
-//        // remove the Copy trait, which has collateral changes.
-//        let n = self.number.to_u64().unwrap();
-//        self.number = num::zero();
-//        Int(n)
-//    }
-//
-//    // Character/String Actions
-//
-//    #[inline]
-//    fn str_add(&mut self, c: char) {
-//        self.buffer.push(c);
-//    }
-//
-//    #[inline]
-//    fn str_add_esc(&mut self) -> Option<Token<'a>> {
-//        let n = match self.number.to_u32() {
-//            Some(n) if n <= UNICODE_MAX => n,
-//            _                           => return self.err_overflow_esc()
-//        };
-//        let c = unsafe { mem::transmute(n) };
-//        self.buffer.push(c);
-//        None
-//    }
-//
-//    #[inline]
-//    fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add_hex_dig(c)
-//            .or_else(|| self.str_add_esc())
-//    }
-//
-//    #[inline]
-//    fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add_hex_uc(c)
-//            .or_else(|| self.str_add_esc())
-//    }
-//
-//    #[inline]
-//    fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
-//        self.num_add_hex_lc(c)
-//            .or_else(|| self.str_add_esc())
-//    }
-//
-//    #[inline]
-//    fn str_intern(&mut self) -> &'a str {
-//        let id = self.strings.intern(self.buffer.clone());
-//        self.buffer.clear();
-//        id
-//    }
-//
-//    #[inline]
-//    fn str_get_char(&mut self) -> Token<'a> {
-//        let c = self.buffer.chars().next().unwrap();
-//        self.buffer.clear();
-//        Char(c)
-//    }
-//
-//    #[inline]
-//    fn str_get_str(&mut self) -> Token<'a> {
-//        Str(self.str_intern())
-//    }
-//
-//    #[inline]
-//    fn str_get_id_or_keyword(&mut self) -> Token<'a> {
-//        let id = self.str_intern();
-//
-//        match self.keywords.get(&id) {
-//            Some(&k) => k,
-//            None     => Id(id)
-//        }
-//    }
-//
-//    // Error Actions
-//
-//    fn err_overflow_num(&mut self) -> Option<Token<'a>> {
-//        self.messages.err_overflow_num(self.start);
-//        Some(Error)
-//    }
-//
-//    fn err_overflow_esc(&mut self) -> Option<Token<'a>> {
-//        self.messages.err_overflow_esc(self.start);
-//        Some(Error)
-//    }
-//}
-
-const UNICODE_MAX: u32 = 0x10FFFF;
-
-#[inline]
-fn int_from_dig(c: char) -> u8 {
-    c as u8 - 0x30 // c - '0'
-}
-
-#[inline]
-fn int_from_hex_uc(c: char) -> u8 {
-    c as u8 - 0x37 // 10 + c - 'A'
-}
-
-#[inline]
-fn int_from_hex_lc(c: char) -> u8 {
-    c as u8 - 0x57 // 10 + c - 'a'
-}
 
 // -----------------------------------------------------------------------------
 // Tests

@@ -34,6 +34,7 @@ mod scope;
 mod source;
 mod symbol;
 mod target;
+mod token;
 mod types;
 mod value;
 
