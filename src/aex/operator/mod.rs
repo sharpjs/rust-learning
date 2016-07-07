@@ -29,7 +29,7 @@
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::fmt::{self, Debug, Formatter};
-//
+
 //use aex::pos::{Pos, Source};
 //use aex::types::Type
 //use aex::types::form::TypeForm;
@@ -40,6 +40,7 @@ use self::Assoc::*;
 use self::Arity::*;
 //use self::context::Context;
 
+// Temporary
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Context;
 
@@ -146,33 +147,6 @@ impl Debug for Arity {
     }
 }
 
-// -----------------------------------------------------------------------------
-
-//impl<V> Operator<V> {
-//    pub fn new(chars:  &'static str,
-//               prec:   u8,
-//               assoc:  Assoc,
-//               fixity: Fixity,
-//               disp:   Dispatch<V>)
-//              -> Self {
-//        Operator {
-//            chars:  chars,
-//            prec:   prec,
-//            assoc:  assoc,
-//            fixity: fixity,
-//            disp:   disp
-//        }
-//    }
-//}
-//
-////impl<V> Clone for Operator<V> {
-////    fn clone(&self) -> Self {
-////        Operator::new(
-////            self.chars, self.prec, self.assoc, self.fixity, self.disp
-////        )
-////    }
-////}
-//
 //// -----------------------------------------------------------------------------
 //
 //pub enum Dispatch<V> {

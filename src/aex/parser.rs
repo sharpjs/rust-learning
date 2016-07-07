@@ -295,7 +295,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     }
 
     fn op_info(token: &Token<'a>) -> Option<(u8, Assoc, Fix<'a>)> {
-        Some(match *token {             //ARITY PREC ASSOC
+        Some(match *token {     // PREC ASSOC  FIXITY  IMPLEMENTATION
             //Token::Dot        => (12, Left,  Infix   (Expr::Add)       ),
 
             //Token::At         => (11, Right, Infix   (Expr::Add)       ),
@@ -341,7 +341,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     }
 
     fn prefix_op_info(token: &Token<'a>) -> Option<(u8, Unary<'a>)> {
-        Some(match *token {
+        Some(match *token {     //PREC IMPLEMENTATION  (don't need assoc or fixity)
             Token::Bang         => (9, Expr::Clear     ),
             Token::Tilde        => (9, Expr::Complement),
             Token::Plus         => (9, pass_through    ),
