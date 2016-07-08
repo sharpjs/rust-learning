@@ -272,6 +272,21 @@ impl<'a> TokenBuilder<'a> {
         Token::Error
     }
 
+    pub fn err_unterm_char(&mut self) -> Token<'a> {
+        self.log.borrow_mut().err_unterm_char(self.source());
+        Token::Error
+    }
+
+    pub fn err_unterm_str(&mut self) -> Token<'a> {
+        self.log.borrow_mut().err_unterm_str(self.source());
+        Token::Error
+    }
+
+    pub fn err_length_char(&mut self) -> Token<'a> {
+        self.log.borrow_mut().err_length_char(self.source());
+        Token::Error
+    }
+
     fn err_overflow_num(&mut self) -> Option<Token<'a>> {
         self.log.borrow_mut().err_overflow_num(self.source());
         Some(Token::Error)
