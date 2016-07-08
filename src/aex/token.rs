@@ -262,6 +262,16 @@ impl<'a> TokenBuilder<'a> {
 
     // Error Actions
 
+    pub fn err_unrec(&mut self, c: char) -> Token<'a> {
+        self.log.borrow_mut().err_unrec(self.source(), c);
+        Token::Error
+    }
+
+    pub fn err_unrec_num(&mut self, c: char) -> Token<'a> {
+        self.log.borrow_mut().err_unrec_num(self.source(), c);
+        Token::Error
+    }
+
     fn err_overflow_num(&mut self) -> Option<Token<'a>> {
         self.log.borrow_mut().err_overflow_num(self.source());
         Some(Token::Error)
