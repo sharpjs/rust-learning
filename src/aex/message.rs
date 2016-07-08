@@ -268,7 +268,7 @@ mod tests {
 
     #[test]
     fn messages_single() {
-        let     f = File::new("file", Cursor::new(""));
+        let     f = File::new("file", "");
         let     p = Pos::bof();
         let     s = Source::File { file: &f, pos: p, len: 1 };
         let mut m = Messages::new();
@@ -285,7 +285,7 @@ mod tests {
 
     #[test]
     fn messages_multiple() {
-        let     f  = File::new("file", Cursor::new(""));
+        let     f  = File::new("file", "");
         let     p0 = Pos::bof();
         let mut p1 = Pos::bof();
         let mut m  = Messages::new();

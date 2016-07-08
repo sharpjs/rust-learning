@@ -83,23 +83,28 @@ pub struct File<'a> {
 }
 
 impl<'a> File<'a> {
+    #[inline]
+    pub fn new<D: Into<String>>(name: &'a str, data: D) -> Self {
+        File { name: name, data: data.into() }
+    }
+
+    pub fn from_reader<R: Read>(name: &'a str, mut reader: R) -> Self {
+        let mut data = String::new();
+
+        match reader.read_to_string(&mut data) {
+            Ok  (_) => Self::new(name, data),
+            Err (e) => fail_read(name, e)
+        }
+    }
+
     pub fn from_stdin() -> Self {
-        Self::new("(stdin)", io::stdin())
+        Self::from_reader("(stdin)", io::stdin())
     }
 
     pub fn from_path(path: &'a str) -> Self {
         match fs::File::open(path) {
-            Ok  (f) => Self::new(path, f),
+            Ok  (f) => Self::from_reader(path, f),
             Err (e) => fail_read(path, e)
-        }
-    }
-
-    pub fn new<R: Read>(name: &'a str, mut reader: R) -> Self {
-        let mut data = String::new();
-
-        match reader.read_to_string(&mut data) {
-            Ok  (_) => File { name: name, data: data },
-            Err (e) => fail_read(name, e)
         }
     }
 
@@ -209,8 +214,14 @@ pub mod tests {
 
     #[test]
     fn file_new() {
+        let f = File::new("f", "abc");
+        assert_eq!(f, File { name: "f", data: "abc".into() });
+    }
+
+    #[test]
+    fn file_from_reader() {
         let c = Cursor::new("abc");
-        let f = File::new("f", c);
+        let f = File::from_reader("f", c);
         assert_eq!(f, File { name: "f", data: "abc".into() });
     }
 
