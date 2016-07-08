@@ -30,7 +30,7 @@ use aex::token::Token::*;
 #[repr(u8)]
 enum State {
     Initial, InSpace, AfterEos, InIdOrKw,
-  //AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
+    AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
   //InChar, AtCharEnd, InStr,
   //InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
   //InOp,
@@ -120,7 +120,7 @@ enum Action {
     //YieldComma,         //
 
       ErrorInvalid,       //
-    //ErrorInvalidNum,    //
+      ErrorInvalidNum,    //
     //ErrorInvalidEsc,    //
     //ErrorUntermChar,    //
     //ErrorUntermStr,     //
@@ -278,13 +278,13 @@ impl<'a> Lex<'a> for Lexer<'a>
               //YieldComma          => { consume!(); Comma       },
 
                 // Errors
-                ErrorInvalid        => { /*t.messages.err_unrec       (t.start, c);*/ Error },
-              //ErrorInvalidNum     => { t.messages.err_unrec_num   (t.start, c); Error },
-              //ErrorInvalidEsc     => { t.messages.err_unrec_esc   (t.start, c); Error },
-              //ErrorUntermChar     => { t.messages.err_unterm_char (t.start,  ); Error },
-              //ErrorUntermStr      => { t.messages.err_unterm_str  (t.start,  ); Error },
-              //ErrorUntermEsc      => { t.messages.err_unterm_esc  (t.start,  ); Error },
-              //ErrorLengthChar     => { t.messages.err_length_char (t.start,  ); Error },
+                ErrorInvalid        => { t.err_unrec       (c) },
+                ErrorInvalidNum     => { t.err_unrec_num   (c) },
+              //ErrorInvalidEsc     => { t.err_unrec_esc   (c) },
+              //ErrorUntermChar     => { t.err_unterm_char ( ) },
+              //ErrorUntermStr      => { t.err_unterm_str  ( ) },
+              //ErrorUntermEsc      => { t.err_unterm_esc  ( ) },
+              //ErrorLengthChar     => { t.err_length_char ( ) },
             };
 
             // Remember state for next invocation
@@ -341,7 +341,7 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
+        6, 7, 7, 7, 7, 7, 7, 7,  7, 7, x, 4, x, x, x, x, // 01234567 89:;<=>?
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
         5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
@@ -354,6 +354,8 @@ const STATES: &'static [TransitionSet] = &[
         /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
         /*  4:  ;  */ ( AfterEos,   YieldEos       ),
         /*  5: id0 */ ( InIdOrKw,   AccumStr       ),
+        /*  6:  0  */ ( AfterZero,  Skip           ),
+        /*  7: 1-9 */ ( InNumDec,   AccumNumDec    ),
     ]),
 
     //// Initial
@@ -458,110 +460,110 @@ const STATES: &'static [TransitionSet] = &[
         /* 2: id  */ ( InIdOrKw, AccumStr    ),
     ]),
   
-    //// AfterZero - after 0 introducing a number literal
-    //([
-    //    x, x, x, x, x, x, x, x,  x, 7, 8, x, x, 7, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    7, 8, x, 8, 8, 8, 8, x,  8, 8, 8, 8, 8, 8, 8, 8, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 8, 8, 8, 8, 8, 8, // 01234567 89:;<=>?
-    //    8, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, 8, 8, 8, 8, 3, // PQRSTUVW XYZ[\]^_
-    //    8, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  4, x, x, 8, 8, 8, 8, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State     Action
-    //    /* 0: eof */ ( AtEof,    YieldNum        ),
-    //    /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
-    //    /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
-    //    /* 3:  _  */ ( InNumDec, Skip            ),
-    //    /* 4:  x  */ ( InNumHex, Skip            ),
-    //    /* 5:  o  */ ( InNumOct, Skip            ),
-    //    /* 6:  b  */ ( InNumBin, Skip            ),
-    //    /* 7: \s  */ ( InSpace,  YieldNum        ),
-    //    /* 8: opr */ ( Initial,  YieldNum        ),
-    //]),
+    // AfterZero - after 0 introducing a number literal
+    ([
+        x, x, x, x, x, x, x, x,  x, 7, 8, x, x, 7, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        7, 8, x, 8, 8, 8, 8, x,  8, 8, 8, 8, 8, 8, 8, 8, //  !"#$%&' ()*+,-./
+        3, 2, 2, 2, 2, 2, 2, 2,  2, 2, 8, 8, 8, 8, 8, 8, // 01234567 89:;<=>?
+        8, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 8, 8, 8, 8, 3, // PQRSTUVW XYZ[\]^_
+        8, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  4, x, x, 8, 8, 8, 8, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
+        /* 2: 1-9 */ ( InNumDec, AccumNumDec     ),
+        /* 3: 0_  */ ( InNumDec, Skip            ),
+        /* 4:  x  */ ( InNumHex, Skip            ),
+        /* 5:  o  */ ( InNumOct, Skip            ),
+        /* 6:  b  */ ( InNumBin, Skip            ),
+        /* 7: \s  */ ( InSpace,  YieldNum        ),
+        /* 8: opr */ ( Initial,  YieldNum        ),
+    ]),
 
-    //// InNumDec - in a decimal number
-    //([
-    //    x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
-    //    5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
-    //    5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State     Action
-    //    /* 0: eof */ ( AtEof,    YieldNum        ),
-    //    /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
-    //    /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
-    //    /* 3:  _  */ ( InNumDec, Skip            ),
-    //    /* 4: \s  */ ( InSpace,  YieldNum        ),
-    //    /* 5: opr */ ( Initial,  YieldNum        ),
-    //]),
+    // InNumDec - in a decimal number
+    ([
+        x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
+        /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
+        /* 3:  _  */ ( InNumDec, Skip            ),
+        /* 4: \s  */ ( InSpace,  YieldNum        ),
+        /* 5: opr */ ( Initial,  YieldNum        ),
+    ]),
 
-    //// InNumHex - in a hexadecimal number
-    //([
-    //    x, x, x, x, x, x, x, x,  x, 6, 7, x, x, 6, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    6, 7, x, 7, 7, 7, 7, x,  7, 7, 7, 7, 7, 7, 7, 7, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 7, 7, 7, 7, 7, 7, // 01234567 89:;<=>?
-    //    7, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, 5, // PQRSTUVW XYZ[\]^_
-    //    7, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State     Action
-    //    /* 0: eof */ ( AtEof,    YieldNum        ),
-    //    /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
-    //    /* 2: 0-9 */ ( InNumHex, AccumNumHexDig  ),
-    //    /* 3: A-F */ ( InNumHex, AccumNumHexUc   ),
-    //    /* 4: a-f */ ( InNumHex, AccumNumHexLc   ),
-    //    /* 5:  _  */ ( InNumHex, Skip            ),
-    //    /* 6: \s  */ ( InSpace,  YieldNum        ),
-    //    /* 7: opr */ ( Initial,  YieldNum        ),
-    //]),
+    // InNumHex - in a hexadecimal number
+    ([
+        x, x, x, x, x, x, x, x,  x, 6, 7, x, x, 6, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        6, 7, x, 7, 7, 7, 7, x,  7, 7, 7, 7, 7, 7, 7, 7, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 7, 7, 7, 7, 7, 7, // 01234567 89:;<=>?
+        7, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, 5, // PQRSTUVW XYZ[\]^_
+        7, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 7, 7, 7, 7, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
+        /* 2: 0-9 */ ( InNumHex, AccumNumHexDig  ),
+        /* 3: A-F */ ( InNumHex, AccumNumHexUc   ),
+        /* 4: a-f */ ( InNumHex, AccumNumHexLc   ),
+        /* 5:  _  */ ( InNumHex, Skip            ),
+        /* 6: \s  */ ( InSpace,  YieldNum        ),
+        /* 7: opr */ ( Initial,  YieldNum        ),
+    ]),
 
-    //// InNumOct - in an octal number
-    //([
-    //    x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  x, x, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
-    //    5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
-    //    5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State     Action
-    //    /* 0: eof */ ( AtEof,    YieldNum        ),
-    //    /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
-    //    /* 2: 0-7 */ ( InNumOct, AccumNumOct     ),
-    //    /* 3:  _  */ ( InNumOct, Skip            ),
-    //    /* 6: \s  */ ( InSpace,  YieldNum        ),
-    //    /* 4: opr */ ( Initial,  YieldNum        ),
-    //]),
+    // InNumOct - in an octal number
+    ([
+        x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  x, x, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
+        /* 2: 0-7 */ ( InNumOct, AccumNumOct     ),
+        /* 3:  _  */ ( InNumOct, Skip            ),
+        /* 4: \s  */ ( InSpace,  YieldNum        ),
+        /* 5: opr */ ( Initial,  YieldNum        ),
+    ]),
 
-    //// InNumBin - in a binary number
-    //([
-    //    x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
-    //    2, 2, x, x, x, x, x, x,  x, x, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
-    //    5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
-    //    5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State     Action
-    //    /* 0: eof */ ( AtEof,    YieldNum        ),
-    //    /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
-    //    /* 2: 0-1 */ ( InNumBin, AccumNumBin     ),
-    //    /* 3:  _  */ ( InNumBin, Skip            ),
-    //    /* 6: \s  */ ( InSpace,  YieldNum        ),
-    //    /* 4: opr */ ( Initial,  YieldNum        ),
-    //]),
+    // InNumBin - in a binary number
+    ([
+        x, x, x, x, x, x, x, x,  x, 4, 5, x, x, 4, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        4, 5, x, 5, 5, 5, 5, x,  5, 5, 5, 5, 5, 5, 5, 5, //  !"#$%&' ()*+,-./
+        2, 2, x, x, x, x, x, x,  x, x, 5, 5, 5, 5, 5, 5, // 01234567 89:;<=>?
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, 3, // PQRSTUVW XYZ[\]^_
+        5, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 5, 5, 5, 5, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldNum        ),
+        /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
+        /* 2: 0-1 */ ( InNumBin, AccumNumBin     ),
+        /* 3:  _  */ ( InNumBin, Skip            ),
+        /* 4: \s  */ ( InSpace,  YieldNum        ),
+        /* 5: opr */ ( Initial,  YieldNum        ),
+    ]),
 
     //// InChar <( ' )> : in a character literal
     //([
@@ -924,24 +926,24 @@ mod tests {
         lex("_0123456789"               , |it| { it.yields(Id("_0123456789"))               .yields(Eof); });
     }
 
-//    #[test]
-//    fn num() {
-//        lex( "123456789", |it| { it.yields(Int( 123456789)).yields(Eof); });
-//        lex("0x01234567", |it| { it.yields(Int(0x01234567)).yields(Eof); });
-//        lex("0x89ABCDEF", |it| { it.yields(Int(0x89ABCDEF)).yields(Eof); });
-//        lex("0x89abcdef", |it| { it.yields(Int(0x89ABCDEF)).yields(Eof); });
-//        lex("0o01234567", |it| { it.yields(Int(0o01234567)).yields(Eof); });
-//        lex(      "0b01", |it| { it.yields(Int(      0b01)).yields(Eof); });
-//        lex(       "012", |it| { it.yields(Int(        12)).yields(Eof); });
-//        lex(         "0", |it| { it.yields(Int(         0)).yields(Eof); });
-//        lex(    "1__2__", |it| { it.yields(Int(        12)).yields(Eof); });
-//        lex("0x__1__2__", |it| { it.yields(Int(      0x12)).yields(Eof); });
-//        lex(       "0__", |it| { it.yields(Int(         0)).yields(Eof); });
-//        lex(     "0b1  ", |it| { it.yields(Int(         1)).yields(Eof); });
-//        lex(      "0b1;", |it| { it.yields(Int(         1)).yields(Eos).yields(Eof); });
-//        lex(     "0b19z", |it| { it.yields_error(); });
-//    }
-//
+    #[test]
+    fn num() {
+        lex( "123456789", |it| { it.yields_int( 123456789).yields(Eof); });
+        lex("0x01234567", |it| { it.yields_int(0x01234567).yields(Eof); });
+        lex("0x89ABCDEF", |it| { it.yields_int(0x89ABCDEF).yields(Eof); });
+        lex("0x89abcdef", |it| { it.yields_int(0x89ABCDEF).yields(Eof); });
+        lex("0o01234567", |it| { it.yields_int(0o01234567).yields(Eof); });
+        lex(      "0b01", |it| { it.yields_int(      0b01).yields(Eof); });
+        lex(       "012", |it| { it.yields_int(        12).yields(Eof); });
+        lex(         "0", |it| { it.yields_int(         0).yields(Eof); });
+        lex(    "1__2__", |it| { it.yields_int(        12).yields(Eof); });
+        lex("0x__1__2__", |it| { it.yields_int(      0x12).yields(Eof); });
+        lex(       "0__", |it| { it.yields_int(         0).yields(Eof); });
+        lex(     "0b1  ", |it| { it.yields_int(         1).yields(Eof); });
+        lex(      "0b1;", |it| { it.yields_int(         1).yields(Eos).yields(Eof); });
+        lex(     "0b19z", |it| { it.yields_error(); });
+    }
+
 //    #[test]
 //    fn char() {
 //        lex("'a'" , |it| { it.yields(Char('a')).yields(Eof); });
@@ -1029,6 +1031,7 @@ mod tests {
 
     // Test Harness
 
+    use num::BigInt;
     //use aex::compiler::Compiler;
     use aex::source::File;
     use aex::token::*;
@@ -1049,6 +1052,10 @@ mod tests {
         fn yields(&mut self, token: Token) -> &mut Self {
             assert_eq!(token, self.0.lex().1);
             self
+        }
+
+        fn yields_int(&mut self, n: u64) -> &mut Self {
+            self.yields(Int(BigInt::from(n)))
         }
 
         fn yields_error(&mut self) -> &mut Self {
