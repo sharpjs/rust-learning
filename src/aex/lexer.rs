@@ -29,8 +29,7 @@ use aex::token::Token::*;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum State {
-    Initial, InSpace, AfterEos,
-  //InIdOrKw,
+    Initial, InSpace, AfterEos, InIdOrKw,
   //AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
   //InChar, AtCharEnd, InStr,
   //InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
@@ -63,10 +62,10 @@ enum Action {
     AccumNumBin,        //
     YieldNum,           //
 
-    //AccumStr,           //
-    //YieldChar,          //
-    //YieldStr,           //
-    //YieldIdOrKw,        //
+    AccumStr,           //
+    YieldChar,          //
+    YieldStr,           //
+    YieldIdOrKw,        //
 
     //StartEsc,           //
     //YieldEscNul,        //
@@ -218,11 +217,11 @@ impl<'a> Lex<'a> for Lexer<'a>
 
                 YieldNum            => { t.num_get() },
 
-              //// Identifiers & Keywords
-              //AccumStr            => { consume!(); t.str_add(c); continue },
-              //YieldChar           => { consume!(); t.str_get_char() },
-              //YieldStr            => { consume!(); t.str_get_str()  },
-              //YieldIdOrKw         => { t.str_get_id_or_keyword() },
+                // Identifiers & Keywords
+                AccumStr            => { consume!(); t.str_add(c); continue },
+                YieldChar           => { consume!(); t.str_get_char() },
+                YieldStr            => { consume!(); t.str_get_str() },
+                YieldIdOrKw         => { t.str_get_id_or_keyword() },
 
               //// Strings & Chars
               //StartEsc            => { consume!(); push!(InEsc);            continue },
@@ -343,10 +342,10 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
         x, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
+        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //              State       Action
         /*  0: eof */ ( AtEof,      YieldEof       ),
@@ -354,6 +353,7 @@ const STATES: &'static [TransitionSet] = &[
         /*  2: \s  */ ( InSpace,    Skip           ),
         /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
         /*  4:  ;  */ ( AfterEos,   YieldEos       ),
+        /*  5: id0 */ ( InIdOrKw,   AccumStr       ),
     ]),
 
     //// Initial
@@ -441,22 +441,22 @@ const STATES: &'static [TransitionSet] = &[
         /* 3: \n  */ ( AfterEos, SkipEol ),
     ]),
 
-    //// InIdOrKw - In identifier or keyword
-    //([
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-    //    x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // @ABCDEFG HIJKLMNO
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, 2, // PQRSTUVW XYZ[\]^_
-    //    x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // `abcdefg hijklmno
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State     Action
-    //    /* 0: eof */ ( AtEof,    YieldIdOrKw ),
-    //    /* 1: ??? */ ( Initial,  YieldIdOrKw ),
-    //    /* 2: id  */ ( InIdOrKw, AccumStr    ),
-    //]),
+    // InIdOrKw - In identifier or keyword
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // @ABCDEFG HIJKLMNO
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, 2, // PQRSTUVW XYZ[\]^_
+        x, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, 2, 2, 2, 2, 2, // `abcdefg hijklmno
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 2, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State     Action
+        /* 0: eof */ ( AtEof,    YieldIdOrKw ),
+        /* 1: ??? */ ( Initial,  YieldIdOrKw ),
+        /* 2: id  */ ( InIdOrKw, AccumStr    ),
+    ]),
   
     //// AfterZero - after 0 introducing a number literal
     //([
@@ -914,16 +914,16 @@ mod tests {
 //        lex("; \r\t\n;" , |it| { it.yields(Eos)               .yields(Eof); });
 //        lex("\n \r\t\n;", |it| { it.yields(Eos)               .yields(Eof); });
 //    }
-//
-//    #[test]
-//    fn id() {
-//        lex("a"                         , |it| { it.yields(Id("a"))                         .yields(Eof); });
-//        lex("a "                        , |it| { it.yields(Id("a"))                         .yields(Eof); });
-//        lex("abcdefghijklmnopqrstuvwxyz", |it| { it.yields(Id("abcdefghijklmnopqrstuvwxyz")).yields(Eof); });
-//        lex("ABCDEFGHIJKLMNOPQRSTUVWXYZ", |it| { it.yields(Id("ABCDEFGHIJKLMNOPQRSTUVWXYZ")).yields(Eof); });
-//        lex("_0123456789"               , |it| { it.yields(Id("_0123456789"))               .yields(Eof); });
-//    }
-//
+
+    #[test]
+    fn id() {
+        lex("a"                         , |it| { it.yields(Id("a"))                         .yields(Eof); });
+        lex("a "                        , |it| { it.yields(Id("a"))                         .yields(Eof); });
+        lex("abcdefghijklmnopqrstuvwxyz", |it| { it.yields(Id("abcdefghijklmnopqrstuvwxyz")).yields(Eof); });
+        lex("ABCDEFGHIJKLMNOPQRSTUVWXYZ", |it| { it.yields(Id("ABCDEFGHIJKLMNOPQRSTUVWXYZ")).yields(Eof); });
+        lex("_0123456789"               , |it| { it.yields(Id("_0123456789"))               .yields(Eof); });
+    }
+
 //    #[test]
 //    fn num() {
 //        lex( "123456789", |it| { it.yields(Int( 123456789)).yields(Eof); });
