@@ -16,8 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::str::Chars;
+
 //use aex::compiler::Compiler;
-use aex::source::File;
+use aex::source::{File, Source};
 use aex::token::{Token, TokenBuilder, Compiler};
 use aex::token::Token::*;
 
@@ -27,13 +29,12 @@ use aex::token::Token::*;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum State {
-    Initial,
-  //Initial, InSpace, AfterEos,
+    Initial, InSpace, AfterEos,
   //InIdOrKw,
   //AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
   //InChar, AtCharEnd, InStr,
   //InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
-    InOp,
+  //InOp,
   //AfterDot, AfterPlus, AfterMinus,
   //AfterLess, AfterMore,  AfterEqual, AfterBang,
     AtEof
@@ -46,9 +47,9 @@ use self::State::*;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum Action {
-    Start,              //
     Skip,               //
     SkipEol,            //
+    Start,              //
 
     YieldEos,           //
     YieldEosEol,        //
@@ -132,23 +133,21 @@ use self::Action::*;
 // -----------------------------------------------------------------------------
 // Lexer
 
-pub struct Lexer<'a, C>
-where C: Iterator<Item=char>
+pub struct Lexer<'a>
 {
-    chars:   C,                         // remaining chars
+    chars:   Chars<'a>,                 // remaining chars
     ch:      Option<char>,              // char  after previous token
     state:   State,                     // state after previous token
     builder: TokenBuilder<'a>           // used by actions to build tokens
 }
 
-impl<'a, C> Lexer<'a, C>
-where C: Iterator<Item=char>
+impl<'a> Lexer<'a>
 {
     pub fn new(compiler:  &'a Compiler <'a>,
-               file:      &'a File     <'a>,
-               mut chars: C,
+               file:      &'a File     <'a>
               ) -> Self {
-        let ch = chars.next();
+        let mut chars = file.data().chars();
+        let ch        = chars.next();
         Lexer {
             chars:   chars,
             ch:      ch,
@@ -159,13 +158,12 @@ where C: Iterator<Item=char>
 }
 
 pub trait Lex<'a> {
-    fn lex(&mut self) -> Token<'a>; //(Pos<'a>, Token<'a>, Pos<'a>);
+    fn lex(&mut self) -> (Source<'a>, Token<'a>);
 }
 
-impl<'a, C> Lex<'a> for Lexer<'a, C>
-where C: Iterator<Item=char>
+impl<'a> Lex<'a> for Lexer<'a>
 {
-    fn lex(&mut self) -> Token<'a> { // (Pos<'a>, Token<'a>, Pos<'a>) {
+    fn lex(&mut self) -> (Source<'a>, Token<'a>) {
         let mut ch    =      self.ch;
         let mut state =      self.state;
         let     chars = &mut self.chars;
@@ -201,9 +199,9 @@ where C: Iterator<Item=char>
             // Invoke action code
             let token = match action {
                 // Space
-                Start               => { t.start();               continue },
                 Skip                => { consume!();              continue },
                 SkipEol             => { consume!(); t.newline(); continue },
+                Start               => {             t.start();   continue },
 
                 // Terminators
                 YieldEos            => { consume!();              Eos },
@@ -295,11 +293,10 @@ where C: Iterator<Item=char>
             self.state = state;
 
             // Yield
-            //let start = t.start; t.start();
-            //let end   = t.current;
+            let source = t.source();
+            t.start();
             //println!("lex: yield {:?}", (start, token, end));
-            //return (start, token, end);
-            return token;
+            return (source, token);
         }
     }
 }
@@ -342,7 +339,7 @@ const x: u8 = 1;
 const STATES: &'static [TransitionSet] = &[
     // Initial
     ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
@@ -354,6 +351,8 @@ const STATES: &'static [TransitionSet] = &[
         //              State       Action
         /*  0: eof */ ( AtEof,      YieldEof       ),
         /*  1: ??? */ ( AtEof,      ErrorInvalid   ),
+        /*  2: \s  */ ( InSpace,    Skip           ),
+        /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
     ]),
 
     //// Initial
@@ -406,40 +405,40 @@ const STATES: &'static [TransitionSet] = &[
     //    /* 34:  ,  */ ( Initial,    YieldComma     ),
     //]),
 
-    //// InSpace - In whitespace
-    //([
-    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State    Action
-    //    /* 0: eof */ ( AtEof,   Start ),
-    //    /* 1: ??? */ ( Initial, Start ),
-    //    /* 2: \s  */ ( InSpace, Skip  ),
-    //]),
+    // InSpace - In whitespace
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State    Action
+        /* 0: eof */ ( AtEof,   Start ),
+        /* 1: ??? */ ( Initial, Start ),
+        /* 2: \s  */ ( InSpace, Skip  ),
+    ]),
 
-    //// AfterEos - After end of statement
-    //([
-    //    x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // 01234567 89:;<=>?
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State     Action
-    //    /* 0: eof */ ( AtEof,    Start   ),
-    //    /* 1: ??? */ ( Initial,  Start   ),
-    //    /* 2: \s; */ ( AfterEos, Skip    ),
-    //    /* 3: \n  */ ( AfterEos, SkipEol ),
-    //]),
+    // AfterEos - After end of statement
+    ([
+        x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State     Action
+        /* 0: eof */ ( AtEof,    Start   ),
+        /* 1: ??? */ ( Initial,  Start   ),
+        /* 2: \s; */ ( AfterEos, Skip    ),
+        /* 3: \n  */ ( AfterEos, SkipEol ),
+    ]),
 
     //// InIdOrKw - In identifier or keyword
     //([
@@ -868,35 +867,35 @@ const STATES: &'static [TransitionSet] = &[
 //  //    /* 1: ??? */ ( AtEof, false, Skip ),
 //  //]),
 
-    //// AtEof - At end of file
-    //([
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ ........
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, //  !"#$%&' ()*+,-./
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // 01234567 89:;<=>?
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // @ABCDEFG HIJKLMNO
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVW XYZ[\]^_
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
-    //    0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State  Action
-    //    /* 0: eof */ ( AtEof, YieldEof ),
-    //]),
+    // AtEof - At end of file
+    ([
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ .tn..r..
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // ........ ........
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, //  !"#$%&' ()*+,-./
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // 01234567 89:;<=>?
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // @ABCDEFG HIJKLMNO
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // PQRSTUVW XYZ[\]^_
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // `abcdefg hijklmno
+        0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0, 0, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State  Action
+        /* 0: eof */ ( AtEof, YieldEof ),
+    ]),
 ];
 
 // -----------------------------------------------------------------------------
 // Tests
 
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//    use super::Token::*;
-//
-//    #[test]
-//    fn empty() {
-//        lex("", |it| { it.yields(Eof); });
-//    }
-//
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aex::token::Token::*;
+
+    #[test]
+    fn empty() {
+        lex("", |it| { it.yields(Eof); });
+    }
+
 //    #[test]
 //    fn space() {
 //        lex( " \r\t" , |it| { it                              .yields(Eof); });
@@ -1026,33 +1025,36 @@ const STATES: &'static [TransitionSet] = &[
 //            .yields(Eof);
 //        });
 //    }
-//
-//    // Test Harness
-//
-//    use std::str::Chars;
-//    use aex::compiler::Compiler;
-//
-//    fn lex<'a, F>(input: &'a str, assert: F)
-//                 where F: FnOnce(&mut LexerHarness) {
-//
-//        let     compiler = Compiler::new();
-//        let     lexer    = Lexer::new(&compiler, input.chars());
-//        let mut harness  = LexerHarness(lexer);
-//
-//        assert(&mut harness)
-//    }
-//
-//    struct LexerHarness<'a> (Lexer<'a, Chars<'a>>);
-//
-//    impl<'a> LexerHarness<'a> {
-//        fn yields(&mut self, token: Token) -> &mut Self {
-//            assert_eq!(token, self.0.lex().1);
-//            self
-//        }
-//
-//        fn yields_error(&mut self) -> &mut Self {
-//            self.yields(Error)
-//        }
-//    }
-//}
+
+    // Test Harness
+
+    use std::str::Chars;
+
+    //use aex::compiler::Compiler;
+    use aex::source::File;
+    use aex::token::*;
+
+    fn lex<'a, F>(input: &'a str, assert: F)
+    where F: FnOnce(&mut LexerHarness) {
+        let     file     = File::new("test", input);
+        let     compiler = Compiler::new();
+        let     lexer    = Lexer::new(&compiler, &file);
+        let mut harness  = LexerHarness(lexer);
+
+        assert(&mut harness)
+    }
+
+    struct LexerHarness<'a> (Lexer<'a>);
+
+    impl<'a> LexerHarness<'a> {
+        fn yields(&mut self, token: Token) -> &mut Self {
+            assert_eq!(token, self.0.lex().1);
+            self
+        }
+
+        fn yields_error(&mut self) -> &mut Self {
+            self.yields(Error)
+        }
+    }
+}
 
