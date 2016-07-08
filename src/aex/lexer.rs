@@ -341,8 +341,8 @@ const STATES: &'static [TransitionSet] = &[
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, 4, x, x, x, x, // 01234567 89:;<=>?
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
@@ -353,6 +353,7 @@ const STATES: &'static [TransitionSet] = &[
         /*  1: ??? */ ( AtEof,      ErrorInvalid   ),
         /*  2: \s  */ ( InSpace,    Skip           ),
         /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
+        /*  4:  ;  */ ( AfterEos,   YieldEos       ),
     ]),
 
     //// Initial
@@ -896,14 +897,14 @@ mod tests {
         lex("", |it| { it.yields(Eof); });
     }
 
-//    #[test]
-//    fn space() {
-//        lex( " \r\t" , |it| { it                              .yields(Eof); });
-//        lex( " \r\t1", |it| { it.yields(Int(1))               .yields(Eof); });
-//        lex("1 \r\t" , |it| { it.yields(Int(1))               .yields(Eof); });
-//        lex("1 \r\t2", |it| { it.yields(Int(1)).yields(Int(2)).yields(Eof); });
-//    }
-//
+    #[test]
+    fn space() {
+        lex( " \r\t" , |it| { it                              .yields(Eof); });
+        //lex( " \r\t1", |it| { it.yields(Int(1))               .yields(Eof); });
+        //lex("1 \r\t" , |it| { it.yields(Int(1))               .yields(Eof); });
+        //lex("1 \r\t2", |it| { it.yields(Int(1)).yields(Int(2)).yields(Eof); });
+    }
+
 //    #[test]
 //    fn eos() {
 //        lex(";"         , |it| { it.yields(Eos)               .yields(Eof); });
