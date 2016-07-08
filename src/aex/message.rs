@@ -254,7 +254,6 @@ impl<'a> Display for Message<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
     use aex::source::{File, Pos, Source};
 
     #[test]

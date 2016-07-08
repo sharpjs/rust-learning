@@ -1029,8 +1029,6 @@ mod tests {
 
     // Test Harness
 
-    use std::str::Chars;
-
     //use aex::compiler::Compiler;
     use aex::source::File;
     use aex::token::*;
