@@ -33,6 +33,16 @@ pub struct Compiler<'a> {
     log:        RefCell<Messages<'a>>
 }
 
+impl<'a> Compiler<'a> {
+    pub fn new() -> Self {
+        Compiler {
+            strings: StringInterner::new(),
+            operators: OperatorTable::new(),
+            log: RefCell::new(Messages::new()),
+        }
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Token
 
