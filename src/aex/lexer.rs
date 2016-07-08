@@ -901,21 +901,21 @@ mod tests {
 
     #[test]
     fn space() {
-        lex( " \r\t" , |it| { it                              .yields(Eof); });
-        //lex( " \r\t1", |it| { it.yields(Int(1))               .yields(Eof); });
-        //lex("1 \r\t" , |it| { it.yields(Int(1))               .yields(Eof); });
-        //lex("1 \r\t2", |it| { it.yields(Int(1)).yields(Int(2)).yields(Eof); });
+        lex( " \r\t" , |it| { it                            .yields(Eof); });
+        lex( " \r\t1", |it| { it.yields_int(1)              .yields(Eof); });
+        lex("1 \r\t" , |it| { it.yields_int(1)              .yields(Eof); });
+        lex("1 \r\t2", |it| { it.yields_int(1).yields_int(2).yields(Eof); });
     }
 
-//    #[test]
-//    fn eos() {
-//        lex(";"         , |it| { it.yields(Eos)               .yields(Eof); });
-//        lex("\n"        , |it| { it.yields(Eos)               .yields(Eof); });
-//        lex(";1"        , |it| { it.yields(Eos).yields(Int(1)).yields(Eof); });
-//        lex("\n1"       , |it| { it.yields(Eos).yields(Int(1)).yields(Eof); });
-//        lex("; \r\t\n;" , |it| { it.yields(Eos)               .yields(Eof); });
-//        lex("\n \r\t\n;", |it| { it.yields(Eos)               .yields(Eof); });
-//    }
+    #[test]
+    fn eos() {
+        lex(";"         , |it| { it.yields(Eos)              .yields(Eof); });
+        lex("\n"        , |it| { it.yields(Eos)              .yields(Eof); });
+        lex(";1"        , |it| { it.yields(Eos).yields_int(1).yields(Eof); });
+        lex("\n1"       , |it| { it.yields(Eos).yields_int(1).yields(Eof); });
+        lex("; \r\t\n;" , |it| { it.yields(Eos)              .yields(Eof); });
+        lex("\n \r\t\n;", |it| { it.yields(Eos)              .yields(Eof); });
+    }
 
     #[test]
     fn id() {
