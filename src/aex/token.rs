@@ -217,18 +217,21 @@ impl<'a> TokenBuilder<'a> {
     }
 
     #[inline]
-    pub fn str_add_esc_hex_dig(&mut self, c: char) {
+    pub fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add_hex_dig(c);
+        self.str_add_esc()
     }
 
     #[inline]
-    pub fn str_add_esc_hex_uc(&mut self, c: char) {
+    pub fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add_hex_uc(c);
+        self.str_add_esc()
     }
 
     #[inline]
-    pub fn str_add_esc_hex_lc(&mut self, c: char) {
+    pub fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
         self.num_add_hex_lc(c);
+        self.str_add_esc()
     }
 
     #[inline]
@@ -272,6 +275,11 @@ impl<'a> TokenBuilder<'a> {
         Token::Error
     }
 
+    pub fn err_unrec_esc(&mut self, c: char) -> Token<'a> {
+        self.log.borrow_mut().err_unrec_esc(self.source(), c);
+        Token::Error
+    }
+
     pub fn err_unterm_char(&mut self) -> Token<'a> {
         self.log.borrow_mut().err_unterm_char(self.source());
         Token::Error
@@ -279,6 +287,11 @@ impl<'a> TokenBuilder<'a> {
 
     pub fn err_unterm_str(&mut self) -> Token<'a> {
         self.log.borrow_mut().err_unterm_str(self.source());
+        Token::Error
+    }
+
+    pub fn err_unterm_esc(&mut self) -> Token<'a> {
+        self.log.borrow_mut().err_unterm_esc(self.source());
         Token::Error
     }
 

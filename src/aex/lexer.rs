@@ -32,7 +32,7 @@ enum State {
     Initial, InSpace, AfterEos, InIdOrKw,
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
     InChar, AtCharEnd, InStr,
-  //InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
+    InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
   //InOp,
   //AfterDot, AfterPlus, AfterMinus,
   //AfterLess, AfterMore,  AfterEqual, AfterBang,
@@ -67,16 +67,16 @@ enum Action {
     YieldStr,           //
     YieldIdOrKw,        //
 
-    //StartEsc,           //
-    //YieldEscNul,        //
-    //YieldEscLf,         //
-    //YieldEscCr,         //
-    //YieldEscTab,        //
-    //YieldEscChar,       //
-    //YieldEscNum,        //
-    //YieldEscHexDig,     //
-    //YieldEscHexUc,      //
-    //YieldEscHexLc,      //
+    StartEsc,           //
+    AccumEscNul,        //
+    AccumEscLf,         //
+    AccumEscCr,         //
+    AccumEscTab,        //
+    AccumEscChar,       //
+    AccumEscNum,        //
+    AccumEscHexDig,     //
+    AccumEscHexUc,      //
+    AccumEscHexLc,      //
 
     //YieldBraceL,        //
     //YieldBraceR,        //
@@ -121,10 +121,10 @@ enum Action {
 
     ErrorInvalid,       //
     ErrorInvalidNum,    //
-    //ErrorInvalidEsc,    //
+    ErrorInvalidEsc,    //
     ErrorUntermChar,    //
     ErrorUntermStr,     //
-    //ErrorUntermEsc,     //
+    ErrorUntermEsc,     //
     ErrorLengthChar,    //
 }
 use self::Action::*;
@@ -223,17 +223,17 @@ impl<'a> Lex<'a> for Lexer<'a>
                 YieldStr            => { consume!(); t.str_get_str() },
                 YieldIdOrKw         => { t.str_get_id_or_keyword() },
 
-              //// Strings & Chars
-              //StartEsc            => { consume!(); push!(InEsc);            continue },
-              //YieldEscNul         => { consume!(); pop!(); t.str_add('\0'); continue },
-              //YieldEscLf          => { consume!(); pop!(); t.str_add('\n'); continue },
-              //YieldEscCr          => { consume!(); pop!(); t.str_add('\r'); continue },
-              //YieldEscTab         => { consume!(); pop!(); t.str_add('\t'); continue },
-              //YieldEscChar        => { consume!(); pop!(); t.str_add(  c ); continue },
-              //YieldEscNum         => { consume!(); pop!(); maybe!(t.str_add_esc());          continue },
-              //YieldEscHexDig      => { consume!(); pop!(); maybe!(t.str_add_esc_hex_dig(c)); continue },
-              //YieldEscHexUc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_uc(c));  continue },
-              //YieldEscHexLc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_lc(c));  continue },
+                // Strings & Chars
+                StartEsc            => { consume!(); push!(InEsc);            continue },
+                AccumEscNul         => { consume!(); pop!(); t.str_add('\0'); continue },
+                AccumEscLf          => { consume!(); pop!(); t.str_add('\n'); continue },
+                AccumEscCr          => { consume!(); pop!(); t.str_add('\r'); continue },
+                AccumEscTab         => { consume!(); pop!(); t.str_add('\t'); continue },
+                AccumEscChar        => { consume!(); pop!(); t.str_add(  c ); continue },
+                AccumEscNum         => { consume!(); pop!(); maybe!(t.str_add_esc());          continue },
+                AccumEscHexDig      => { consume!(); pop!(); maybe!(t.str_add_esc_hex_dig(c)); continue },
+                AccumEscHexUc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_uc(c));  continue },
+                AccumEscHexLc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_lc(c));  continue },
 
               //// Simple Tokens
               //YieldBraceL         => { consume!(); BraceL      },
@@ -280,10 +280,10 @@ impl<'a> Lex<'a> for Lexer<'a>
                 // Errors
                 ErrorInvalid        => { t.err_unrec       (c) },
                 ErrorInvalidNum     => { t.err_unrec_num   (c) },
-              //ErrorInvalidEsc     => { t.err_unrec_esc   (c) },
+                ErrorInvalidEsc     => { t.err_unrec_esc   (c) },
                 ErrorUntermChar     => { t.err_unterm_char ( ) },
                 ErrorUntermStr      => { t.err_unterm_str  ( ) },
-              //ErrorUntermEsc      => { t.err_unterm_esc  ( ) },
+                ErrorUntermEsc      => { t.err_unterm_esc  ( ) },
                 ErrorLengthChar     => { t.err_length_char ( ) },
             };
 
@@ -410,7 +410,7 @@ const STATES: &'static [TransitionSet] = &[
     //    /* 34:  ,  */ ( Initial,    YieldComma     ),
     //]),
 
-    // InSpace - In whitespace
+    // InSpace - in whitespace
     ([
         x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -427,7 +427,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 2: \s  */ ( InSpace, Skip  ),
     ]),
 
-    // AfterEos - After end of statement
+    // AfterEos - after end of statement
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -445,7 +445,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 3: \n  */ ( AfterEos, SkipEol ),
     ]),
 
-    // InIdOrKw - In identifier or keyword
+    // InIdOrKw - in identifier or keyword
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -567,7 +567,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 5: opr */ ( Initial,  YieldNum        ),
     ]),
 
-    // InChar <( ' )> : in a character literal
+    // InChar - in a character literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -581,12 +581,11 @@ const STATES: &'static [TransitionSet] = &[
         //             State      Action
         /* 0: eof */ ( AtEof,     ErrorUntermChar ),
         /* 1: ??? */ ( AtCharEnd, AccumStr        ),
-     // /* 2:  \  */ ( AtCharEnd, StartEsc        ),
-        /* 2: ??? */ ( AtCharEnd, AccumStr        ),
+        /* 2:  \  */ ( AtCharEnd, StartEsc        ),
         /* 3:  '  */ ( AtEof,     ErrorLengthChar ),
     ]),
 
-    // AtCharEnd <( ' char )> : expecting the end of a character literal
+    // AtCharEnd - expecting ' to end a character literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -603,7 +602,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 2:  '  */ ( Initial, YieldChar       ),
     ]),
 
-    // InStr <( " )> : in a string literal
+    // InStr - in a string literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -617,110 +616,109 @@ const STATES: &'static [TransitionSet] = &[
         //             State    Action
         /* 0: eof */ ( AtEof,   ErrorUntermStr ),
         /* 1: ??? */ ( InStr,   AccumStr       ),
-     // /* 2:  \  */ ( InStr,   StartEsc       ),
-        /* 2: ??? */ ( InStr,   AccumStr       ),
+        /* 2:  \  */ ( InStr,   StartEsc       ),
         /* 3:  "  */ ( Initial, YieldStr       ),
     ]),
 
-    //// InEsc <( ['"] \ )> : after escape characer
-    //([
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    x, x, 8, x, x, x, x, 7,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, 6, x, x, x, // PQRSTUVW XYZ[\]^_
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // `abcdefg hijklmno
-    //    x, x, 4, x, 5,10, x, x,  9, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //              State      Action
-    //    /*  0: eof */ ( AtEof,     ErrorUntermEsc  ),
-    //    /*  1: ??? */ ( AtEof,     ErrorInvalidEsc ),
-    //    /*  2:  0  */ ( InStr,     YieldEscNul     ), // pops state
-    //    /*  3:  n  */ ( InStr,     YieldEscLf      ), // pops state
-    //    /*  4:  r  */ ( InStr,     YieldEscCr      ), // pops state
-    //    /*  5:  t  */ ( InStr,     YieldEscTab     ), // pops state
-    //    /*  6:  \  */ ( InStr,     YieldEscChar    ), // pops state
-    //    /*  7:  '  */ ( InStr,     YieldEscChar    ), // pops state
-    //    /*  8:  "  */ ( InStr,     YieldEscChar    ), // pops state
-    //    /*  9:  x  */ ( AtEscHex0, Skip            ),
-    //    /* 10:  u  */ ( AtEscUni0, Skip            ),
-    //]),
+    // InEsc - after \ in a character or string literal
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, 8, x, x, x, x, 7,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, 6, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // `abcdefg hijklmno
+        x, x, 4, x, 5,10, x, x,  9, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //              State      Action
+        /*  0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /*  1: ??? */ ( AtEof,     ErrorInvalidEsc ),
+        /*  2:  0  */ ( InStr,     AccumEscNul     ), // pops state
+        /*  3:  n  */ ( InStr,     AccumEscLf      ), // pops state
+        /*  4:  r  */ ( InStr,     AccumEscCr      ), // pops state
+        /*  5:  t  */ ( InStr,     AccumEscTab     ), // pops state
+        /*  6:  \  */ ( InStr,     AccumEscChar    ), // pops state
+        /*  7:  '  */ ( InStr,     AccumEscChar    ), // pops state
+        /*  8:  "  */ ( InStr,     AccumEscChar    ), // pops state
+        /*  9:  x  */ ( AtEscHex0, Skip            ),
+        /* 10:  u  */ ( AtEscUni0, Skip            ),
+    ]),
 
-    //// AtEscHex0 <( ['"] \ x )> : at byte escape digit 0
-    //([
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-    //    x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-    //    x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State      Action
-    //    /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
-    //    /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
-    //    /* 2: 0-9 */ ( AtEscHex1, AccumNumHexDig  ),
-    //    /* 3: A-F */ ( AtEscHex1, AccumNumHexUc   ),
-    //    /* 4: a-f */ ( AtEscHex1, AccumNumHexLc   ),
-    //]),
+    // AtEscHex0 - after \x in a character or string literal
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State      Action
+        /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
+        /* 2: 0-9 */ ( AtEscHex1, AccumNumHexDig  ),
+        /* 3: A-F */ ( AtEscHex1, AccumNumHexUc   ),
+        /* 4: a-f */ ( AtEscHex1, AccumNumHexLc   ),
+    ]),
 
-    //// AtEscHex1 <( ['"] \ x hex )> : at byte escape digit 1
-    //([
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-    //    x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-    //    x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State  Action
-    //    /* 0: eof */ ( AtEof, ErrorUntermEsc  ),
-    //    /* 1: ??? */ ( AtEof, ErrorInvalidEsc ),
-    //    /* 2: 0-9 */ ( InStr, YieldEscHexDig  ), // pops state
-    //    /* 3: A-F */ ( InStr, YieldEscHexUc   ), // pops state
-    //    /* 4: a-f */ ( InStr, YieldEscHexLc   ), // pops state
-    //]),
+    // AtEscHex1 - after \x and a hex digit in a character or string literal
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State  Action
+        /* 0: eof */ ( AtEof, ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof, ErrorInvalidEsc ),
+        /* 2: 0-9 */ ( InStr, AccumEscHexDig  ), // pops state
+        /* 3: A-F */ ( InStr, AccumEscHexUc   ), // pops state
+        /* 4: a-f */ ( InStr, AccumEscHexLc   ), // pops state
+    ]),
 
-    //// AtEscUni0 <( ['"] \ u )> : in unicode escape, expecting {
-    //([
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    x, x, 0, x, x, x, x, 0,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State      Action
-    //    /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
-    //    /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
-    //    /* 2:  {  */ ( AtEscUni1, Skip            ),
-    //]),
+    // AtEscUni0 - after \u in a character or string literal, expecting {
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, 0, x, x, x, x, 0,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, 2, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State      Action
+        /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
+        /* 2:  {  */ ( AtEscUni1, Skip            ),
+    ]),
 
-    //// AtEscUni1 <( ['"] \ u { )> : in unicode escape, expecting hex digit
-    //([
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-    //    x, x, 0, x, x, x, x, 0,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-    //    2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
-    //    x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-    //    x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, x, // pqrstuvw xyz{|}~. <- DEL
-    //],&[
-    //    //             State      Action
-    //    /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
-    //    /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
-    //    /* 2: 0-9 */ ( AtEscUni1, AccumNumHexDig  ),
-    //    /* 3: A-F */ ( AtEscUni1, AccumNumHexUc   ),
-    //    /* 4: a-f */ ( AtEscUni1, AccumNumHexLc   ),
-    //    /* 5:  }  */ ( InStr,     YieldEscNum     ), // pops state
-    //]),
+    // AtEscUni1 - after \u{ in a character or string literal
+    ([
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+        x, x, 0, x, x, x, x, 0,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, x, x, x, x, x, x, // 01234567 89:;<=>?
+        x, 3, 3, 3, 3, 3, 3, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+        x, 4, 4, 4, 4, 4, 4, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+        x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, x, // pqrstuvw xyz{|}~. <- DEL
+    ],&[
+        //             State      Action
+        /* 0: eof */ ( AtEof,     ErrorUntermEsc  ),
+        /* 1: ??? */ ( AtEof,     ErrorInvalidEsc ),
+        /* 2: 0-9 */ ( AtEscUni1, AccumNumHexDig  ),
+        /* 3: A-F */ ( AtEscUni1, AccumNumHexUc   ),
+        /* 4: a-f */ ( AtEscUni1, AccumNumHexLc   ),
+        /* 5:  }  */ ( InStr,     AccumEscNum     ), // pops state
+    ]),
 
     //// AfterDot <( . )> : after a dot
     //([
@@ -963,40 +961,40 @@ mod tests {
         lex("\"a"   , |it| { it.yields_error(); });
     }
 
-//    #[test]
-//    fn char_escape() {
-//        lex("'\\0'" , |it| { it.yields(Char('\0')).yields(Eof); });
-//        lex("'\\n'" , |it| { it.yields(Char('\n')).yields(Eof); });
-//        lex("'\\r'" , |it| { it.yields(Char('\r')).yields(Eof); });
-//        lex("'\\t'" , |it| { it.yields(Char('\t')).yields(Eof); });
-//        lex("'\\\\'", |it| { it.yields(Char('\\')).yields(Eof); });
-//        lex("'\\\''", |it| { it.yields(Char('\'')).yields(Eof); });
-//        lex("'\\\"'", |it| { it.yields(Char('\"')).yields(Eof); });
-//        lex("'\\a'" , |it| { it.yields_error(); });
-//    }
-//
-//    #[test]
-//    fn char_escape_hex() {
-//        lex("'\\x5A'" , |it| { it.yields(Char('\u{5A}')).yields(Eof); });
-//        lex("'\\xA5'" , |it| { it.yields(Char('\u{A5}')).yields(Eof); }); // TODO: Is this a byte?
-//        lex("'\\x"    , |it| { it.yields_error(); });
-//        lex("'\\x'"   , |it| { it.yields_error(); });
-//        lex("'\\x5"   , |it| { it.yields_error(); });
-//        lex("'\\x5'"  , |it| { it.yields_error(); });
-//        lex("'\\x5Ax'", |it| { it.yields_error(); });
-//    }
-//
-//    #[test]
-//    fn char_escape_uni() {
-//        lex("'\\u"       , |it| { it.yields_error(); });
-//        lex("'\\u'"      , |it| { it.yields_error(); });
-//        lex("'\\u{"      , |it| { it.yields_error(); });
-//        lex("'\\u{'"     , |it| { it.yields_error(); });
-//        lex("'\\u{}'"    , |it| { it.yields(Char('\u{000}')).yields(Eof); });
-//        lex("'\\u{1Fe}'" , |it| { it.yields(Char('\u{1Fe}')).yields(Eof); });
-//        lex("'\\u{1Fe}x'", |it| { it.yields_error(); });
-//    }
-//
+    #[test]
+    fn char_escape() {
+        lex("'\\0'" , |it| { it.yields(Char('\0')).yields(Eof); });
+        lex("'\\n'" , |it| { it.yields(Char('\n')).yields(Eof); });
+        lex("'\\r'" , |it| { it.yields(Char('\r')).yields(Eof); });
+        lex("'\\t'" , |it| { it.yields(Char('\t')).yields(Eof); });
+        lex("'\\\\'", |it| { it.yields(Char('\\')).yields(Eof); });
+        lex("'\\\''", |it| { it.yields(Char('\'')).yields(Eof); });
+        lex("'\\\"'", |it| { it.yields(Char('\"')).yields(Eof); });
+        lex("'\\a'" , |it| { it.yields_error(); });
+    }
+
+    #[test]
+    fn char_escape_hex() {
+        lex("'\\x5A'" , |it| { it.yields(Char('\u{5A}')).yields(Eof); });
+        lex("'\\xA5'" , |it| { it.yields(Char('\u{A5}')).yields(Eof); }); // TODO: Is this a byte?
+        lex("'\\x"    , |it| { it.yields_error(); });
+        lex("'\\x'"   , |it| { it.yields_error(); });
+        lex("'\\x5"   , |it| { it.yields_error(); });
+        lex("'\\x5'"  , |it| { it.yields_error(); });
+        lex("'\\x5Ax'", |it| { it.yields_error(); });
+    }
+
+    #[test]
+    fn char_escape_uni() {
+        lex("'\\u"       , |it| { it.yields_error(); });
+        lex("'\\u'"      , |it| { it.yields_error(); });
+        lex("'\\u{"      , |it| { it.yields_error(); });
+        lex("'\\u{'"     , |it| { it.yields_error(); });
+        lex("'\\u{}'"    , |it| { it.yields(Char('\u{000}')).yields(Eof); });
+        lex("'\\u{1Fe}'" , |it| { it.yields(Char('\u{1Fe}')).yields(Eof); });
+        lex("'\\u{1Fe}x'", |it| { it.yields_error(); });
+    }
+
 //    #[test]
 //    fn keywords() {
 //        lex("type"    , |it| { it.yields(KwType    ).yields(Eof); });
