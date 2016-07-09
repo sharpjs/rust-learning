@@ -154,44 +154,44 @@ impl<'a> TokenBuilder<'a> {
     // Number actions
 
     #[inline]
-    pub fn num_add_dec(&mut self, c: char) {
-        self.num_add(10, int_from_dig(c))
+    pub fn add_dec(&mut self, c: char) {
+        self.add_num(10, int_from_dg(c))
     }
 
     #[inline]
-    pub fn num_add_hex_dig(&mut self, c: char) {
-        self.num_add(16, int_from_dig(c))
+    pub fn add_hex_dg(&mut self, c: char) {
+        self.add_num(16, int_from_dg(c))
     }
 
     #[inline]
-    pub fn num_add_hex_uc(&mut self, c: char) {
-        self.num_add(16, int_from_hex_uc(c))
+    pub fn add_hex_uc(&mut self, c: char) {
+        self.add_num(16, int_from_hex_uc(c))
     }
 
     #[inline]
-    pub fn num_add_hex_lc(&mut self, c: char) {
-        self.num_add(16, int_from_hex_lc(c))
+    pub fn add_hex_lc(&mut self, c: char) {
+        self.add_num(16, int_from_hex_lc(c))
     }
 
     #[inline]
-    pub fn num_add_oct(&mut self, c: char) {
-        self.num_add(8, int_from_dig(c))
+    pub fn add_oct(&mut self, c: char) {
+        self.add_num(8, int_from_dg(c))
     }
 
     #[inline]
-    pub fn num_add_bin(&mut self, c: char) {
-        self.num_add(2, int_from_dig(c))
+    pub fn add_bin(&mut self, c: char) {
+        self.add_num(2, int_from_dg(c))
     }
 
     #[inline]
-    fn num_add(&mut self, base: u8, digit: u8) {
+    fn add_num(&mut self, base: u8, digit: u8) {
         self.number = &self.number
             * BigInt::from(base)
             + BigInt::from(digit);
     }
 
     #[inline]
-    pub fn num_get(&mut self) -> Token<'a> {
+    pub fn get_num(&mut self) -> Token<'a> {
         let number = self.number.clone();
         self.number = num::zero();
         Token::Int(number)
@@ -200,66 +200,51 @@ impl<'a> TokenBuilder<'a> {
     // Character/String Actions
 
     #[inline]
-    pub fn str_add(&mut self, c: char) {
+    pub fn add_char(&mut self, c: char) {
         self.buffer.push(c);
     }
 
     #[inline]
-    pub fn str_add_esc(&mut self) -> Option<Token<'a>> {
-        use std::mem;
-        let n = match self.number.to_u32() {
-            Some(n) if n <= UNICODE_MAX => n,
-            _                           => return self.err_overflow_esc()
-        };
-        let c = unsafe { mem::transmute(n) };
-        self.buffer.push(c);
-        None
+    pub fn add_esc(&mut self) -> Option<Token<'a>> {
+        match self.number.to_u32() {
+            Some(n) if n <= UNICODE_MAX => {
+                let c = unsafe { ::std::mem::transmute(n) };
+                self.buffer.push(c);
+                self.number = num::zero();
+                None
+            },
+            _ => {
+                Some(self.err_overflow_esc())
+            }
+        }
     }
 
     #[inline]
-    pub fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_dig(c);
-        self.str_add_esc()
-    }
-
-    #[inline]
-    pub fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_uc(c);
-        self.str_add_esc()
-    }
-
-    #[inline]
-    pub fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_lc(c);
-        self.str_add_esc()
-    }
-
-    #[inline]
-    fn str_intern(&mut self) -> &'a str {
-        let id = self.strings.intern(self.buffer.clone());
+    fn intern_str(&mut self) -> &'a str {
+        let s = self.strings.intern(self.buffer.clone());
         self.buffer.clear();
-        id
+        s
     }
 
     #[inline]
-    pub fn str_get_char(&mut self) -> Token<'a> {
+    pub fn get_char(&mut self) -> Token<'a> {
         let c = self.buffer.chars().next().unwrap();
         self.buffer.clear();
         Token::Char(c)
     }
 
     #[inline]
-    pub fn str_get_str(&mut self) -> Token<'a> {
-        Token::Str(self.str_intern())
+    pub fn get_str(&mut self) -> Token<'a> {
+        Token::Str(self.intern_str())
     }
 
     #[inline]
-    pub fn str_get_id_or_keyword(&mut self) -> Token<'a> {
-        let id = self.str_intern();
+    pub fn get_id_or_keyword(&mut self) -> Token<'a> {
+        let s = self.intern_str();
 
-        match self.keywords.get(&id) {
+        match self.keywords.get(&s) {
             Some(k) => k.clone(),
-            None    => Token::Id(id)
+            None    => Token::Id(s)
         }
     }
 
@@ -300,21 +285,16 @@ impl<'a> TokenBuilder<'a> {
         Token::Error
     }
 
-    fn err_overflow_num(&mut self) -> Option<Token<'a>> {
-        self.log.borrow_mut().err_overflow_num(self.source());
-        Some(Token::Error)
-    }
-
-    fn err_overflow_esc(&mut self) -> Option<Token<'a>> {
+    pub fn err_overflow_esc(&mut self) -> Token<'a> {
         self.log.borrow_mut().err_overflow_esc(self.source());
-        Some(Token::Error)
+        Token::Error
     }
 }
 
 const UNICODE_MAX: u32 = 0x10FFFF;
 
 #[inline]
-fn int_from_dig(c: char) -> u8 {
+fn int_from_dg(c: char) -> u8 {
     c as u8 - 0x30 // c - '0'
 }
 

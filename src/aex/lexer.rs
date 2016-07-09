@@ -208,32 +208,32 @@ impl<'a> Lex<'a> for Lexer<'a>
                 YieldEof            => {                          Eof },
 
                 // Numbers
-                AccumNumDec         => { consume!(); t.num_add_dec     (c); continue },
-                AccumNumHexDig      => { consume!(); t.num_add_hex_dig (c); continue },
-                AccumNumHexUc       => { consume!(); t.num_add_hex_uc  (c); continue },
-                AccumNumHexLc       => { consume!(); t.num_add_hex_lc  (c); continue },
-                AccumNumOct         => { consume!(); t.num_add_oct     (c); continue },
-                AccumNumBin         => { consume!(); t.num_add_bin     (c); continue },
+                AccumNumDec         => { consume!(); t.add_dec    (c); continue },
+                AccumNumHexDig      => { consume!(); t.add_hex_dg (c); continue },
+                AccumNumHexUc       => { consume!(); t.add_hex_uc (c); continue },
+                AccumNumHexLc       => { consume!(); t.add_hex_lc (c); continue },
+                AccumNumOct         => { consume!(); t.add_oct    (c); continue },
+                AccumNumBin         => { consume!(); t.add_bin    (c); continue },
 
-                YieldNum            => { t.num_get() },
+                YieldNum            => { t.get_num() },
 
                 // Identifiers & Keywords
-                AccumStr            => { consume!(); t.str_add(c); continue },
-                YieldChar           => { consume!(); t.str_get_char() },
-                YieldStr            => { consume!(); t.str_get_str() },
-                YieldIdOrKw         => { t.str_get_id_or_keyword() },
+                AccumStr            => { consume!(); t.add_char(c); continue },
+                YieldChar           => { consume!(); t.get_char()            },
+                YieldStr            => { consume!(); t.get_str()             },
+                YieldIdOrKw         => {             t.get_id_or_keyword()   },
 
                 // Strings & Chars
-                StartEsc            => { consume!(); push!(InEsc);            continue },
-                AccumEscNul         => { consume!(); pop!(); t.str_add('\0'); continue },
-                AccumEscLf          => { consume!(); pop!(); t.str_add('\n'); continue },
-                AccumEscCr          => { consume!(); pop!(); t.str_add('\r'); continue },
-                AccumEscTab         => { consume!(); pop!(); t.str_add('\t'); continue },
-                AccumEscChar        => { consume!(); pop!(); t.str_add(  c ); continue },
-                AccumEscNum         => { consume!(); pop!(); maybe!{                        t.str_add_esc() } },
-                AccumEscHexDig      => { consume!(); pop!(); maybe!{ t.num_add_hex_dig (c); t.str_add_esc() } },
-                AccumEscHexUc       => { consume!(); pop!(); maybe!{ t.num_add_hex_uc  (c); t.str_add_esc() } },
-                AccumEscHexLc       => { consume!(); pop!(); maybe!{ t.num_add_hex_lc  (c); t.str_add_esc() } },
+                StartEsc            => { consume!(); push!(InEsc);             continue },
+                AccumEscNul         => { consume!(); pop!(); t.add_char('\0'); continue },
+                AccumEscLf          => { consume!(); pop!(); t.add_char('\n'); continue },
+                AccumEscCr          => { consume!(); pop!(); t.add_char('\r'); continue },
+                AccumEscTab         => { consume!(); pop!(); t.add_char('\t'); continue },
+                AccumEscChar        => { consume!(); pop!(); t.add_char(  c ); continue },
+                AccumEscNum         => { consume!(); pop!(); maybe!{                  t.add_esc() }},
+                AccumEscHexDig      => { consume!(); pop!(); maybe!{ t.add_hex_dg(c); t.add_esc() }},
+                AccumEscHexUc       => { consume!(); pop!(); maybe!{ t.add_hex_uc(c); t.add_esc() }},
+                AccumEscHexLc       => { consume!(); pop!(); maybe!{ t.add_hex_lc(c); t.add_esc() }},
 
               //// Simple Tokens
               //YieldBraceL         => { consume!(); BraceL      },
@@ -378,7 +378,6 @@ const STATES: &'static [TransitionSet] = &[
     //    /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
     //    /*  4:  ;  */ ( AfterEos,   YieldEos       ),
     //    /*  5: id0 */ ( InIdOrKw,   AccumStr       ),
-
     //    /*  6:  0  */ ( AfterZero,  Skip           ),
     //    /*  7: 1-9 */ ( InNumDec,   AccumNumDec    ),
     //    /*  8:  '  */ ( InChar,     Skip           ),
