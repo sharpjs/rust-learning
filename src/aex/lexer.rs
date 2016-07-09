@@ -230,10 +230,10 @@ impl<'a> Lex<'a> for Lexer<'a>
                 AccumEscCr          => { consume!(); pop!(); t.str_add('\r'); continue },
                 AccumEscTab         => { consume!(); pop!(); t.str_add('\t'); continue },
                 AccumEscChar        => { consume!(); pop!(); t.str_add(  c ); continue },
-                AccumEscNum         => { consume!(); pop!(); maybe!(t.str_add_esc());          continue },
-                AccumEscHexDig      => { consume!(); pop!(); maybe!(t.str_add_esc_hex_dig(c)); continue },
-                AccumEscHexUc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_uc(c));  continue },
-                AccumEscHexLc       => { consume!(); pop!(); maybe!(t.str_add_esc_hex_lc(c));  continue },
+                AccumEscNum         => { consume!(); pop!(); maybe!{                        t.str_add_esc() } },
+                AccumEscHexDig      => { consume!(); pop!(); maybe!{ t.num_add_hex_dig (c); t.str_add_esc() } },
+                AccumEscHexUc       => { consume!(); pop!(); maybe!{ t.num_add_hex_uc  (c); t.str_add_esc() } },
+                AccumEscHexLc       => { consume!(); pop!(); maybe!{ t.num_add_hex_lc  (c); t.str_add_esc() } },
 
               //// Simple Tokens
               //YieldBraceL         => { consume!(); BraceL      },
