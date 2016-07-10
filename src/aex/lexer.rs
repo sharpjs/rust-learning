@@ -84,40 +84,14 @@ enum Action {
     YieldParenR,        //
     YieldBracketL,      //
     YieldBracketR,      //
-    //YieldDot,           //
-    //YieldAt,            //
-    //YieldPlusPlus,      //
-    //YieldMinusMinus,    //
-    //YieldBang,          //
-    //YieldBang2,         //
-    //YieldTilde,         //
-    //YieldQuestion,      //
-    //YieldStar,          //
-    //YieldSlash,         //
-    //YieldPercent,       //
-    //YieldPlus,          //
-    //YieldMinus,         //
-    //YieldLessLess,      //
-    //YieldMoreMore,      //
-    //YieldAmpersand,     //
-    //YieldCaret,         //
-    //YieldPipe,          //
-    //YieldDotTilde,      //
-    //YieldDotBang,       //
-    //YieldDotEqual,      //
-    //YieldDotQuestion,   //
-    //YieldLessMore,      //
-    //YieldEqualEqual,    //
-    //YieldBangEqual,     //
-    //YieldLess,          //
-    //YieldMore,          //
-    //YieldLessEqual,     //
-    //YieldMoreEqual,     //
-    //YieldEqualArrow,    //
-    //YieldMinusArrow,    //
-    //YieldEqual,         //
-    //YieldColon,         //
-    //YieldComma,         //
+  //YieldDot,           //
+  //YieldAt,            //
+  //YieldEqualArrow,    //
+  //YieldMinusArrow,    //
+  //YieldEqual,         //
+  //YieldColon,         //
+  //YieldComma,         //
+  //YieldOperator,      //
 
     ErrorInvalid,       //
     ErrorInvalidNum,    //
@@ -230,10 +204,10 @@ impl<'a> Lex<'a> for Lexer<'a>
                 AccumEscCr          => { consume!(); pop!(); t.add_char('\r'); continue },
                 AccumEscTab         => { consume!(); pop!(); t.add_char('\t'); continue },
                 AccumEscChar        => { consume!(); pop!(); t.add_char(  c ); continue },
-                AccumEscNum         => { consume!(); pop!(); maybe!{                  t.add_esc() }},
-                AccumEscHexDig      => { consume!(); pop!(); maybe!{ t.add_hex_dg(c); t.add_esc() }},
-                AccumEscHexUc       => { consume!(); pop!(); maybe!{ t.add_hex_uc(c); t.add_esc() }},
-                AccumEscHexLc       => { consume!(); pop!(); maybe!{ t.add_hex_lc(c); t.add_esc() }},
+                AccumEscNum         => { consume!(); pop!();                  maybe!(t.add_esc()) },
+                AccumEscHexDig      => { consume!(); pop!(); t.add_hex_dg(c); maybe!(t.add_esc()) },
+                AccumEscHexUc       => { consume!(); pop!(); t.add_hex_uc(c); maybe!(t.add_esc()) },
+                AccumEscHexLc       => { consume!(); pop!(); t.add_hex_lc(c); maybe!(t.add_esc()) },
 
                 // Simple Tokens
                 YieldBraceL         => { consume!(); BraceL      },

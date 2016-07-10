@@ -48,45 +48,44 @@ impl<'a> Compiler<'a> {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Token<'a> {
-    Id   (&'a str),     // Identifier
-    Flag (&'a str),     // Condition flag
+    Id   (&'a str),         // Identifier
+    Flag (&'a str),         // Condition flag
 
-    Int  (BigInt),      // Literal: integer
-    Char (char),        // Literal: character
-    Str  (&'a str),     // Literal: string
+    Int  (BigInt),          // Literal: integer
+    Char (char),            // Literal: character
+    Str  (&'a str),         // Literal: string
 
-    KwType,             // Keyword: type
-    KwStruct,           // Keyword: struct
-    KwUnion,            // Keyword: union
-    KwIf,               // Keyword: if
-    KwElse,             // Keyword: else
-    KwLoop,             // Keyword: loop
-    KwWhile,            // Keyword: while
-    KwBreak,            // Keyword: break
-    KwContinue,         // Keyword: continue
-    KwReturn,           // Keyword: return
-    KwJump,             // Keyword: jump
+    KwType,                 // Keyword: type
+    KwStruct,               // Keyword: struct
+    KwUnion,                // Keyword: union
+    KwIf,                   // Keyword: if
+    KwElse,                 // Keyword: else
+    KwLoop,                 // Keyword: loop
+    KwWhile,                // Keyword: while
+    KwBreak,                // Keyword: break
+    KwContinue,             // Keyword: continue
+    KwReturn,               // Keyword: return
+    KwJump,                 // Keyword: jump
 
-    BraceL,             // {
-    BraceR,             // }
-    ParenL,             // (
-    ParenR,             // )
-    BracketL,           // [
-    BracketR,           // ]
+    BraceL,                 // {
+    BraceR,                 // }
+    ParenL,                 // (
+    ParenR,                 // )
+    BracketL,               // [
+    BracketR,               // ]
+  //Dot,                    // .
+  //At,                     // @
+  //Equal,                  // =
 
-    Op(&'a OperatorEntry),   // any of: .@!~*/%+-&^|<=>? (how about #$ ?)
+    Colon,                  // :
+    Comma,                  // ,
 
-  //Dot,                // .
-  //At,                 // @
-  //Equal,              // =
+    Op(&'a OperatorEntry),  // any of: .@!~*/%+-&^|<=>?
 
-    Colon,              // :
-    Comma,              // ,
+    Eos,                    // End of statement
+    Eof,                    // End of file
 
-    Eos,                // End of statement
-    Eof,                // End of file
-
-    Error               // Lexical error
+    Error                   // Lexical error
 }
 
 // -----------------------------------------------------------------------------
