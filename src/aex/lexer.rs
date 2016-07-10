@@ -78,12 +78,12 @@ enum Action {
     AccumEscHexUc,      //
     AccumEscHexLc,      //
 
-    //YieldBraceL,        //
-    //YieldBraceR,        //
-    //YieldParenL,        //
-    //YieldParenR,        //
-    //YieldBracketL,      //
-    //YieldBracketR,      //
+    YieldBraceL,        //
+    YieldBraceR,        //
+    YieldParenL,        //
+    YieldParenR,        //
+    YieldBracketL,      //
+    YieldBracketR,      //
     //YieldDot,           //
     //YieldAt,            //
     //YieldPlusPlus,      //
@@ -235,13 +235,13 @@ impl<'a> Lex<'a> for Lexer<'a>
                 AccumEscHexUc       => { consume!(); pop!(); maybe!{ t.add_hex_uc(c); t.add_esc() }},
                 AccumEscHexLc       => { consume!(); pop!(); maybe!{ t.add_hex_lc(c); t.add_esc() }},
 
-              //// Simple Tokens
-              //YieldBraceL         => { consume!(); BraceL      },
-              //YieldBraceR         => { consume!(); BraceR      },
-              //YieldParenL         => { consume!(); ParenL      },
-              //YieldParenR         => { consume!(); ParenR      },
-              //YieldBracketL       => { consume!(); BracketL    },
-              //YieldBracketR       => { consume!(); BracketR    },
+                // Simple Tokens
+                YieldBraceL         => { consume!(); BraceL      },
+                YieldBraceR         => { consume!(); BraceR      },
+                YieldParenL         => { consume!(); ParenL      },
+                YieldParenR         => { consume!(); ParenR      },
+                YieldBracketL       => { consume!(); BracketL    },
+                YieldBracketR       => { consume!(); BracketR    },
               //YieldDot            => {             Dot         },
               //YieldAt             => { consume!(); At          },
               //YieldPlusPlus       => { consume!(); PlusPlus    },
@@ -340,12 +340,12 @@ const STATES: &'static [TransitionSet] = &[
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, 9, x, x, x, x, 8,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        2, x, 9, x, x, x, x, 8, 12,13, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
         6, 7, 7, 7, 7, 7, 7, 7,  7, 7, x, 4, x, x, x, x, // 01234567 89:;<=>?
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
-        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, 5, // PQRSTUVW XYZ[\]^_
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,14, x,15, x, 5, // PQRSTUVW XYZ[\]^_
         x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
-        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,10, x,11, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //              State       Action
         /*  0: eof */ ( AtEof,      YieldEof       ),
@@ -358,6 +358,12 @@ const STATES: &'static [TransitionSet] = &[
         /*  7: 1-9 */ ( InNumDec,   AccumNumDec    ),
         /*  8:  '  */ ( InChar,     Skip           ),
         /*  9:  "  */ ( InStr,      Skip           ),
+        /* 10:  {  */ ( Initial,    YieldBraceL    ),
+        /* 11:  }  */ ( Initial,    YieldBraceR    ),
+        /* 12:  (  */ ( Initial,    YieldParenL    ),
+        /* 13:  )  */ ( Initial,    YieldParenR    ),
+        /* 14:  [  */ ( Initial,    YieldBracketL  ),
+        /* 15:  ]  */ ( Initial,    YieldBracketR  ),
     ]),
 
     //// Initial
@@ -1009,8 +1015,11 @@ mod tests {
         lex("jump"    , |it| { it.yields(KwJump    ).yields(Eof); });
     }
 
-//    #[test]
-//    fn punctuation() {
+    #[test]
+    fn punctuation() {
+        lex("{}", |it| { it.yields(BraceL)  .yields(BraceR);   });
+        lex("()", |it| { it.yields(ParenL)  .yields(ParenR);   });
+        lex("[]", |it| { it.yields(BracketL).yields(BracketR); });
 //        lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - << >> & ^ | .~ .! .= .? \
 //             <> == != < > <= >= => -> = : ,", |it| { it
 //            .yields(BraceL)     .yields(BraceR)     .yields(ParenL)    .yields(ParenR)
@@ -1028,7 +1037,7 @@ mod tests {
 //            .yields(Colon)      .yields(Comma)
 //            .yields(Eof);
 //        });
-//    }
+    }
 
     // Test Harness
 
