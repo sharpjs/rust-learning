@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use aex::ast::Expr;
-//use aex::target::cf::CfValue;
+use aex::target::*;
 
 use self::Value::*;
 
@@ -31,7 +31,7 @@ pub enum Value<'a> {
     Const(Expr<'a>),
 
     /// ColdFire value
-    Cf( () /*CfValue*/),
+    Cf(CfValue),
 }
 
 impl<'a> Value<'a> {

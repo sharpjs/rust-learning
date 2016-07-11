@@ -26,13 +26,16 @@
 //use aex::operator::Arity::*;
 //use aex::operator::{Constness, Operand};
 //use aex::pos::{Source /*, Pos*/};
-use aex::target::*;
+use aex::target::Target;
 //use aex::types::builtin::*;
 
 pub struct ColdFire;
 
-impl Target for ColdFire {}
+impl Target for ColdFire {
+    // ...
+}
 
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CfValue {
     DataReg,
     AddrReg,

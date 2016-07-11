@@ -19,8 +19,11 @@
 mod cf; // Freescale ColdFire
 
 pub use self::cf::ColdFire;
+pub use self::cf::CfValue;
 
-pub trait Target {}
+pub trait Target {
+    // ...
+}
 
 #[cfg(test)]
 pub mod tests {
@@ -28,6 +31,8 @@ pub mod tests {
 
     pub struct TestTarget;
 
-    impl Target for TestTarget {}
+    impl Target for TestTarget {
+        // ...
+    }
 }
 
