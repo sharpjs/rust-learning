@@ -48,5 +48,12 @@ impl<'a> Value<'a> {
             _        => panic!(),
         }
     }
+
+    fn target(&self) -> Option<&'static Target> {
+        match *self {
+            Const (_) => None,
+            Cf    (_) => Some(COLDFIRE),
+        }
+    }
 }
 

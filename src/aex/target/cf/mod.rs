@@ -31,6 +31,8 @@ use aex::target::Target;
 
 pub struct ColdFire;
 
+pub const COLDFIRE: &'static Target = &ColdFire;
+
 impl Target for ColdFire {
     // ...
 }
