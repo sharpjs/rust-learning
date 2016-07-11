@@ -1,4 +1,4 @@
-// Target Architectures
+// Test Target
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,21 +16,14 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::Debug;
+use aex::target::Target;
 
-// Target modules
-mod cf;     // Freescale ColdFire
-mod test;   // For testing; does not generate output
+#[derive(Debug)]
+pub struct TestTarget;
 
-// Target value types
-pub use self::cf   ::CfValue;
-pub use self::test ::TestValue;
-
-// Target objects
-pub const COLDFIRE:    &'static Target = &cf   ::ColdFire;
-pub const TEST_TARGET: &'static Target = &test ::TestTarget;
-
-pub trait Target : Debug {
+impl Target for TestTarget {
     // ...
 }
+
+pub type TestValue = ();
 
