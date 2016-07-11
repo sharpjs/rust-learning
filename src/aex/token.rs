@@ -76,7 +76,8 @@ pub enum Token<'a> {
   //Dot,                    // .
   //At,                     // @
   //Equal,                  // =
-
+  //EqualArrow,             // =>
+  //MinusArrow,             // ->
     Colon,                  // :
     Comma,                  // ,
 
