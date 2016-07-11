@@ -54,7 +54,7 @@ impl<'a> Value<'a> {
 
     fn target(&self) -> Option<&'static Target> {
         match *self {
-            Const (_) => None,
+            Const (_) => None,              // TODO: perhaps a CONST pseudo-target?
             Cf    (_) => Some(COLDFIRE),
             Test  (_) => Some(TEST_TARGET),
         }
