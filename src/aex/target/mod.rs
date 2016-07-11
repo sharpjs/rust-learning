@@ -16,22 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod cf; // Freescale ColdFire
+use std::fmt::Debug;
 
-pub use self::cf::*;
+// Target modules
+mod cf;     // Freescale ColdFire
 
-pub trait Target {
+// Target value types
+pub use self::cf   ::CfValue;
+
+// Target objects
+pub const COLDFIRE:    &'static Target = &cf   ::ColdFire;
+
+pub trait Target : Debug {
     // ...
-}
-
-#[cfg(test)]
-pub mod tests {
-    use super::*;
-
-    pub struct TestTarget;
-
-    impl Target for TestTarget {
-        // ...
-    }
 }
 

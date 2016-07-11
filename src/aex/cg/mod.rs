@@ -20,8 +20,7 @@ use aex::ast::*;
 use aex::compiler::Compiler;
 use aex::output::Output;
 use aex::scope::Scope;
-use aex::target::Target;
-use aex::target::ColdFire; // temporary
+use aex::target::*;
 use aex::types::res::define_types;
 use aex::types::res::ResolveType;
 
@@ -36,7 +35,7 @@ pub fn generate_code<'a>(compiler: &Compiler,
     let mut gen = Generator {
         scope:    Scope::with_parent(scope),
         compiler: compiler,
-        target:   &ColdFire,
+        target:   COLDFIRE,
         out:      out,
     };
     gen.visit_block(ast)

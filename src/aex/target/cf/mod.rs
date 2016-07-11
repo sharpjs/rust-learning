@@ -29,9 +29,8 @@
 use aex::target::Target;
 //use aex::types::builtin::*;
 
+#[derive(Debug)]
 pub struct ColdFire;
-
-pub const COLDFIRE: &'static Target = &ColdFire;
 
 impl Target for ColdFire {
     // ...
