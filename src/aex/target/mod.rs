@@ -18,8 +18,7 @@
 
 mod cf; // Freescale ColdFire
 
-pub use self::cf::ColdFire;
-pub use self::cf::CfValue;
+pub use self::cf::*;
 
 pub trait Target {
     // ...

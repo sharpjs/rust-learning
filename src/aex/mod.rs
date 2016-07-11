@@ -39,8 +39,7 @@ mod types;
 mod value;
 
 pub use aex::compiler::Compiler;
-//pub use aex::target::ColdFire;
+pub use aex::target::*;
 
-//mod message;
 //mod analyze;
 
