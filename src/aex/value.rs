@@ -19,6 +19,8 @@
 use aex::ast::Expr;
 //use aex::target::cf::CfValue;
 
+use self::Value::*;
+
 // -----------------------------------------------------------------------------
 
 /// A typed value -- the result of evaluating an expression.
@@ -28,7 +30,23 @@ pub enum Value<'a> {
     /// Assembler constant
     Const(Expr<'a>),
 
-//  /// ColdFire value
-//  Cf(CfValue),
+    /// ColdFire value
+    Cf( () /*CfValue*/),
+}
+
+impl<'a> Value<'a> {
+    pub fn is_const(&self) -> bool {
+        match *self {
+            Const(_) => true,
+            _        => false,
+        }
+    }
+
+    fn unwrap_const(self) -> Expr<'a> {
+        match self {
+            Const(e) => e,
+            _        => panic!(),
+        }
+    }
 }
 

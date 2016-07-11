@@ -165,15 +165,6 @@ impl Debug for Arity {
 //
 //// -----------------------------------------------------------------------------
 //
-//pub trait Const {
-//    type Expr;
-//    fn    new_const (Self::Expr) -> Self;
-//    fn     is_const (&self     ) -> bool;
-//    fn unwrap_const ( self     ) -> Self::Expr; // or panic
-//}
-//
-//// -----------------------------------------------------------------------------
-//
 //#[derive(Clone, Eq, PartialEq, Debug)]
 //pub struct Operand<'a, V> {
 //    pub value:  V,
