@@ -32,6 +32,9 @@ pub enum Value<'a> {
 
     /// ColdFire value
     Cf(CfValue),
+
+    /// Test value
+    Test(TestValue),
 }
 
 impl<'a> Value<'a> {
@@ -53,6 +56,7 @@ impl<'a> Value<'a> {
         match *self {
             Const (_) => None,
             Cf    (_) => Some(COLDFIRE),
+            Test  (_) => Some(TEST_TARGET),
         }
     }
 }
