@@ -18,6 +18,10 @@
 
 use std::fmt::Debug;
 
+use aex::ast::Expr;
+use aex::operator::OperatorTable;
+use aex::value::Value;
+
 // Target modules
 mod cf;     // Freescale ColdFire
 mod test;   // For testing; does not generate output
@@ -31,6 +35,9 @@ pub const COLDFIRE:    &'static Target = &cf   ::ColdFire;
 pub const TEST_TARGET: &'static Target = &test ::TestTarget;
 
 pub trait Target : Debug {
-    // ...
+
+    fn operators(&self) -> &OperatorTable { panic!() }
+
+    fn eval<'a>(&self, expr: &Expr<'a>, ctx: Context<'a>) -> Value<'a> { panic!() }
 }
 
