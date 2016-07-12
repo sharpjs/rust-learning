@@ -23,6 +23,7 @@ mod util;
 mod asm;
 mod ast;
 mod compiler;
+mod context;
 mod cg;
 mod lexer;
 mod mem;

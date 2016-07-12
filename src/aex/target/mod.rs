@@ -19,6 +19,7 @@
 use std::fmt::Debug;
 
 use aex::ast::Expr;
+use aex::context::Context;
 use aex::operator::OperatorTable;
 use aex::value::Value;
 
