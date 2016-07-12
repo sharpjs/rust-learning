@@ -19,6 +19,7 @@
 #[macro_use]
 mod util;
 
+//mod analyze;  // probably obsolete
 mod asm;
 mod ast;
 mod compiler;
@@ -29,7 +30,7 @@ mod message;
 mod operator;
 mod output;
 mod pos;
-//mod parser;
+//mod parser;   // TODO
 mod scope;
 mod source;
 mod symbol;
@@ -40,6 +41,4 @@ mod value;
 
 pub use aex::compiler::Compiler;
 pub use aex::target::*;
-
-//mod analyze;
 
