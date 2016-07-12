@@ -27,7 +27,7 @@ use aex::types::Type;
 
 pub type Ast<'a> = Vec<Stmt<'a>>;
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Stmt<'a> {
     // Composite
     Block   (Ast     <'a>), // { ... }
@@ -46,27 +46,27 @@ pub enum Stmt<'a> {
     While   (While   <'a>), // while  x > 0 { ... }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TypeDef<'a> {
     pub id:  Id     <'a>,
     pub ty:  Type   <'a>,
     pub src: Source <'a>,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Label<'a> {
     pub id:  Id     <'a>,
     pub src: Source <'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DataLoc<'a> {
     pub id:  Id     <'a>,
     pub ty:  Type   <'a>,
     pub src: Source <'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DataVal<'a> {
     pub id:  Id     <'a>,
     pub ty:  Type   <'a>,
@@ -74,7 +74,7 @@ pub struct DataVal<'a> {
     pub src: Source <'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Func<'a> {
     pub id:  Id     <'a>,
     pub ty:  Type   <'a>,
@@ -82,13 +82,13 @@ pub struct Func<'a> {
     pub src: Source <'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Loop<'a> {
     pub ast: Ast    <'a>,
     pub src: Source <'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct If<'a> {
     pub cond:     Cond   <'a>,
     pub if_true:  Ast    <'a>,
@@ -96,14 +96,14 @@ pub struct If<'a> {
     pub src:      Source <'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct While<'a> {
     pub cond: Cond   <'a>,
     pub ast:  Ast    <'a>,
     pub src:  Source <'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Cond<'a> {
     pub sel:         Id     <'a>,
     pub expr: Option<Expr   <'a>>,
@@ -113,7 +113,7 @@ pub struct Cond<'a> {
 // -----------------------------------------------------------------------------
 // Expressions
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expr<'a> {
     // Atomic
     Id      (Id         <'a>),  // x
@@ -129,20 +129,20 @@ pub enum Expr<'a> {
     Binary  (BinaryExpr <'a>),  // x + y
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DerefExpr<'a> {
     pub expr: Vec<Expr<'a>>,
     pub src:  Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct MemberExpr<'a> {
     pub expr: Box<Expr<'a>>,
     pub id:   Id<'a>,
     pub src:  Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UnaryExpr<'a> {
     pub op:   (),
     pub sel:  Id<'a>,
@@ -150,7 +150,7 @@ pub struct UnaryExpr<'a> {
     pub src:  Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BinaryExpr<'a> {
     pub op:   (),
     pub sel:  Id<'a>,
@@ -162,19 +162,19 @@ pub struct BinaryExpr<'a> {
 // -----------------------------------------------------------------------------
 // Terminals
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Id<'a> {
     pub name: &'a str,
     pub src:  Source<'a>,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct StrLit<'a> {
     pub val: &'a str,
     pub src: Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct IntLit<'a> {
     pub val: BigInt,
     pub src: Source<'a>,

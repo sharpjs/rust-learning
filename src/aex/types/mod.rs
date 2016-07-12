@@ -36,75 +36,69 @@ use aex::types::int::IntSpec;
 // -----------------------------------------------------------------------------
 
 // Type expression
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Type<'a> {
-    Ref    (TyRef   <'a>),
-    Int    (IntTy   <'a>),
-    Float  (FloatTy <'a>),
-    Array  (ArrayTy <'a>),
-    Ptr    (PtrTy   <'a>),
-    Struct (StructTy<'a>),
-    Union  (UnionTy <'a>),
-    Func   (FuncTy  <'a>),
+    Ref    (TyRef    <'a>),
+    Int    (IntTy    <'a>),
+    Float  (FloatTy  <'a>),
+    Array  (ArrayTy  <'a>),
+    Ptr    (PtrTy    <'a>),
+    Struct (StructTy <'a>),
+    Union  (UnionTy  <'a>),
+    Func   (FuncTy   <'a>),
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct TyRef<'a> {
     pub id: Id<'a>,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum IntTy<'a> {
     Abstract,
-    Concrete {
-        spec: IntSpec,
-        src:  Source<'a>,
-    }
+    Concrete { spec: IntSpec, src: Source<'a> }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum FloatTy<'a> {
     Abstract,
-    Concrete {
-        spec: FloatSpec,
-        src:  Source<'a>,
-    }
+    Concrete { spec: FloatSpec, src: Source<'a> }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct ArrayTy<'a> {
     pub ty:  Box<Type<'a>>,
     pub len: usize,
     pub src: Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct PtrTy<'a> {
     pub ptr_ty: Box<Type<'a>>,
     pub val_ty: Box<Type<'a>>,
     pub src:    Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct StructTy<'a> {
     pub members: Vec<Member<'a>>,
     pub src:     Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UnionTy<'a> {
     pub members: Vec<Member<'a>>,
     pub src:     Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct FuncTy<'a> {
     pub params: Vec<Member<'a>>,
     pub rets:   Vec<Member<'a>>,
     pub src:    Source<'a>,
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Member<'a> {
     pub id: Id<'a>,
     pub ty: Type<'a>,
@@ -294,7 +288,7 @@ pub struct Member<'a> {
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum CheckResult { None, Left, Right }
 
 impl CheckResult {

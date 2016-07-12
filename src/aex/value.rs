@@ -25,7 +25,7 @@ use self::Value::*;
 
 /// A typed value -- the result of evaluating an expression.
 ///
-#[derive(Clone, Eq, PartialEq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Value<'a> {
     /// Assembler constant
     Const(Expr<'a>),
