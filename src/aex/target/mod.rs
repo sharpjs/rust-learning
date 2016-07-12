@@ -21,6 +21,10 @@ use std::fmt::Debug;
 use aex::ast::Expr;
 use aex::context::Context;
 use aex::operator::OperatorTable;
+use aex::scope::Scope;
+use aex::symbol::Symbol;
+use aex::types::res::ResolvedType;
+use aex::util::Lookup;
 use aex::value::Value;
 
 // Target modules
@@ -39,6 +43,24 @@ pub trait Target : Debug {
 
     fn operators(&self) -> &OperatorTable { panic!() }
 
+    fn root_scope(&self) -> &Scope<'static> { panic!() }
+
     fn eval<'a>(&self, expr: &Expr<'a>, ctx: Context<'a>) -> Value<'a> { panic!() }
+}
+
+// Maybe instead a trait Scoped that gives access to symbols() and types() ?
+
+impl<'a> Lookup<str, Symbol<'a>> for Target + 'a {
+    #[inline(always)]
+    fn lookup(&self, name: &str) -> Option<&Symbol<'a>> {
+        self.root_scope().symbols.lookup(name)
+    }
+}
+
+impl<'a> Lookup<str, ResolvedType<'a>> for Target + 'a {
+    #[inline(always)]
+    fn lookup(&self, name: &str) -> Option<&ResolvedType<'a>> {
+        self.root_scope().types.lookup(name)
+    }
 }
 
