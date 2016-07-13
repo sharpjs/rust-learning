@@ -25,6 +25,12 @@ use aex::util::Lookup;
 
 // -----------------------------------------------------------------------------
 
+pub trait Scoped<'a> {
+    fn scope(&self) -> &Scope<'a>;
+}
+
+// -----------------------------------------------------------------------------
+
 pub struct Scope<'a> {
     pub symbols: SymbolScope<'a>,
     pub types:   TypeScope  <'a>,
@@ -60,16 +66,20 @@ impl<'a> Scope<'a> {
     }
 }
 
+impl<'a> Scoped<'a> for Scope<'a> {
+    fn scope(&self) -> &Scope<'a> { self }
+}
+
 // -----------------------------------------------------------------------------
 
 pub struct ScopeMap<'a, T: 'a> {
     map:    HashMap<&'a str, &'a T>,
     arena:  Arena<T>,
-    parent: Option<&'a ScopeMap<'a, T>>,
+    parent: Option<&'a Lookup<str, T>>,
 }
 
 impl<'a, T: 'a> ScopeMap<'a, T> {
-    fn new(parent: Option<&'a ScopeMap<'a, T>>) -> Self {
+    fn new(parent: Option<&'a Lookup<str, T>>) -> Self {
         ScopeMap {
             map:    HashMap::new(),
             arena:  Arena::new(),
@@ -127,20 +137,15 @@ mod tests {
 
     mod scope {
         use super::super::*;
+        use aex::util::ref_eq;
 
         #[test]
         fn new() {
             let parent = Scope::new();
             let child  = Scope::with_parent(&parent);
 
-            assert_eq!(
-                child.types.parent.unwrap() as *const _,
-                &parent.types               as *const _
-            );
-            assert_eq!(
-                child.symbols.parent.unwrap() as *const _,
-                &parent.symbols               as *const _
-            );
+            assert!(ref_eq(child.types  .parent.unwrap(), &parent.types  ));
+            assert!(ref_eq(child.symbols.parent.unwrap(), &parent.symbols));
         }
     }
 
