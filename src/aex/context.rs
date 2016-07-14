@@ -19,12 +19,12 @@
 use aex::mem::StringInterner;
 use aex::output::Output;
 use aex::scope::Scope;
-use aex::target::Target;
+use aex::target::TargetRef;
 
 pub struct Context<'a> {
-    pub scope:           Scope<'a>,         // named values and types
-    pub target:  &'a     Target,            // operators, root scope, evaluator, (compiler options)
-    pub strings: &'a     StringInterner,    // strings
+    pub scope:   Scope<'a>,                 // named values and types
+    pub target:  TargetRef<'a>,             // operators, root scope, evaluator, (compiler options)
+    pub strings: &'a StringInterner,        // strings
     pub out:     &'a mut Output<'a>,        // output code, message log
 }
 

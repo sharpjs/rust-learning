@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::Debug;
+use std::ops::Deref;
 
 use aex::ast::Expr;
 use aex::context::Context;
@@ -39,6 +40,8 @@ pub use self::test ::TestValue;
 pub const COLDFIRE:    &'static Target = &cf   ::ColdFire;
 pub const TEST_TARGET: &'static Target = &test ::TestTarget;
 
+// -----------------------------------------------------------------------------
+
 pub trait Target : Debug {
     fn operators(&self) -> &OperatorTable { panic!() }
 
@@ -47,19 +50,51 @@ pub trait Target : Debug {
     fn eval<'a>(&self, expr: &Expr<'a>, ctx: Context<'a>) -> Value<'a> { panic!() }
 }
 
-impl Scoped<'static> for Target {
-    fn scope(&self) -> &Scope<'static> { self.root_scope() }
-}
+// -----------------------------------------------------------------------------
 
-impl<'a> Lookup<str, Symbol<'a>> for Target + 'a {
-    fn lookup(&self, name: &str) -> Option<&Symbol<'a>> {
-        self.root_scope().symbols.lookup(name)
+#[derive(Clone, Copy, Debug)]
+pub struct TargetRef<'a> (&'a Target);
+
+impl<'a> TargetRef<'a> {
+    #[inline(always)]
+    pub fn new(target: &'a Target) -> Self {
+        TargetRef(target)
+    }
+
+    #[inline(always)]
+    pub fn set(&mut self, target: &'a Target) {
+        self.0 = target;
     }
 }
 
-impl<'a> Lookup<str, ResolvedType<'a>> for Target + 'a {
+impl<'a> Deref for TargetRef<'a> {
+    type Target = Target + 'a;
+
+    #[inline(always)]
+    fn deref(&self) -> &Self::Target { self.0 }
+}
+
+impl<'a> Scoped<'a> for TargetRef<'a> {
+    #[inline]
+    fn symbols(&self) -> &Lookup<str, Symbol<'a>> {
+        self
+    }
+
+    #[inline]
+    fn types(&self) -> &Lookup<str, ResolvedType<'a>> {
+        self
+    }
+}
+
+impl<'a> Lookup<str, Symbol<'a>> for TargetRef<'a> {
+    fn lookup(&self, name: &str) -> Option<&Symbol<'a>> {
+        self.root_scope().lookup(name)
+    }
+}
+
+impl<'a> Lookup<str, ResolvedType<'a>> for TargetRef<'a> {
     fn lookup(&self, name: &str) -> Option<&ResolvedType<'a>> {
-        self.root_scope().types.lookup(name)
+        self.root_scope().lookup(name)
     }
 }
 

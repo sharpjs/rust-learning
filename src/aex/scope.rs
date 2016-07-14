@@ -26,7 +26,8 @@ use aex::util::Lookup;
 // -----------------------------------------------------------------------------
 
 pub trait Scoped<'a> {
-    fn scope(&self) -> &Scope<'a>;
+    fn symbols (&self) -> &Lookup<str, Symbol      <'a>>;
+    fn types   (&self) -> &Lookup<str, ResolvedType<'a>>;
 }
 
 // -----------------------------------------------------------------------------
@@ -47,27 +48,49 @@ impl<'a> Scope<'a> {
         }
     }
 
-    pub fn with_parent<'p: 'a>(parent: &'a Scope<'p>) -> Self {
+    pub fn with_parent<'p: 'a>(parent: &'a Scoped<'p>) -> Self {
         use std::mem::transmute;
 
-        // SAFETY:  Scope<'p> is invariant in 'p.  It is OK to transmute the
-        // parent reference to Scope<'a> here, because 'p >= 'a, and because
+        // SAFETY:  Scoped<'p> is invariant in 'p.  It is OK to transmute the
+        // parent reference to Scoped<'a> here, because 'p >= 'a, and because
         // this object never mutates its parent.
         //
         // Rustonomicon: Subtyping and Variance
         // https://doc.rust-lang.org/stable/nomicon/subtyping.html
         //
-        let parent: &'a Scope<'a> = unsafe { transmute(parent) };
+        let parent: &'a Scoped<'a> = unsafe { transmute(parent) };
 
         Scope {
-            symbols: ScopeMap::new(Some(&parent.symbols)),
-            types:   ScopeMap::new(Some(&parent.types  )),
+            symbols: ScopeMap::new(Some(parent.symbols())),
+            types:   ScopeMap::new(Some(parent.types  ())),
         }
     }
 }
 
 impl<'a> Scoped<'a> for Scope<'a> {
-    fn scope(&self) -> &Scope<'a> { self }
+    #[inline]
+    fn symbols(&self) -> &Lookup<str, Symbol<'a>> {
+        &self.symbols
+    }
+
+    #[inline]
+    fn types(&self) -> &Lookup<str, ResolvedType<'a>> {
+        &self.types
+    }
+}
+
+impl<'a> Lookup<str, Symbol<'a>> for Scope<'a> {
+    #[inline]
+    fn lookup(&self, name: &str) -> Option<&Symbol<'a>> {
+        self.symbols.lookup(name)
+    }
+}
+
+impl<'a> Lookup<str, ResolvedType<'a>> for Scope<'a> {
+    #[inline]
+    fn lookup(&self, name: &str) -> Option<&ResolvedType<'a>> {
+        self.types.lookup(name)
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -138,6 +161,7 @@ mod tests {
     mod scope {
         use super::super::*;
         use aex::util::ref_eq;
+        use aex::target::{TargetRef, TEST_TARGET};
 
         #[test]
         fn new() {
@@ -146,6 +170,13 @@ mod tests {
 
             assert!(ref_eq(child.types  .parent.unwrap(), &parent.types  ));
             assert!(ref_eq(child.symbols.parent.unwrap(), &parent.symbols));
+        }
+
+        #[test]
+        fn abstract_parent() {
+            let parent = TargetRef::new(TEST_TARGET);
+            let child  = Scope::with_parent(&parent);
+            // Just making sure it typechecks for now
         }
     }
 
