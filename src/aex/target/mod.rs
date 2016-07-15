@@ -33,12 +33,8 @@ mod cf;     // Freescale ColdFire
 mod test;   // For testing; does not generate output
 
 // Target value types
-pub use self::cf   ::CfValue;
-pub use self::test ::TestValue;
-
-// Target objects
-pub const COLDFIRE:    &'static Target = &cf   ::ColdFire;
-pub const TEST_TARGET: &'static Target = &test ::TestTarget;
+pub use self::cf::   { ColdFire,   CfValue   };
+pub use self::test:: { TestTarget, TestValue };
 
 // -----------------------------------------------------------------------------
 
@@ -47,7 +43,7 @@ pub trait Target : Debug {
 
     fn root_scope(&self) -> &Scope<'static> { panic!() }
 
-    fn eval<'a>(&self, expr: &Expr<'a>, ctx: Context<'a>) -> Value<'a> { panic!() }
+    fn eval<'a>(&self, e: &Expr<'a>, c: Context<'a>) -> Value<'a> { panic!() }
 }
 
 // -----------------------------------------------------------------------------

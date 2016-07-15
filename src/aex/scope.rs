@@ -161,7 +161,7 @@ mod tests {
     mod scope {
         use super::super::*;
         use aex::util::ref_eq;
-        use aex::target::{TargetRef, TEST_TARGET};
+        use aex::target::{TargetRef, TestTarget};
 
         #[test]
         fn new() {
@@ -174,7 +174,8 @@ mod tests {
 
         #[test]
         fn abstract_parent() {
-            let parent = TargetRef::new(TEST_TARGET);
+            let target = TestTarget::new();
+            let parent = TargetRef::new(&target);
             let child  = Scope::with_parent(&parent);
             // Just making sure it typechecks for now
         }

@@ -20,7 +20,7 @@ use aex::ast::*;
 use aex::compiler::Compiler;
 use aex::output::Output;
 use aex::scope::Scope;
-use aex::target::*;
+//use aex::target::*;
 use aex::types::res::define_types;
 use aex::types::res::ResolveType;
 
@@ -35,7 +35,7 @@ pub fn generate_code<'a>(compiler: &Compiler,
     let mut gen = Generator {
         scope:    Scope::with_parent(scope),
         compiler: compiler,
-        target:   COLDFIRE,
+        //target:   COLDFIRE,
         out:      out,
     };
     gen.visit_block(ast)
@@ -44,7 +44,7 @@ pub fn generate_code<'a>(compiler: &Compiler,
 pub struct Generator<'g, 'a: 'g> {
     pub scope:            Scope<'g>,
     pub compiler: &'g     Compiler,
-    pub target:   &'g     Target,
+    //pub target:   &'g     Target,
     pub out:      &'g mut Output<'a>,
 }
 
@@ -55,7 +55,7 @@ impl<'g, 'a: 'g> Generator<'g, 'a> {
         Generator {
             scope:    Scope::with_parent(&self.scope),
             compiler: self.compiler,
-            target:   self.target,
+            //target:   self.target,
             out:      self.out,
         }
     }

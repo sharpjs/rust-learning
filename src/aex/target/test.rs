@@ -21,6 +21,10 @@ use aex::target::Target;
 #[derive(Debug)]
 pub struct TestTarget;
 
+impl TestTarget {
+    pub fn new() -> Self { TestTarget }
+}
+
 impl Target for TestTarget {
     // ...
 }
