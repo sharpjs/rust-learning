@@ -18,30 +18,63 @@
 
 //pub mod fmap;
 
-//pub trait Lookup<K: ?Sized, V: ?Sized> {
-//    fn lookup(&self, key: &K) -> Option<&V>;
-//}
+pub trait Lookup<K: ?Sized, V: ?Sized> {
+    fn lookup(&self, key: &K) -> Option<&V>;
+}
 
 #[inline(always)]
 pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
     x as *const _ == y as *const _
 }
 
+#[macro_export]
+macro_rules! result {
+    ($cond:expr) => (
+        if $cond { Ok(()) } else { Err(()) }
+    );
+    ($cond:expr, $ok:expr) => (
+        if $cond { Ok($ok) } else { Err(()) }
+    );
+    ($cond:expr, $ok:expr, $err:expr) => (
+        if $cond { Ok($ok) } else { Err($err) }
+    );
+}
+
+// From http://stackoverflow.com/a/28392068/142138
+#[macro_export]
+macro_rules! hash_map {
+    ($( $key:expr => $val:expr ),*) => {{
+         let mut map = ::std::collections::HashMap::new();
+         $( map.insert($key, $val); )*
+         map
+    }}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    static X: str = *"xax";
+    static Y: str = *"yay";
+
     #[test]
     fn ref_eq_true() {
-        let x = &"".to_string();
-        let y = x;
+        let x = &X;
+        let y =  x;
         assert_eq!(ref_eq(x, y), true);
     }
 
     #[test]
-    fn ref_eq_false() {
-        let x = &"".to_string();
-        let y = &"".to_string();
+    fn ref_eq_false_by_ptr() {
+        let x = &X[1..2];
+        let y = &Y[1..2];
+        assert_eq!(ref_eq(x, y), false);
+    }
+
+    #[test]
+    fn ref_eq_false_by_len() {
+        let x = &X[1..2];
+        let y = &X[1.. ];
         assert_eq!(ref_eq(x, y), false);
     }
 }

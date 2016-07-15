@@ -22,13 +22,24 @@ use aex::types::contains::Contains;
 use aex::types::float::FloatSpec;
 use aex::types::int::IntSpec;
 
-// -----------------------------------------------------------------------------
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
+pub struct TypeInfo {
+    pub form:  TypeForm,    // element form
+    pub step:  usize,       // if element is a ptr, size of inc/dec
+    pub count: usize,       // number of elements; 0 = unknown
+}
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 pub enum TypeForm {
-    Inty    (Option<  IntSpec>),    // Int, Ptr
+    Inty    (Option<IntSpec  >),    // Int, Ptr
     Floaty  (Option<FloatSpec>),    // Float
-    Opaque,                         // Array, Union, Struct, Func
+    Opaque  (Option<usize    >),    // Array, Union, Struct, Func
+}
+
+impl TypeInfo {
+    pub fn size_bytes(&self) -> usize {
+        self.form.size_bytes() * self.count
+    }
 }
 
 impl TypeForm {
@@ -63,6 +74,26 @@ impl TypeForm {
             _ => None
         }
     }
+
+    pub fn size_bytes(&self) -> usize {
+        match *self {
+            TypeForm::Inty(Some(IntSpec { store_width, .. })) => {
+                bits_to_bytes(store_width)
+            },
+            TypeForm::Floaty(Some(FloatSpec { store_width, .. })) => {
+                bits_to_bytes(store_width)
+            },
+            TypeForm::Opaque(Some(size)) => {
+                size
+            },
+            _ => 0,
+        }
+    }
+}
+
+#[inline]
+fn bits_to_bytes(bits: u8) -> usize {
+    (bits as usize).next_power_of_two() >> 3
 }
 
 impl Contains<BigInt> for TypeForm {
@@ -71,7 +102,7 @@ impl Contains<BigInt> for TypeForm {
         match *self {
             TypeForm::Inty   (s) => s.contains(expr),
             TypeForm::Floaty (s) => None, // Don't know for now
-            TypeForm::Opaque     => Some(false)
+            TypeForm::Opaque (_) => Some(false)
         }
     }
 }

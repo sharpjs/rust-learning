@@ -1,4 +1,4 @@
-// Memory Utilities
+// Aex Memory Utilities Module
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,9 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod id;
+mod arena;
 mod interner;
+mod ptr;
 
-pub use self::id::*;
+pub use self::arena::*;
 pub use self::interner::*;
 

@@ -16,162 +16,283 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Formatter, Write};
-use num::{BigInt, ToPrimitive};
+//use std::fmt::{self, Display, Formatter, Write};
+use num::{BigInt}; //, ToPrimitive};
 
-//use aex::pos::Source;
-use aex::target::Target;
-//use aex::types::Type;
+use aex::pos::Source;
+use aex::types::Type;
 
-pub type Ast<T> = Vec<Stmt<T>>;
+// -----------------------------------------------------------------------------
+// Statements
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Stmt<T: Target> {
+pub type Ast<'a> = Vec<Stmt<'a>>;
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Stmt<'a> {
     // Composite
-    Block   (T::Source, Vec<Stmt<T>>),
+    Block   (Ast     <'a>), // { ... }
 
     // Declaration
-    //TypeDef (T::Source, T::String, Box<Type<T>>),
-    Label   (T::Source, T::String),
-    //Bss     (T::Source, T::String, Box<Type<T>>),
-    //Data    (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
-    //Alias   (T::Source, T::String, Box<Type<T>>, Box<Expr<T>>),
-    //Func    (T::Source, T::String, Box<Type<T>>, Box<Stmt<T>>),
+    TypeDef (TypeDef <'a>), // type foo = u8
+    Label   (Label   <'a>), // foo:
+    DataLoc (DataLoc <'a>), // foo: u8
+    DataVal (DataVal <'a>), // foo: u8 = 42
+    Func    (Func    <'a>), // foo: u8 -> u8 { ... }
 
     // Execution
-    Eval    (T::Source, Box<Expr<T>>),
-    Loop    (T::Source, Box<Stmt<T>>),
-    If      (T::Source, Cond<T>, Box<Stmt<T>>, Option<Box<Stmt<T>>>),
-    While   (T::Source, Cond<T>, Box<Stmt<T>>),
+    Eval    (Expr    <'a>), // x + 42
+    Loop    (Loop    <'a>), // loop         { ... }
+    If      (If      <'a>), // if     x > 0 { ... } else { ... }
+    While   (While   <'a>), // while  x > 0 { ... }
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum Expr<T: Target> {
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct TypeDef<'a> {
+    pub id:  Id     <'a>,
+    pub ty:  Type   <'a>,
+    pub src: Source <'a>,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Label<'a> {
+    pub id:  Id     <'a>,
+    pub src: Source <'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct DataLoc<'a> {
+    pub id:  Id     <'a>,
+    pub ty:  Type   <'a>,
+    pub src: Source <'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct DataVal<'a> {
+    pub id:  Id     <'a>,
+    pub ty:  Type   <'a>,
+    pub val: Expr   <'a>,
+    pub src: Source <'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Func<'a> {
+    pub id:  Id     <'a>,
+    pub ty:  Type   <'a>,
+    pub ast: Ast    <'a>,
+    pub src: Source <'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Loop<'a> {
+    pub ast: Ast    <'a>,
+    pub src: Source <'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct If<'a> {
+    pub cond:     Cond   <'a>,
+    pub if_true:  Ast    <'a>,
+    pub if_false: Ast    <'a>,
+    pub src:      Source <'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct While<'a> {
+    pub cond: Cond   <'a>,
+    pub ast:  Ast    <'a>,
+    pub src:  Source <'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Cond<'a> {
+    pub sel:         Id     <'a>,
+    pub expr: Option<Expr   <'a>>,
+    pub src:         Source <'a>,
+}
+
+// -----------------------------------------------------------------------------
+// Expressions
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum Expr<'a> {
     // Atomic
-    Ident   (T::Source, T::String),
-    Str     (T::Source, T::String),
-    Int     (T::Source, BigInt),
-    Deref   (T::Source, Vec<Expr<T>>),
-    Member  (T::Source, Box<Expr<T>>, T::String),
+    Id      (Id         <'a>),  // x
+    Str     (StrLit     <'a>),  // "hello"
+    Int     (IntLit     <'a>),  // 42
+
+    // Atomic-ish?
+    Deref   (DerefExpr  <'a>),  // [a0, 8, d0*4]
+    Member  (MemberExpr <'a>),  // x.y
 
     // Composite
-    Unary   (T::Source, T::Operator, T::String, Box<Expr<T>>),
-    Binary  (T::Source, T::Operator, T::String, Box<Expr<T>>, Box<Expr<T>>),
+    Unary   (UnaryExpr  <'a>),  // ~x
+    Binary  (BinaryExpr <'a>),  // x + y
 }
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub struct Cond<T: Target> (T::String, Option<Box<Expr<T>>>);
-
-impl<T: Target> Display for Expr<T> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match *self {
-            Expr::Ident  (_, s)                      => f.write_str(s.as_ref()),
-            Expr::Str    (_, s)                      => fmt_str(s.as_ref(), f),
-            Expr::Int    (_, ref i)                  => fmt_int(i, f),
-            Expr::Unary  (_, ref o, s, ref x)        => panic!(),
-            Expr::Binary (_, ref o, s, ref x, ref y) => panic!(),
-            _                                        => Err(fmt::Error)
-        }
-    }
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct DerefExpr<'a> {
+    pub expr: Vec<Expr<'a>>,
+    pub src:  Source<'a>,
 }
 
-fn fmt_str(s: &str, f: &mut Formatter) -> fmt::Result {
-    try!(f.write_char('"'));
-    for c in s.chars() {
-        match c {
-            '\x08'          => try!(f.write_str("\\b")),
-            '\x09'          => try!(f.write_str("\\t")),
-            '\x0A'          => try!(f.write_str("\\n")),
-            '\x0C'          => try!(f.write_str("\\f")),
-            '\x0D'          => try!(f.write_str("\\r")),
-            '\"'            => try!(f.write_str("\\\"")),
-            '\\'            => try!(f.write_str("\\\\")),
-            '\x20'...'\x7E' => try!(f.write_char(c)),
-            _               => try!(fmt_esc_utf8(c, f))
-        }
-    }
-    try!(f.write_char('"'));
-    Ok(())
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct MemberExpr<'a> {
+    pub expr: Box<Expr<'a>>,
+    pub id:   Id<'a>,
+    pub src:  Source<'a>,
 }
 
-fn fmt_esc_utf8(c: char, f: &mut Formatter) -> fmt::Result {
-    use std::io::{Cursor, Write};
-    let mut buf = [0u8; 4];
-    let len = {
-        let mut cur = Cursor::new(&mut buf[..]);
-        write!(cur, "{}", c).unwrap();
-        cur.position() as usize
-    };
-    for b in &buf[0..len] {
-        try!(write!(f, "\\{:03o}", b));
-    }
-    Ok(())
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct UnaryExpr<'a> {
+    pub op:   (),
+    pub sel:  Id<'a>,
+    pub expr: Box<Expr<'a>>,
+    pub src:  Source<'a>,
 }
 
-fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
-    match i.to_u64() {
-        Some(n) if n > 9 => write!(f, "{:#X}", n),
-        _                => write!(f, "{}",    i),
-    }
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct BinaryExpr<'a> {
+    pub op:   (),
+    pub sel:  Id<'a>,
+    pub l:    Box<Expr<'a>>,
+    pub r:    Box<Expr<'a>>,
+    pub src:  Source<'a>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+// -----------------------------------------------------------------------------
+// Terminals
 
-    use aex::target::tests::TestTarget;
-    use aex::pos::tests::BOF;
-
-    #[test]
-    fn fmt_ident() {
-        let expr = Expr::Ident::<TestTarget>(BOF, "a");
-        let text = format!("{}", &expr);
-        assert_eq!(text, "a");
-    }
-
-    #[test]
-    fn fmt_str() {
-        let original = "\
-            \x08\x09\x0A\x0C\x0D\
-            !\"#$%&'()*+,-./0123456789:;<=>?\
-            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\
-            `abcdefghijklmnopqrstuvwxyz{|}~\
-            \x13\x7F\u{7FFF}\
-        ";
-        let formatted = "\"\
-            \\b\\t\\n\\f\\r\
-            !\\\"#$%&'()*+,-./0123456789:;<=>?\
-            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_\
-            `abcdefghijklmnopqrstuvwxyz{|}~\
-            \\023\\177\\347\\277\\277\
-        \"";
-
-        let expr = Expr::Str::<TestTarget>(BOF, original);
-        let text = format!("{}", &expr);
-        assert_eq!(text, formatted);
-    }
-
-    #[test]
-    fn fmt_int_small() {
-        let expr = Expr::Int::<TestTarget>(BOF, 7.into());
-        let text = format!("{}", &expr);
-        assert_eq!(text, "7");
-    }
-
-    #[test]
-    fn fmt_int_large() {
-        let expr = Expr::Int::<TestTarget>(BOF, 42.into());
-        let text = format!("{}", &expr);
-        assert_eq!(text, "0x2A");
-    }
-
-    //#[test]
-    //fn fmt_add() {
-    //    let a    = Box::new(Expr::Ident::<TestTarget>(BOF, "a"));
-    //    let b    = Box::new(Expr::Ident::<TestTarget>(BOF, "b"));
-    //    let expr = Expr::Add(a, b, None);
-    //    let text = format!("{}", &expr);
-    //    assert_eq!(text, "(a + b)");
-    //}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Id<'a> {
+    pub name: &'a str,
+    pub src:  Source<'a>,
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct StrLit<'a> {
+    pub val: &'a str,
+    pub src: Source<'a>,
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct IntLit<'a> {
+    pub val: BigInt,
+    pub src: Source<'a>,
+}
+
+// -----------------------------------------------------------------------------
+
+//impl<T: Target> Display for Expr<T> {
+//    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+//        match *self {
+//            Expr::Ident  (_, s)                      => f.write_str(s.as_ref()),
+//            Expr::Str    (_, s)                      => fmt_str(s.as_ref(), f),
+//            Expr::Int    (_, ref i)                  => fmt_int(i, f),
+//            Expr::Unary  (_, ref o, s, ref x)        => panic!(),
+//            Expr::Binary (_, ref o, s, ref x, ref y) => panic!(),
+//            _                                        => Err(fmt::Error)
+//        }
+//    }
+//}
+//
+//fn fmt_str(s: &str, f: &mut Formatter) -> fmt::Result {
+//    try!(f.write_char('"'));
+//    for c in s.chars() {
+//        match c {
+//            '\x08'          => try!(f.write_str("\\b")),
+//            '\x09'          => try!(f.write_str("\\t")),
+//            '\x0A'          => try!(f.write_str("\\n")),
+//            '\x0C'          => try!(f.write_str("\\f")),
+//            '\x0D'          => try!(f.write_str("\\r")),
+//            '\"'            => try!(f.write_str("\\\"")),
+//            '\\'            => try!(f.write_str("\\\\")),
+//            '\x20'...'\x7E' => try!(f.write_char(c)),
+//            _               => try!(fmt_esc_utf8(c, f))
+//        }
+//    }
+//    try!(f.write_char('"'));
+//    Ok(())
+//}
+//
+//fn fmt_esc_utf8(c: char, f: &mut Formatter) -> fmt::Result {
+//    use std::io::{Cursor, Write};
+//    let mut buf = [0u8; 4];
+//    let len = {
+//        let mut cur = Cursor::new(&mut buf[..]);
+//        write!(cur, "{}", c).unwrap();
+//        cur.position() as usize
+//    };
+//    for b in &buf[0..len] {
+//        try!(write!(f, "\\{:03o}", b));
+//    }
+//    Ok(())
+//}
+//
+//fn fmt_int(i: &BigInt, f: &mut Formatter) -> fmt::Result {
+//    match i.to_u64() {
+//        Some(n) if n > 9 => write!(f, "{:#X}", n),
+//        _                => write!(f, "{}",    i),
+//    }
+//}
+//
+// -----------------------------------------------------------------------------
+//#[cfg(test)]
+//mod tests {
+//    use super::*;
+//
+//    use aex::target::tests::TestTarget;
+//    use aex::pos::tests::BOF;
+//
+//    #[test]
+//    fn fmt_ident() {
+//        let expr = Expr::Ident::<TestTarget>(BOF, "a");
+//        let text = format!("{}", &expr);
+//        assert_eq!(text, "a");
+//    }
+//
+//    #[test]
+//    fn fmt_str() {
+//        let original = "\
+//            \x08\x09\x0A\x0C\x0D\
+//            !\"#$%&'()*+,-./0123456789:;<=>?\
+//            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_\
+//            `abcdefghijklmnopqrstuvwxyz{|}~\
+//            \x13\x7F\u{7FFF}\
+//        ";
+//        let formatted = "\"\
+//            \\b\\t\\n\\f\\r\
+//            !\\\"#$%&'()*+,-./0123456789:;<=>?\
+//            @ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\\\]^_\
+//            `abcdefghijklmnopqrstuvwxyz{|}~\
+//            \\023\\177\\347\\277\\277\
+//        \"";
+//
+//        let expr = Expr::Str::<TestTarget>(BOF, original);
+//        let text = format!("{}", &expr);
+//        assert_eq!(text, formatted);
+//    }
+//
+//    #[test]
+//    fn fmt_int_small() {
+//        let expr = Expr::Int::<TestTarget>(BOF, 7.into());
+//        let text = format!("{}", &expr);
+//        assert_eq!(text, "7");
+//    }
+//
+//    #[test]
+//    fn fmt_int_large() {
+//        let expr = Expr::Int::<TestTarget>(BOF, 42.into());
+//        let text = format!("{}", &expr);
+//        assert_eq!(text, "0x2A");
+//    }
+//
+//    //#[test]
+//    //fn fmt_add() {
+//    //    let a    = Box::new(Expr::Ident::<TestTarget>(BOF, "a"));
+//    //    let b    = Box::new(Expr::Ident::<TestTarget>(BOF, "b"));
+//    //    let expr = Expr::Add(a, b, None);
+//    //    let text = format!("{}", &expr);
+//    //    assert_eq!(text, "(a + b)");
+//    //}
+//}
 

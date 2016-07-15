@@ -16,23 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-// Ideas on how to decomplexify this program:
-//
-// - Use handle type instead of &'a str / Source<'a>
-//   ... makes lots of things easier (less lifetimes!)
-//   ... makes asm display harder
-//
-// - Use single Value type that knows about all targets.
-//   ... removes need for a lot of generics
-//
-// - Just break down and use Vec for arguments.
-//   ... removes need for macros
-//   ... unify fn/operator invoke exprs
-
 //mod loc;
 //mod code_gen;
-
-use std::marker::PhantomData;
 
 //use aex::ast::Expr;
 //use aex::operator::{Operator, OperatorTable, Const, Assoc, Fixity, binary_op};
@@ -40,35 +25,21 @@ use std::marker::PhantomData;
 //use aex::operator::Fixity::*;
 //use aex::operator::Arity::*;
 //use aex::operator::{Constness, Operand};
-use aex::pos::{Source /*, Pos*/};
-use aex::target::*;
+//use aex::pos::{Source /*, Pos*/};
+use aex::target::Target;
+//use aex::types::builtin::*;
 
-pub struct ColdFire<'a> {
-    _x: PhantomData<&'a ()>
+#[derive(Debug)]
+pub struct ColdFire;
+
+impl Target for ColdFire {
+    // ...
 }
 
-impl<'a> ColdFire<'a> {
-    pub fn new() -> Self {
-        ColdFire { _x: PhantomData }
-    }
-}
-
-impl<'a> Target for ColdFire<'a> {
-    type String   = &'a str;
-    type Source   = Source<'a>;
-    type Operator = u8; //Operator<Value<'a>>;
-
-    //type Term    = CfTerm<'a>;
-    //type Expr    = Expr<'a, Self::Term>;
-    //type Operand = Operand<'a, Self::Term>;
-
-    //fn init_operators(&self, operators: &mut OperatorTable<Self::Term>) {
-    //    operators.add(Operator::new("+", 7, Left, Infix, Binary(
-    //        Box::new(|src, sel, args| Operand {
-    //            term: CfTerm::B, kind: 42, src: src
-    //        })
-    //    )));
-    //}
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum CfValue {
+    DataReg,
+    AddrReg,
 }
 
 /*

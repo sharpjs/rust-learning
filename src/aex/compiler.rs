@@ -16,70 +16,108 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(unused_mut)]
+
 //use aex::asm::Assembly;
-//use aex::codegen::CodeGenerator;
+use aex::ast::Ast;
+use aex::cg;
 //use aex::lexer::Lexer;
 //use aex::mem::arena::Arena;
-//use aex::mem::interner::StringInterner;
+use aex::mem::StringInterner;
 //use aex::message::Messages;
 //use aex::operator::{self, OpTable};
+use aex::output::Output;
 //use aex::parser::parse;
+use aex::scope::Scope;
 //use aex::pos::Pos;
 //use aex::target::Target;
 
 //use aex::target::ColdFire;
 
-pub fn compile<I>(input: I, filename: &str)
-where I: Iterator<Item=char> {
-//  let target   = ColdFire::new();
-//  let memory   = Memory::new();
-//  let compiler = Compiler::new(target, &memory);
-
-//    let ast = {
-//        let mut lexer = Lexer::new(&mut compilation, input);
-//        parse(&mut lexer)
-//    };
-//
-//    let generator = CodeGenerator::new(&mut compilation);
-//
-//    println!("{:#?}", ast);
+pub struct Compiler {
+    //pub target:  T,
+    pub strings:   StringInterner,
 }
 
-//struct Compiler<'a, T: Target> {
-//  pub target:    T,
-//  pub strings:   &'a StringInterner<'a>,
-//  pub positions: &'a Arena<Pos<'a>>,
-    //pub code:      Assembly,
-    //pub log:       Messages<'a>,
-    //pub ops:       OpTable,
-//}
+impl Compiler {
+    pub fn new() -> Self {
+        Compiler {
+            //target:  target,
+            strings:   StringInterner::new(),
+        }
+    }
 
-//impl<'a, T: Target> Compiler<'a, T> {
-//    pub fn new(target: T, memory: &'a Memory<'a>) -> Self {
-//        Compiler {
-//          target:    target,
-//          strings:   &memory.strings,
-//          positions: &memory.positions,
-//            code:      Assembly::new(),
-//            log:       Messages::new(),
-//            ops:       operator::create_op_table()
-//        }
-//    }
-//}
+    pub fn compile(mut self, name: &str, input: &str) {
+        let ast;
+        let out = &mut Output::new();
 
-// This type is separate, so that rustc generates a useful 'a.
-//
-//struct Memory<'a> {
-//    strings:   StringInterner<'a>,
-//    positions: Arena<Pos<'a>>,
-//}
-//
-//impl<'a> Memory<'a> {
-//    pub fn new() -> Self {
-//        Memory {
-//            strings:   StringInterner::new(),
-//            positions: Arena::new(),
-//        }
-//    }
-//}
+        // Step 1
+        ast = self.parse(name, input, out);
+
+        // Step 2
+        self.generate_code(&ast, out);
+
+        // Step 3
+        // Do something with output
+
+        println!("{:#?}", ast);
+    }
+
+    fn parse<'a>(&'a self,
+                 input: &'a str,
+                 name:  &'a str,
+                 out:   &mut Output<'a>
+                ) -> Ast<'a> {
+        let lexer = Lexer::new(self, input.chars(), name);
+        parse(lexer)
+    }
+
+    fn generate_code<'a>(&'a self,
+                         ast: &'a Ast<'a>,
+                         out: &mut Output<'a>) {
+        let scope = &mut Scope::new();
+        cg::generate_code(self, ast, scope, out).unwrap();
+    }
+}
+
+// -----------------------------------------------------------------------------
+// STUBS
+// -----------------------------------------------------------------------------
+
+use std::marker::PhantomData;
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
+struct Token<'a> (PhantomData<&'a ()>);
+
+// -----------------------------------------------------------------------------
+
+struct Lexer<'a, I: Iterator<Item=char>> (&'a Compiler, I);
+
+impl<'a, I> Lexer<'a, I> where I: Iterator<Item=char> {
+    pub fn new(compiler: &'a Compiler, input: I, name: &'a str) -> Self {
+        Lexer(compiler, input)
+    }
+}
+
+trait Lex<'a> {
+    fn lex(&mut self) -> Token<'a>;
+}
+
+impl<'a, I> Lex<'a> for Lexer<'a, I> where I: Iterator<Item=char> {
+    fn lex(&mut self) -> Token<'a> {
+        self.1.next();
+        self.1.next();
+        Token(PhantomData)
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+fn parse<'a, L>(mut lexer: L) -> Ast<'a> where L: Lex<'a> {
+    lexer.lex();
+    lexer.lex();
+    vec![]
+}
 

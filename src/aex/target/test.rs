@@ -1,4 +1,4 @@
-// Formatting Trait
+// Test Target
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,32 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::Display;
-use std::io::{self, Write};
+use aex::target::Target;
 
-pub trait Format<C> {
-    fn fmt<W: Write>(&self, &C, &mut W) -> io::Result<()>;
+#[derive(Debug)]
+pub struct TestTarget;
+
+impl TestTarget {
+    pub fn new() -> Self { TestTarget }
 }
 
-impl<C, T: Display> Format<C> for T {
-    fn fmt<W: Write>(&self, _: &C, w: &mut W) -> io::Result<()> {
-        write!(w, "{}", self)
-    }
+impl Target for TestTarget {
+    // ...
 }
 
-#[macro_export]
-macro_rules! format_with {
-    ($obj:expr, $ctx:expr) => {{
-        use std::io::Cursor;
-        use aex::fmt::Format;
-
-        let     vec = Vec::with_capacity(16);
-        let mut buf = Cursor::new(vec);
-
-        $obj.fmt($ctx, &mut buf).unwrap();
-
-        let vec = buf.into_inner();
-        String::from_utf8(vec).unwrap()
-    }}
-}
+pub type TestValue = ();
 

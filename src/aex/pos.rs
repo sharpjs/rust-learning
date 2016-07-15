@@ -16,32 +16,37 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Debug, Formatter};
-use std::io::{self, Write};
+use std::fmt;
 
-use aex::fmt::Format;
-use aex::mem::{Name, Strings};
-
-#[derive(Clone, Copy, Eq, PartialEq, Hash, Debug)]
-pub enum Source {
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+pub enum Source<'a> {
     BuiltIn,
     File {
-        pos: Pos,   // position
-        len: usize  // length, in bytes
+        pos: &'a Pos<'a>,   // position
+        len: usize          // length, in bytes
     }
 }
 
-#[derive(Clone, Copy, Eq, PartialEq, Hash)]
-pub struct Pos {
-    pub file:   Name,       // file name
+impl<'a> fmt::Display for Source<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            Source::BuiltIn          => write!(f, "(built-in)"),
+            Source::File { pos, .. } => write!(f, "{}", pos),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Pos<'a> {
+    pub file:   &'a str,    // file name
     pub byte:   usize,      // 0-based byte offset
     pub line:   u32,        // 1-based line number
     pub column: u32,        // 1-based column number
 }
 
-impl Pos {
+impl<'a> Pos<'a> {
     #[inline]
-    pub fn bof(file: Name) -> Self {
+    pub fn bof(file: &'a str) -> Self {
         Pos { file: file, byte: 0, line: 1, column: 1 }
     }
 
@@ -58,66 +63,62 @@ impl Pos {
     }
 }
 
-impl<'a> Format<Strings<'a>> for Pos {
-    fn fmt<W: Write>(&self, s: &Strings<'a>, w: &mut W) -> io::Result<()> {
-        write!(w, "{}:{}:{}", &s[self.file], self.line, self.column)
+impl<'a> fmt::Display for Pos<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}:{}:{}", self.file, self.line, self.column)
     }
 }
 
-impl Debug for Pos {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+impl<'a> fmt::Debug for Pos<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}[{}]:{}:{}", self.file, self.byte, self.line, self.column)
     }
 }
 
 #[cfg(test)]
 pub mod tests {
-    use aex::mem::Strings;
-    use aex::mem::tests::{NAME_ZERO as FILE};
     use super::*;
 
-    pub static BOF: Source = Source::File {
-        pos: Pos { file: FILE, byte: 0, line: 1, column: 1 },
+    pub static BOF: Source<'static> = Source::File {
+        pos: &Pos { file: "f", byte: 0, line: 1, column: 1 },
         len: 0
     };
 
     #[test]
     fn bof() {
-        let pos = Pos::bof(FILE);
-        assert_eq!(pos, Pos { file: FILE, byte: 0, line: 1, column: 1 });
+        let p = Pos::bof("f");
+        assert_eq!(p, Pos { file: "f", byte: 0, line: 1, column: 1 });
     }
 
     #[test]
     fn advance() {
-        let mut pos = Pos::bof(FILE);
-        pos.advance('a');
-        assert_eq!(pos, Pos { file: FILE, byte: 1, line: 1, column: 2 });
-        pos.advance('\u{10ABCD}');
-        assert_eq!(pos, Pos { file: FILE, byte: 5, line: 1, column: 3 });
+        let mut p = Pos::bof("f");
+        p.advance('a');
+        assert_eq!(p, Pos { file: "f", byte: 1, line: 1, column: 2 });
+        p.advance('\u{10ABCD}');
+        assert_eq!(p, Pos { file: "f", byte: 5, line: 1, column: 3 });
     }
 
     #[test]
     fn newline() {
-        let mut pos = Pos::bof(FILE);
-        pos.advance('\n');
-        pos.newline();
-        assert_eq!(pos, Pos { file: FILE, byte: 1, line: 2, column: 1 });
+        let mut p = Pos::bof("f");
+        p.advance('\n');
+        p.newline();
+        assert_eq!(p, Pos { file: "f", byte: 1, line: 2, column: 1 });
     }
 
     #[test]
-    fn fmt_format() {
-        let strs = Strings::with_capacity(1);
-        let file = strs.intern_ref("file.ext");
-        let pos  = Pos { file: file, byte: 1, line: 2, column: 3 };
-        let text = format_with!(&pos, &strs);
-        assert_eq!(text, "file.ext:2:3");
+    fn fmt_display() {
+        let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
+        let s = format!("{}", &p);
+        assert_eq!(s, "f:2:3");
     }
 
     #[test]
     fn fmt_debug() {
-        let pos  = Pos { file: FILE, byte: 1, line: 2, column: 3 };
-        let text = format!("{:?}", &pos);
-        assert_eq!(text, "<0>[1]:2:3");
+        let p = Pos { file: "f", byte: 1, line: 2, column: 3 };
+        let s = format!("{:?}", &p);
+        assert_eq!(s, "f[1]:2:3");
     }
 }
 

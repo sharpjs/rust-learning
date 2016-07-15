@@ -20,7 +20,7 @@ use std::borrow::{Cow};
 use std::fmt::{self, Display};
 use std::io::{stderr, Write};
 
-use aex::pos::Pos;
+use aex::source::Source;
 
 use self::MessageId::*;
 use self::MessageLevel::*;
@@ -33,17 +33,20 @@ pub struct Messages<'a> {
 
 #[derive(Clone, Eq, PartialEq, Debug)]
 pub struct Message<'a> {
-    pub position:   Pos<'a>,
-    pub level:      MessageLevel,
-    pub id:         MessageId,
-    pub text:       Cow<'static, str>,
+    pub source: Source<'a>,
+    pub level:  MessageLevel,
+    pub id:     MessageId,
+    pub text:   Cow<'static, str>,
 }
 
 #[derive(Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Debug)]
 #[repr(u8)]
-pub enum MessageLevel { Warning, Error }
+pub enum MessageLevel {
+    Warning,
+    Error
+}
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Eq, PartialEq, Debug)]
 #[repr(u8)]
 pub enum MessageId {
     // Lexer Messages
@@ -91,143 +94,140 @@ impl<'a> Messages<'a> {
         self.error_count
     }
 
-    fn add<T>(&mut self, p: Pos<'a>, l: MessageLevel, i: MessageId, t: T)
+    fn add<T>(&mut self, s: Source<'a>, l: MessageLevel, i: MessageId, t: T)
              where T: Into<Cow<'static, str>> {
         self.messages.push(Message {
-            position: p, level: l, id: i, text: t.into()
+            source: s, level: l, id: i, text: t.into()
         });
         if l >= Error {
             self.error_count += 1;
         }
     }
 
-    pub fn err_unrec(&mut self, p: Pos<'a>, c: char) {
-        self.add(p, Error, Unrec, format!(
+    pub fn err_unrec(&mut self, s: Source<'a>, c: char) {
+        self.add(s, Error, Unrec, format!(
             "Unrecognized character: '{}'", c
         ));
     }
 
-    pub fn err_unrec_num(&mut self, p: Pos<'a>, c: char) {
-        self.add(p, Error, UnrecNum, format!(
+    pub fn err_unrec_num(&mut self, s: Source<'a>, c: char) {
+        self.add(s, Error, UnrecNum, format!(
             "Unrecognized character in number literal: '{}'", c
         ));
     }
 
-    pub fn err_unrec_esc(&mut self, p: Pos<'a>, c: char) {
-        self.add(p, Error, UnrecEsc, format!(
+    pub fn err_unrec_esc(&mut self, s: Source<'a>, c: char) {
+        self.add(s, Error, UnrecEsc, format!(
             "Unrecognized character in escape sequence: '{}'", c
         ));
     }
 
-    pub fn err_unterm_char(&mut self, p: Pos<'a>) {
-        self.add(p, Error, UntermChar,
+    pub fn err_unterm_char(&mut self, s: Source<'a>) {
+        self.add(s, Error, UntermChar,
             "Unterminated character literal."
         );
     }
 
-    pub fn err_unterm_str(&mut self, p: Pos<'a>) {
-        self.add(p, Error, UntermStr,
+    pub fn err_unterm_str(&mut self, s: Source<'a>) {
+        self.add(s, Error, UntermStr,
             "Unterminated string literal."
         );
     }
 
-    pub fn err_unterm_raw(&mut self, p: Pos<'a>) {
-        self.add(p, Error, UntermRaw,
+    pub fn err_unterm_raw(&mut self, s: Source<'a>) {
+        self.add(s, Error, UntermRaw,
             "Unterminated raw block."
         );
     }
 
-    pub fn err_unterm_esc(&mut self, p: Pos<'a>) {
-        self.add(p, Error, UntermEsc,
+    pub fn err_unterm_esc(&mut self, s: Source<'a>) {
+        self.add(s, Error, UntermEsc,
             "Unterminated escape sequence."
         );
     }
 
-    pub fn err_length_char(&mut self, p: Pos<'a>) {
-        self.add(p, Error, CharLength,
+    pub fn err_length_char(&mut self, s: Source<'a>) {
+        self.add(s, Error, CharLength,
             "Invalid character literal length. \
              Character literals must contain exactly one character."
         );
     }
 
-    pub fn err_overflow_num(&mut self, p: Pos<'a>) {
-        self.add(p, Error, OverflowNum,
+    pub fn err_overflow_num(&mut self, s: Source<'a>) {
+        self.add(s, Error, OverflowNum,
             "Overflow in number literal.  Integers are unsigned 64-bit."
         );
     }
 
-    pub fn err_overflow_esc(&mut self, p: Pos<'a>) {
-        self.add(p, Error, OverflowEsc,
+    pub fn err_overflow_esc(&mut self, s: Source<'a>) {
+        self.add(s, Error, OverflowEsc,
             "Overflow in Unicode escape sequence. \
              The maximum permitted is \\u{10FFFF}."
         );
     }
 
-    pub fn err_expected(&mut self, p: Pos<'a>, description: &str) {
-        self.add(p, Error, Expected, format!(
+    pub fn err_expected(&mut self, s: Source<'a>, description: &str) {
+        self.add(s, Error, Expected, format!(
             "Expected: {}", description
         ));
     }
 
-    pub fn err_type_redefined(&mut self, p: &Pos<'a>, name: &str) {
-        self.add(p.clone(), Error, TypeRedefined, format!(
-            // TODO: Don't need clone
+    pub fn err_type_redefined(&mut self, s: Source<'a>, name: &str) {
+        self.add(s, Error, TypeRedefined, format!(
             "Type already defined: {}", name
         ));
     }
 
-    pub fn err_sym_redefined(&mut self, p: &Pos<'a>, name: &str) {
-        self.add(p.clone(), Error, SymRedefined, format!(
-            // TODO: Don't need clone
+    pub fn err_sym_redefined(&mut self, s: Source<'a>, name: &str) {
+        self.add(s, Error, SymRedefined, format!(
             "Symbol already defined: {}", name
         ));
     }
 
-    pub fn err_incompatible_types(&mut self, p: Pos<'a>) {
-        self.add(p, Error, IncompatibleTypes,
+    pub fn err_incompatible_types(&mut self, s: Source<'a>) {
+        self.add(s, Error, IncompatibleTypes,
             "Operands are of incompatible types."
         );
     }
 
-    pub fn err_value_out_of_range(&mut self, p: Pos<'a>) {
-        self.add(p, Error, ValueOutOfRange,
+    pub fn err_value_out_of_range(&mut self, s: Source<'a>) {
+        self.add(s, Error, ValueOutOfRange,
             "Operand value out of range."
         );
     }
 
-    pub fn err_no_op_for_expression(&mut self, p: Pos<'a>) {
-        self.add(p, Error, NoOpForExpression,
+    pub fn err_no_op_for_expression(&mut self, s: Source<'a>) {
+        self.add(s, Error, NoOpForExpression,
             "No target instruction for the given expression form."
         );
     }
 
-    pub fn err_no_op_for_selector(&mut self, p: Pos<'a>) {
-        self.add(p, Error, NoOpForSelector,
+    pub fn err_no_op_for_selector(&mut self, s: Source<'a>) {
+        self.add(s, Error, NoOpForSelector,
             "No target instruction for the given selector."
         );
     }
 
-    pub fn err_no_op_for_addr_modes(&mut self, p: Pos<'a>) {
-        self.add(p, Error, NoOpForAddrModes,
+    pub fn err_no_op_for_addr_modes(&mut self, s: Source<'a>) {
+        self.add(s, Error, NoOpForAddrModes,
             "No target instruction for the given addressing mode(s)."
         );
     }
 
-    pub fn err_no_op_for_operand_types(&mut self, p: Pos<'a>) {
-        self.add(p, Error, NoOpForOperandTypes,
+    pub fn err_no_op_for_operand_types(&mut self, s: Source<'a>) {
+        self.add(s, Error, NoOpForOperandTypes,
             "No target instruction for the given operand type(s)."
         );
     }
 
-    pub fn err_no_op_for_operand_sizes(&mut self, p: Pos<'a>) {
-        self.add(p, Error, NoOpForOperandSizes,
+    pub fn err_no_op_for_operand_sizes(&mut self, s: Source<'a>) {
+        self.add(s, Error, NoOpForOperandSizes,
             "No target instruction for the given operand size(s)."
         );
     }
 
     pub fn print(&self) {
-        let r = write!(stderr(), "{}", self);
-        if let Err(_) = r { /*ignore*/ }
+        write!(stderr(), "{}", self).is_ok();
     }
 }
 
@@ -242,10 +242,8 @@ impl<'a> Display for Messages<'a> {
 
 impl<'a> Display for Message<'a> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}:{}:{}: {}{:03}: {}",
-            "(file)",
-            self.position.line,
-            self.position.column,
+        write!(f, "{}: {}{:03}: {}",
+            self.source,
             match self.level { Warning => 'W', Error => 'E' },
             self.id as u16,
             self.text
@@ -256,7 +254,7 @@ impl<'a> Display for Message<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::pos::Pos;
+    use aex::source::{File, Pos, Source};
 
     #[test]
     fn messages_empty() {
@@ -269,33 +267,41 @@ mod tests {
 
     #[test]
     fn messages_single() {
+        let     f = File::new("file", "");
+        let     p = Pos::bof();
+        let     s = Source::File { file: &f, pos: p, len: 1 };
         let mut m = Messages::new();
-        let     p = Pos::bof("f");
 
-        m.err_unrec(p, 'c');
+        m.err_unrec(s, 'c');
 
         assert_eq!(1,     m.error_count());
         assert_eq!(true,  m.has_errors());
         assert_eq!(
-            "(file):1:1: E000: Unrecognized character: 'c'\n",
+            "file:1:1: E000: Unrecognized character: 'c'\n",
             m.to_string()
         );
     }
 
     #[test]
     fn messages_multiple() {
-        let mut m = Messages::new();
-        let mut p = Pos::bof("f");
+        let     f  = File::new("file", "");
+        let     p0 = Pos::bof();
+        let mut p1 = Pos::bof();
+        let mut m  = Messages::new();
 
-        m.err_unrec(p, 'c');
-        p.advance('c');
-        m.err_unrec(p, 'd');
+        p1.advance('c');
+
+        let s0 = Source::File { file: &f, pos: p0, len: 1 };
+        let s1 = Source::File { file: &f, pos: p1, len: 1 };
+
+        m.err_unrec(s0, 'c');
+        m.err_unrec(s1, 'd');
 
         assert_eq!(2,    m.error_count());
         assert_eq!(true, m.has_errors());
         assert_eq!(
-            "(file):1:1: E000: Unrecognized character: 'c'\n\
-             (file):1:2: E000: Unrecognized character: 'd'\n",
+            "file:1:1: E000: Unrecognized character: 'c'\n\
+             file:1:2: E000: Unrecognized character: 'd'\n",
             m.to_string()
         );
     }

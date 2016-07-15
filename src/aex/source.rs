@@ -16,39 +16,284 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt;
+use std::fmt::{self, Debug, Display, Formatter};
+use std::fs;
+use std::io::{self, Read};
 
-use aex::pos::Pos;
+// -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
 pub enum Source<'a> {
     // Intrinsic language feature
     BuiltIn,
 
-    // Provided by source file
+    // In source file
     File {
-        pos: &'a Pos<'a>,   // position within file
-        len: usize          // length, in bytes
+        file: &'a File<'a>, // source file
+        pos:  Pos,          // position within file
+        len:  usize         // length in bytes
     }
 }
 
-impl<'a> fmt::Display for Source<'a> {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+impl<'a> AsRef<str> for Source<'a> {
+    fn as_ref(&self) -> &str {
         match *self {
-            Source::BuiltIn           => f.write_str("(built-in)"),
-            Source::File { pos, len } => (pos as &fmt::Display).fmt(f),
+            Source::BuiltIn => {
+                ""
+            },
+            Source::File { file, pos, len } => {
+                &file.data()[(pos.byte)..(pos.byte + len)]
+            }
         }
     }
 }
 
+impl<'a> Display for Source<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            Source::BuiltIn => {
+                f.write_str("(built-in)")
+            },
+            Source::File { file, pos, len } => {
+                write!(f, "{}:{}", file, pos)
+            },
+        }
+    }
+}
+
+impl<'a> Debug for Source<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match *self {
+            Source::BuiltIn => {
+                f.write_str("Source::BuiltIn")
+            },
+            Source::File { file, pos, len } => {
+                write!(f, "{:?}:{:?}+{}", file, pos, len)
+            },
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Hash, PartialEq, Eq)]
+pub struct File<'a> {
+    name: &'a str,
+    data: String,
+}
+
+impl<'a> File<'a> {
+    #[inline]
+    pub fn new<D: Into<String>>(name: &'a str, data: D) -> Self {
+        File { name: name, data: data.into() }
+    }
+
+    pub fn from_reader<R: Read>(name: &'a str, mut reader: R) -> Self {
+        let mut data = String::new();
+
+        match reader.read_to_string(&mut data) {
+            Ok  (_) => Self::new(name, data),
+            Err (e) => fail_read(name, e)
+        }
+    }
+
+    pub fn from_stdin() -> Self {
+        Self::from_reader("(stdin)", io::stdin())
+    }
+
+    pub fn from_path(path: &'a str) -> Self {
+        match fs::File::open(path) {
+            Ok  (f) => Self::from_reader(path, f),
+            Err (e) => fail_read(path, e)
+        }
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        self.name
+    }
+
+    #[inline]
+    pub fn data(&self) -> &str {
+        &self.data
+    }
+}
+
+impl<'a> Display for File<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str(self.name)
+    }
+}
+
+impl<'a> Debug for File<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}({})", self.name, self.data.len())
+    }
+}
+
+fn fail_read(name: &str, error: io::Error) -> ! {
+    panic!("error reading '{}': {}", name, error)
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+pub struct Pos {
+    pub byte:   usize,      // 0-based byte offset
+    pub line:   u32,        // 1-based line number
+    pub column: u32,        // 1-based column number
+}
+
+impl Pos {
+    #[inline]
+    pub fn bof() -> Self {
+        Pos { byte: 0, line: 1, column: 1 }
+    }
+
+    #[inline]
+    pub fn advance(&mut self, c: char) {
+        self.byte   += c.len_utf8();
+        self.column += 1;
+    }
+
+    #[inline]
+    pub fn newline(&mut self) {
+        self.line  += 1;
+        self.column = 1;
+    }
+}
+
+impl<'a> Display for Pos {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}:{}", self.line, self.column)
+    }
+}
+
+impl<'a> Debug for Pos {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        write!(f, "{}:{}[{}]", self.line, self.column, self.byte)
+    }
+}
+
+// -----------------------------------------------------------------------------
+
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use aex::pos::Pos;
+    use std::io::Cursor;
 
-    pub static BOF: Source<'static> = Source::File {
-        pos: &Pos { file: "f", byte: 0, line: 1, column: 1 },
-        len: 0
-    };
+    // -------------------------------------------------------------------------
+
+    fn with_source<F: Fn(&Source)>(f: F) {
+        let file = File { name: "f", data: "abc".into() };
+        let src  = Source::File { file: &file, pos:  Pos::bof(), len: 2 };
+        f(&src);
+    }
+
+    #[test]
+    fn source_text() {
+        with_source(|s| assert_eq!(s.as_ref(), "ab"));
+    }
+
+    #[test]
+    fn source_fmt_display() {
+        with_source(|s| assert_eq!(format!("{}", s), "f:1:1"));
+    }
+
+    #[test]
+    fn source_fmt_debug() {
+        with_source(|s| assert_eq!(format!("{:?}", s), "f(3):1:1[0]+2"));
+    }
+
+    // -------------------------------------------------------------------------
+
+    fn with_file<F: Fn(&File)>(f: F) {
+        let file = File { name: "f", data: "abc".into() };
+        f(&file);
+    }
+
+    #[test]
+    fn file_new() {
+        let f = File::new("f", "abc");
+        assert_eq!(f, File { name: "f", data: "abc".into() });
+    }
+
+    #[test]
+    fn file_from_reader() {
+        let c = Cursor::new("abc");
+        let f = File::from_reader("f", c);
+        assert_eq!(f, File { name: "f", data: "abc".into() });
+    }
+
+    #[test]
+    fn file_from_path() {
+        let f = File::from_path("test/test.txt");
+        assert_eq!(f, File { name: "test/test.txt", data: "test data".into() });
+    }
+
+    #[test]
+    #[should_panic]
+    fn file_from_path_nonexistent() {
+        File::from_path("nonexistent");
+    }
+
+    #[test]
+    fn file_name() {
+        with_file(|f| assert_eq!(f.name(), "f"));
+    }
+
+    #[test]
+    fn file_data() {
+        with_file(|f| assert_eq!(f.data(), "abc"));
+    }
+
+    #[test]
+    fn file_fmt_display() {
+        with_file(|f| assert_eq!(format!("{}", &f), "f"));
+    }
+
+    #[test]
+    fn file_fmt_debug() {
+        with_file(|f| assert_eq!(format!("{:?}", &f), "f(3)"));
+    }
+
+    // -------------------------------------------------------------------------
+
+    #[test]
+    fn pos_bof() {
+        let p = Pos::bof();
+        assert_eq!(p, Pos { byte: 0, line: 1, column: 1 });
+    }
+
+    #[test]
+    fn pos_advance() {
+        let mut p = Pos::bof();
+        p.advance('a');
+        assert_eq!(p, Pos { byte: 1, line: 1, column: 2 });
+        p.advance('\u{10ABCD}');
+        assert_eq!(p, Pos { byte: 5, line: 1, column: 3 });
+    }
+
+    #[test]
+    fn pos_newline() {
+        let mut p = Pos::bof();
+        p.advance('\n');
+        p.newline();
+        assert_eq!(p, Pos { byte: 1, line: 2, column: 1 });
+    }
+
+    #[test]
+    fn pos_fmt_display() {
+        let p = Pos { byte: 1, line: 2, column: 3 };
+        let s = format!("{}", &p);
+        assert_eq!(s, "2:3");
+    }
+
+    #[test]
+    fn pos_fmt_debug() {
+        let p = Pos { byte: 1, line: 2, column: 3 };
+        let s = format!("{:?}", &p);
+        assert_eq!(s, "2:3[1]");
+    }
 }
 

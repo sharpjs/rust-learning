@@ -16,202 +16,126 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::borrow::{Borrow, Cow};
+use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::hash::Hash;
-use std::ops::Index;
 
-use aex::mem::Id;
-
-// -----------------------------------------------------------------------------
-
-pub type Strings<'a> = Interner<'a, str>;
+use aex::mem::arena::Arena;
+use aex::mem::ptr::Ptr;
 
 // -----------------------------------------------------------------------------
+// Derived Types
 
-pub struct Interner<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> {
-    // Map from objects to identifiers
-    map: RefCell<HashMap<Cow<'a, B>, usize>>,
+pub type StringInterner = Interner<String, str>;
 
-    // Map from identifiers to objects
-    vec: RefCell<Vec<*const B>>,
+// -----------------------------------------------------------------------------
+// Interner
+
+pub struct Interner<T, B: ?Sized = T>
+where T: Borrow<B>, B: Hash + Eq {
+
+    // Map from object to its interned object
+    map: RefCell<HashMap<Ptr<B>, Ptr<B>>>,
+
+    // The objects owned by this interner
+    arena: Arena<T>,
+
+    // SAFETY:
+    //
+    // Ptr requires that referenced values live at least as long as the Ptr.
+    // That is ensured here in two ways:
+    //
+    // - intern() makes values owned by the arena.  They will not move or drop
+    //   during the interner's lifetime.
+    //
+    // - intern_ref() requires &'static references.
+    //
 }
 
-const DEFAULT_CAPACITY: usize = 256;
-
-impl<'a, B: 'a + ToOwned + Hash + Eq + ?Sized> Interner<'a, B> {
-    #[inline(always)]
+impl<T, B: ?Sized> Interner<T, B>
+where T: Borrow<B>, B: Hash + Eq {
     pub fn new() -> Self {
-        Self::with_capacity(DEFAULT_CAPACITY)
-    }
-
-    pub fn with_capacity(capacity: usize) -> Self {
         Interner {
-            map: RefCell::new(HashMap::with_capacity(capacity)),
-            vec: RefCell::new(Vec    ::with_capacity(capacity)),
+            map:   RefCell::new(HashMap::new()),
+            arena: Arena::new(),
         }
     }
 
-    pub fn capacity(&self) -> usize {
-        self.vec.borrow().capacity()
-    }
-
-    #[inline(always)]
-    pub fn intern(&self, obj: B::Owned) -> Id<B> {
-        self.intern_cow(Cow::Owned(obj))
-    }
-
-    #[inline(always)]
-    pub fn intern_ref(&self, obj: &'a B) -> Id<B> {
-        self.intern_cow(Cow::Borrowed(obj))
-    }
-
-    fn intern_cow(&self, obj: Cow<'a, B>) -> Id<B> {
+    pub fn intern(&self, obj: T) -> &B {
         let mut map = self.map.borrow_mut();
 
-        if let Some(&idx) = map.get(&obj) {
-            return Id::from(idx);
+        if let Some(&ptr) = map.get(obj.borrow()) {
+            return ptr.as_ref()
         }
 
-        let mut vec = self.vec.borrow_mut();
-        let     idx = vec.len();
+        let obj = self.arena.alloc(obj) as &T;
 
-        // SAFETY: While obj will move, the address it points to will not.
-        vec.push(obj.as_ref() as *const _);
-        map.insert(obj, idx);
-        Id::from(idx)
+        let ptr = Ptr::from(obj.borrow());
+        map.insert(ptr, ptr);
+        ptr.as_ref()
     }
 
-    pub fn get(&self, id: Id<B>) -> &B {
-        let idx = usize::from(id);
-        let ptr = self.vec.borrow()[idx];
+    pub fn intern_ref(&self, obj: &'static B) -> &B {
+        let mut map = self.map.borrow_mut();
 
-        // SAFETY: obj lives at least as long as self.
-        unsafe { &*ptr }
+        if let Some(&ptr) = map.get(obj) {
+            return ptr.as_ref()
+        }
+
+        let ptr = Ptr::from(obj);
+        map.insert(ptr, ptr);
+        ptr.as_ref()
     }
-}
-
-impl<'a, B: 'a + ToOwned + Hash + Eq + ?Sized>
-Index<Id<B>> for Interner<'a, B> {
-    type Output = B;
-
-    #[inline(always)]
-    fn index(&self, id: Id<B>) -> &B { self.get(id) }
 }
 
 // -----------------------------------------------------------------------------
+// Tests
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    // Prefixes guarantee that rustc will emit two separate "Hello" strings.
+    static A: str = *"A Hello";
+    static B: str = *"B Hello";
+    static C: str = *"C olleH";
+
     #[test]
-    fn intern_equal() {
-        let a_val = "Hello".to_string();
-        let b_val = "Hello".to_string();
+    fn intern() {
+        let a_str = (&A[2..]).to_string();
+        let b_str = (&B[2..]).to_string();
+        let c_str = (&C[2..]).to_string();
 
-        // Verify separate Strings with same chars
-        assert!(&a_val as *const _ != &b_val as *const _);
+        assert!(a_str.as_ptr() != b_str.as_ptr());
 
-        let i    = Strings::new();
-        let a_id = i.intern(a_val);
-        let b_id = i.intern(b_val);
+        let interner = StringInterner::new();
+        let a_intern = interner.intern(a_str);
+        let b_intern = interner.intern(b_str);
+        let c_intern = interner.intern(c_str);
 
-        assert!(a_id == b_id);
-        assert_eq!(i.get(a_id), "Hello");
-        assert_eq!(i.get(b_id), "Hello");
-
-        assert!(i.get(a_id) as *const _ == i.get(b_id) as *const _);
+        assert!(a_intern.as_ptr() == b_intern.as_ptr());
+        assert!(a_intern.as_ptr() != c_intern.as_ptr());
+        assert!(b_intern == "Hello");
+        assert!(c_intern == "olleH");
     }
 
     #[test]
-    fn intern_ref_equal() {
-        let a_val = "Hello".to_string();
-        let b_val = "Hello".to_string();
-        let a_ref = a_val.as_ref();
-        let b_ref = b_val.as_ref();
+    fn intern_ref() {
+        let a_ref = &A[2..];
+        let b_ref = &B[2..];
+        let c_ref = &C[2..];
 
-        // Verify separate Strings with same chars
-        assert!(a_ref as *const _ != b_ref as *const _);
+        assert!(a_ref.as_ptr() != b_ref.as_ptr());
 
-        let i    = Strings::new();
-        let a_id = i.intern_ref(a_ref);
-        let b_id = i.intern_ref(b_ref);
+        let interner = StringInterner::new();
+        let a_intern = interner.intern_ref(a_ref);
+        let b_intern = interner.intern_ref(b_ref);
+        let c_intern = interner.intern_ref(c_ref);
 
-        assert!(a_id == b_id);
-
-        assert_eq!(i.get(a_id), "Hello");
-        assert_eq!(i.get(b_id), "Hello");
-
-        assert!(i.get(a_id) as *const _ == a_ref as *const _);
-        assert!(i.get(b_id) as *const _ == a_ref as *const _); // NOT b_ref
-    }
-
-    #[test]
-    fn intern_diff() {
-        let a_val = "Hello".to_string();
-        let b_val = "elloH".to_string();
-
-        let i    = Strings::with_capacity(2);
-        let a_id = i.intern(a_val);
-        let b_id = i.intern(b_val);
-
-        assert!(a_id != b_id);
-        assert_eq!(i.get(a_id), "Hello");
-        assert_eq!(i.get(b_id), "elloH");
-    }
-
-    #[test]
-    fn intern_ref_diff() {
-        let a_val = "Hello".to_string();
-        let b_val = "elloH".to_string();
-
-        let a_ref = a_val.as_ref();
-        let b_ref = b_val.as_ref();
-
-        let i    = Strings::with_capacity(2);
-        let a_id = i.intern_ref(a_ref);
-        let b_id = i.intern_ref(b_ref);
-
-        assert!(a_id != b_id);
-
-        assert_eq!(i.get(a_id), "Hello");
-        assert_eq!(i.get(b_id), "elloH");
-
-        assert!(i.get(a_id) as *const _ == a_ref as *const _);
-        assert!(i.get(b_id) as *const _ == b_ref as *const _);
-    }
-
-    #[test]
-    fn no_move() {
-        let i = Strings::with_capacity(2);
-
-        let a_id = i.intern("a".to_string());
-
-        assert!(i.capacity() == 2);
-        let a_p0 = i.get(a_id) as *const _;
-
-        i.intern("b".to_string());
-        i.intern("c".to_string());
-        i.intern("d".to_string());
-        i.intern("e".to_string());
-        i.intern("f".to_string());
-
-        assert!(i.capacity() != 2);
-        let a_p1 = i.get(a_id) as *const _;
-
-        // When the internal vector grows, the interned values do not move.
-        assert!(a_p0 == a_p1);
-    }
-
-    #[test]
-    #[should_panic]
-    fn id_out_of_range() {
-        use aex::mem::Id;
-
-        let i = Strings::with_capacity(2);
-        i.get(Id::from(42));
+        assert!(a_intern.as_ptr() == a_ref.as_ptr());
+        assert!(b_intern.as_ptr() == a_ref.as_ptr());
+        assert!(c_intern.as_ptr() == c_ref.as_ptr());
     }
 }
 

@@ -18,21 +18,29 @@
 
 use std::collections::HashMap;
 
-use aex::mem::arena::Arena;
+use aex::mem::Arena;
 use aex::symbol::Symbol;
-use aex::types::Type;
+use aex::types::res::ResolvedType;
 use aex::util::Lookup;
 
 // -----------------------------------------------------------------------------
 
-// TODO: Do we need to add 'a here, or can we take Type<> down to 1 lifetime param?
-
-pub struct Scope<'me> {
-    pub symbols: ScopeMap<'me, Symbol<'me, 'me>>,
-    pub types:   ScopeMap<'me, Type  <'me, 'me>>,
+pub trait Scoped<'a> {
+    fn symbols (&self) -> &Lookup<str, Symbol      <'a>>;
+    fn types   (&self) -> &Lookup<str, ResolvedType<'a>>;
 }
 
-impl<'me> Scope<'me> {
+// -----------------------------------------------------------------------------
+
+pub struct Scope<'a> {
+    pub symbols: SymbolScope<'a>,
+    pub types:   TypeScope  <'a>,
+}
+
+pub type SymbolScope<'a> = ScopeMap<'a, Symbol      <'a>>;
+pub type TypeScope  <'a> = ScopeMap<'a, ResolvedType<'a>>;
+
+impl<'a> Scope<'a> {
     pub fn new() -> Self {
         Scope {
             symbols: ScopeMap::new(None),
@@ -40,40 +48,61 @@ impl<'me> Scope<'me> {
         }
     }
 
-    pub fn with_parent<'p: 'me>(parent: &'me Scope<'p>) -> Self {
+    pub fn with_parent<'p: 'a>(parent: &'a Scoped<'p>) -> Self {
         use std::mem::transmute;
-    
-        // SAFETY:  Arena's use of RefCell makes ScopeMap invariant in its
-        //   lifetime parameter.  There undoubtedly are good reasons for that
-        //   in general, but in this case we do want variance: the parent has
-        //   lifetime 'p, but we need lifetime 'me.  Thus we use transmute to
-        //   demote the lifetime.  This is OK because:
+
+        // SAFETY:  Scoped<'p> is invariant in 'p.  It is OK to transmute the
+        // parent reference to Scoped<'a> here, because 'p >= 'a, and because
+        // this object never mutates its parent.
         //
-        //     * 'p >= 'me
-        //     * this object does not access parent's arena
+        // Rustonomicon: Subtyping and Variance
+        // https://doc.rust-lang.org/stable/nomicon/subtyping.html
         //
-        //  More information is in the Rustonomicon:
-        //  https://doc.rust-lang.org/stable/nomicon/subtyping.html
-        //
-        let parent: &'me Scope<'me> = unsafe { transmute(parent) };
+        let parent: &'a Scoped<'a> = unsafe { transmute(parent) };
 
         Scope {
-            symbols: ScopeMap::new(Some(&parent.symbols)),
-            types:   ScopeMap::new(Some(&parent.types  )),
+            symbols: ScopeMap::new(Some(parent.symbols())),
+            types:   ScopeMap::new(Some(parent.types  ())),
         }
+    }
+}
+
+impl<'a> Scoped<'a> for Scope<'a> {
+    #[inline]
+    fn symbols(&self) -> &Lookup<str, Symbol<'a>> {
+        &self.symbols
+    }
+
+    #[inline]
+    fn types(&self) -> &Lookup<str, ResolvedType<'a>> {
+        &self.types
+    }
+}
+
+impl<'a> Lookup<str, Symbol<'a>> for Scope<'a> {
+    #[inline]
+    fn lookup(&self, name: &str) -> Option<&Symbol<'a>> {
+        self.symbols.lookup(name)
+    }
+}
+
+impl<'a> Lookup<str, ResolvedType<'a>> for Scope<'a> {
+    #[inline]
+    fn lookup(&self, name: &str) -> Option<&ResolvedType<'a>> {
+        self.types.lookup(name)
     }
 }
 
 // -----------------------------------------------------------------------------
 
-pub struct ScopeMap<'me, T: 'me> {
-    map:    HashMap<&'me str, &'me T>,
+pub struct ScopeMap<'a, T: 'a> {
+    map:    HashMap<&'a str, &'a T>,
     arena:  Arena<T>,
-    parent: Option<&'me ScopeMap<'me, T>>,
+    parent: Option<&'a Lookup<str, T>>,
 }
 
-impl<'me, T> ScopeMap<'me, T> {
-    fn new<'p: 'me>(parent: Option<&'me ScopeMap<'p, T>>) -> Self {
+impl<'a, T: 'a> ScopeMap<'a, T> {
+    fn new(parent: Option<&'a Lookup<str, T>>) -> Self {
         ScopeMap {
             map:    HashMap::new(),
             arena:  Arena::new(),
@@ -81,46 +110,43 @@ impl<'me, T> ScopeMap<'me, T> {
         }
     }
 
-    pub fn define(&mut self, name: &'me str, obj: T) -> Result<(), &T> {
-        use std::mem::transmute;
-
-        // SAFETY: We move the object into the arena and receive a borrow to it.
-        //   We then must use transmute to promote the borrow's lifetime to that
-        //   required by `map`.  The new lifetime ('me) might exceed the arena's
-        //   lifetime.  That is OK, because the lifetime is reconstrained to
-        //   that of &self by the exposed functions of this type, and because
-        //   the arena will not drop the object within the lifetime of &self.
+    pub fn define(&mut self, name: &'a str, obj: T) -> Result<(), &'a T> {
+        // SAFETY:  We move obj into the arena and receive a borrow to it.
+        // We then promote the borrow's lifetime to 'a, as required by the map.
+        // The new lifetime 'a might exceed the arena's lifetime.  That is OK,
+        // because lookup() constrains its result to the lifetime of &self.
+        // Also, the arena will not drop obj within/ the lifetime of &self.
         //   
         let obj: *const T = self.arena.alloc(obj);
-        let obj: &'me   T = unsafe { transmute(obj) };
+        let obj: &'a    T = unsafe { &*obj };
 
         self.define_ref(name, obj)
     }
 
-    pub fn define_ref(&mut self, name: &'me str, obj: &'me T) -> Result<(), &T> {
+    pub fn define_ref(&mut self, name: &'a str, obj: &'a T) -> Result<(), &'a T> {
         match self.map.insert(name, obj) {
             None      => Ok(()),
             Some(obj) => Err(obj)
         }
     }
 
-    pub fn lookup(&self, name: &str) -> Option<&T> {
+    pub fn lookup(&self, name: &str) -> Option<&'a T> {
         // First, look in this map
-        if let Some(&obj) = self.map.get(&name) {
+        if let Some(&obj) = self.map.get(name) {
             return Some(obj);
         }
 
-        // Else look in parent scope, if any
+        // Else, look in parent scope, if any
         if let Some(parent) = self.parent {
             return parent.lookup(name);
         }
 
-        // Else fail
+        // Else, fail
         None
     }
 }
 
-impl<'me, T> Lookup<str, T> for ScopeMap<'me, T> {
+impl<'a, T> Lookup<str, T> for ScopeMap<'a, T> {
     #[inline(always)]
     fn lookup(&self, name: &str) -> Option<&T> {
         self.lookup(name)
@@ -134,20 +160,24 @@ mod tests {
 
     mod scope {
         use super::super::*;
+        use aex::util::ref_eq;
+        use aex::target::{TargetRef, TestTarget};
 
         #[test]
         fn new() {
             let parent = Scope::new();
             let child  = Scope::with_parent(&parent);
 
-            assert_eq!(
-                child.types.parent.unwrap() as *const _,
-                &parent.types               as *const _
-            );
-            assert_eq!(
-                child.symbols.parent.unwrap() as *const _,
-                &parent.symbols               as *const _
-            );
+            assert!(ref_eq(child.types  .parent.unwrap(), &parent.types  ));
+            assert!(ref_eq(child.symbols.parent.unwrap(), &parent.symbols));
+        }
+
+        #[test]
+        fn abstract_parent() {
+            let target = TestTarget::new();
+            let parent = TargetRef::new(&target);
+            let child  = Scope::with_parent(&parent);
+            // Just making sure it typechecks for now
         }
     }
 
@@ -216,6 +246,6 @@ mod tests {
 
             assert_eq!( map.lookup("t"), Some(&U32) );
         }
-  }
+    }
 }
 

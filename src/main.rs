@@ -24,7 +24,7 @@ extern crate num;
 mod aex;
 
 use std::io::{self, Read};
-use aex::*;
+use aex::Compiler;
 
 fn main() {
     let mut input = String::new();
@@ -34,6 +34,10 @@ fn main() {
         Err(e) => panic!("error reading stdin: {}", e)
     }
 
-    compile(input.chars(), "(stdin)");
+    let compiler = Compiler::new();
+
+    // Set compiler options here
+
+    compiler.compile("(stdin)", &input);
 }
 

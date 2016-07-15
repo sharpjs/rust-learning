@@ -16,91 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::collections::HashMap;
-use std::mem;
-use num::{self, BigInt, ToPrimitive};
+use std::str::Chars;
 
-use aex::compilation::Compilation;
-use aex::mem::interner::StringInterner;
-use aex::message::Messages;
-use aex::operator::{self, OpTable};
-use aex::pos::Pos;
-
-// -----------------------------------------------------------------------------
-// Tokens
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Token<'a> {
-    Raw  (&'a str),     // Raw output
-    Id   (&'a str),     // Identifier
-    Flag (&'a str),     // Condition flag
-
-    Int  (u64),         // Literal: integer
-    Char (char),        // Literal: character
-    Str  (&'a str),     // Literal: string
-
-    KwType,             // Keyword: type
-    KwStruct,           // Keyword: struct
-    KwUnion,            // Keyword: union
-    KwIf,               // Keyword: if
-    KwElse,             // Keyword: else
-    KwLoop,             // Keyword: loop
-    KwWhile,            // Keyword: while
-    KwBreak,            // Keyword: break
-    KwContinue,         // Keyword: continue
-    KwReturn,           // Keyword: return
-    KwJump,             // Keyword: jump
-
-    BraceL,             // {
-    BraceR,             // }
-    ParenL,             // (
-    ParenR,             // )
-    BracketL,           // [
-    BracketR,           // ]
-
-    Op(&'a operator::Op), // any of: .@!~*/%+-&^|<=>? (how about #$ ?)
-
-    Dot,                // .
-    At,                 // @
-    PlusPlus,           // ++
-    MinusMinus,         // --
-    Bang,               // !
-    Tilde,              // ~
-    Star,               // *
-    Slash,              // /
-    Percent,            // %
-    Plus,               // +
-    Minus,              // -
-    LessLess,           // <<
-    MoreMore,           // >>
-    Ampersand,          // &
-    Caret,              // ^
-    Pipe,               // |
-    DotTilde,           // .~
-    DotBang,            // .!
-    DotEqual,           // .=
-    DotQuestion,        // .?
-    Question,           // ?
-    LessMore,           // <>
-    EqualEqual,         // ==
-    BangEqual,          // !=
-    Less,               // <
-    More,               // >
-    LessEqual,          // <=
-    MoreEqual,          // >=
-    EqualArrow,         // =>
-    MinusArrow,         // ->
-    Equal,              // =
-
-    Colon,              // :
-    Comma,              // ,
-
-    Eos,                // End of statement
-    Eof,                // End of file
-
-    Error               // Lexical error
-}
-use self::Token::*;
+//use aex::compiler::Compiler;
+use aex::source::{File, Source};
+use aex::token::{Token, TokenBuilder, Compiler};
+use aex::token::Token::*;
 
 // -----------------------------------------------------------------------------
 // State
@@ -108,13 +29,13 @@ use self::Token::*;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum State {
-    Initial, InSpace, AfterEos,
-    InIdOrKw,
+    Initial, InSpace, AfterEos, InIdOrKw,
     AfterZero, InNumDec, InNumHex, InNumOct, InNumBin,
-    InChar, AtCharEnd, InStr, InRaw,
+    InChar, AtCharEnd, InStr,
     InEsc, AtEscHex0, AtEscHex1, AtEscUni0, AtEscUni1,
-    AfterDot, AfterPlus, AfterMinus,
-    AfterLess, AfterMore,  AfterEqual, AfterBang,
+  //InOp,
+  //AfterDot, AfterPlus, AfterMinus,
+  //AfterLess, AfterMore,  AfterEqual, AfterBang,
     AtEof
 }
 use self::State::*;
@@ -125,9 +46,9 @@ use self::State::*;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[repr(u8)]
 enum Action {
-    Start,              //
     Skip,               //
     SkipEol,            //
+    Start,              //
 
     YieldEos,           //
     YieldEosEol,        //
@@ -144,19 +65,18 @@ enum Action {
     AccumStr,           //
     YieldChar,          //
     YieldStr,           //
-    YieldRaw,           //
     YieldIdOrKw,        //
 
     StartEsc,           //
-    YieldEscNul,        //
-    YieldEscLf,         //
-    YieldEscCr,         //
-    YieldEscTab,        //
-    YieldEscChar,       //
-    YieldEscNum,        //
-    YieldEscHexDig,     //
-    YieldEscHexUc,      //
-    YieldEscHexLc,      //
+    AccumEscNul,        //
+    AccumEscLf,         //
+    AccumEscCr,         //
+    AccumEscTab,        //
+    AccumEscChar,       //
+    AccumEscNum,        //
+    AccumEscHexDig,     //
+    AccumEscHexUc,      //
+    AccumEscHexLc,      //
 
     YieldBraceL,        //
     YieldBraceR,        //
@@ -164,47 +84,20 @@ enum Action {
     YieldParenR,        //
     YieldBracketL,      //
     YieldBracketR,      //
-    YieldDot,           //
-    YieldAt,            //
-    YieldPlusPlus,      //
-    YieldMinusMinus,    //
-    YieldBang,          //
-    YieldBang2,         //
-    YieldTilde,         //
-    YieldQuestion,      //
-    YieldStar,          //
-    YieldSlash,         //
-    YieldPercent,       //
-    YieldPlus,          //
-    YieldMinus,         //
-    YieldLessLess,      //
-    YieldMoreMore,      //
-    YieldAmpersand,     //
-    YieldCaret,         //
-    YieldPipe,          //
-    YieldDotTilde,      //
-    YieldDotBang,       //
-    YieldDotEqual,      //
-    YieldDotQuestion,   //
-    YieldLessMore,      //
-    YieldEqualEqual,    //
-    YieldBangEqual,     //
-    YieldLess,          //
-    YieldMore,          //
-    YieldLessEqual,     //
-    YieldMoreEqual,     //
-    YieldEqualArrow,    //
-    YieldMinusArrow,    //
-    YieldEqual,         //
-    YieldColon,         //
-    YieldComma,         //
+  //YieldDot,           //
+  //YieldAt,            //
+  //YieldEqualArrow,    //
+  //YieldMinusArrow,    //
+  //YieldEqual,         //
+  //YieldColon,         //
+  //YieldComma,         //
+  //YieldOperator,      //
 
     ErrorInvalid,       //
     ErrorInvalidNum,    //
     ErrorInvalidEsc,    //
     ErrorUntermChar,    //
     ErrorUntermStr,     //
-    ErrorUntermRaw,     //
     ErrorUntermEsc,     //
     ErrorLengthChar,    //
 }
@@ -213,42 +106,41 @@ use self::Action::*;
 // -----------------------------------------------------------------------------
 // Lexer
 
-pub struct Lexer<'l, 'a: 'l, I>
-where I: Iterator<Item=char>
+pub struct Lexer<'a>
 {
-    iter:       I,                      // remaining chars
-    ch:         Option<char>,           // char  after previous token
-    state:      State,                  // state after previous token
-    context:    Context<'l, 'a>         // context object give to actions
+    chars:   Chars<'a>,                 // remaining chars
+    ch:      Option<char>,              // char  after previous token
+    state:   State,                     // state after previous token
+    builder: TokenBuilder<'a>           // used by actions to build tokens
 }
 
-impl<'l, 'a: 'l, I> Lexer<'l, 'a, I>
-where I: Iterator<Item=char>
+impl<'a> Lexer<'a>
 {
-    pub fn new(compilation: &'l mut Compilation<'a>, mut iter: I) -> Self {
-        let ch = iter.next();
-
+    pub fn new(compiler:  &'a Compiler <'a>,
+               file:      &'a File     <'a>
+              ) -> Self {
+        let mut chars = file.data().chars();
+        let ch        = chars.next();
         Lexer {
-            iter:    iter,
+            chars:   chars,
             ch:      ch,
             state:   match ch { Some(_) => Initial, None => AtEof },
-            context: Context::new(compilation)
+            builder: TokenBuilder::new(compiler, file),
         }
     }
 }
 
 pub trait Lex<'a> {
-    fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>);
+    fn lex(&mut self) -> (Source<'a>, Token<'a>);
 }
 
-impl<'l, 'a: 'l, I> Lex<'a> for Lexer<'l, 'a, I>
-where I: Iterator<Item=char>
+impl<'a> Lex<'a> for Lexer<'a>
 {
-    fn lex(&mut self) -> (Pos<'a>, Token<'a>, Pos<'a>) {
+    fn lex(&mut self) -> (Source<'a>, Token<'a>) {
         let mut ch    =      self.ch;
         let mut state =      self.state;
-        let     iter  = &mut self.iter;
-        let     l     = &mut self.context;
+        let     chars = &mut self.chars;
+        let     t     = &mut self.builder;
 
         println!("\nlex: state = {:?}", state);
 
@@ -260,23 +152,19 @@ where I: Iterator<Item=char>
 
             // Action code helpers
             macro_rules! consume {
-                () => {{
-                    l.current.byte   += c.len_utf8();
-                    l.current.column += 1;
-                    ch                = iter.next();
-                }};
+                () => {{ t.advance(c); ch = chars.next(); }};
             }
             macro_rules! push {
-                ( $s:expr ) => {{ self.state = state; state = $s }};
+                ($s:expr) => {{ self.state = state; state = $s }};
             }
             macro_rules! pop {
                 () => {{ state = self.state }};
             }
             macro_rules! skip {
-                ( $($e:expr);* ) => {{ $($e;)* continue }};
+                ($($e:expr);*) => {{ $($e;)* continue }};
             }
             macro_rules! maybe {
-                ( $($e:expr);+ ) => {
+                ($($e:expr);+) => {
                     match { $($e);+ } { Some(e) => e, _ => continue }
                 };
             }
@@ -284,95 +172,67 @@ where I: Iterator<Item=char>
             // Invoke action code
             let token = match action {
                 // Space
-                Start               => { l.start();               continue },
-                Skip                => { consume!();              continue },
-                SkipEol             => { consume!(); l.newline(); continue },
+                Skip            => { consume!();              continue },
+                SkipEol         => { consume!(); t.newline(); continue },
+                Start           => {             t.start();   continue },
 
                 // Terminators
-                YieldEos            => { consume!();              Eos },
-                YieldEosEol         => { consume!(); l.newline(); Eos },
-                YieldEof            => {                          Eof },
+                YieldEos        => { consume!();              Eos },
+                YieldEosEol     => { consume!(); t.newline(); Eos },
+                YieldEof        => {                          Eof },
 
                 // Numbers
-                AccumNumDec         => { consume!(); maybe!(l.num_add_dec     (c)); continue },
-                AccumNumHexDig      => { consume!(); maybe!(l.num_add_hex_dig (c)); continue },
-                AccumNumHexUc       => { consume!(); maybe!(l.num_add_hex_uc  (c)); continue },
-                AccumNumHexLc       => { consume!(); maybe!(l.num_add_hex_lc  (c)); continue },
-                AccumNumOct         => { consume!(); maybe!(l.num_add_oct     (c)); continue },
-                AccumNumBin         => { consume!(); maybe!(l.num_add_bin     (c)); continue },
+                AccumNumDec     => { consume!(); t.add_dec    (c); continue },
+                AccumNumHexDig  => { consume!(); t.add_hex_dg (c); continue },
+                AccumNumHexUc   => { consume!(); t.add_hex_uc (c); continue },
+                AccumNumHexLc   => { consume!(); t.add_hex_lc (c); continue },
+                AccumNumOct     => { consume!(); t.add_oct    (c); continue },
+                AccumNumBin     => { consume!(); t.add_bin    (c); continue },
 
-                YieldNum            => { l.num_get() },
+                YieldNum        => { t.get_num() },
 
                 // Identifiers & Keywords
-                AccumStr            => { consume!(); l.str_add(c); continue },
-                YieldChar           => { consume!(); l.str_get_char() },
-                YieldStr            => { consume!(); l.str_get_str()  },
-                YieldRaw            => { consume!(); l.str_get_raw()  },
-                YieldIdOrKw         => { l.str_get_id_or_keyword() },
+                AccumStr        => { consume!(); t.add_char(c); continue },
+                YieldChar       => { consume!(); t.get_char()            },
+                YieldStr        => { consume!(); t.get_str()             },
+                YieldIdOrKw     => {             t.get_id_or_keyword()   },
 
                 // Strings & Chars
-                StartEsc            => { consume!(); push!(InEsc);            continue },
-                YieldEscNul         => { consume!(); pop!(); l.str_add('\0'); continue },
-                YieldEscLf          => { consume!(); pop!(); l.str_add('\n'); continue },
-                YieldEscCr          => { consume!(); pop!(); l.str_add('\r'); continue },
-                YieldEscTab         => { consume!(); pop!(); l.str_add('\t'); continue },
-                YieldEscChar        => { consume!(); pop!(); l.str_add(  c ); continue },
-                YieldEscNum         => { consume!(); pop!(); maybe!(l.str_add_esc());          continue },
-                YieldEscHexDig      => { consume!(); pop!(); maybe!(l.str_add_esc_hex_dig(c)); continue },
-                YieldEscHexUc       => { consume!(); pop!(); maybe!(l.str_add_esc_hex_uc(c));  continue },
-                YieldEscHexLc       => { consume!(); pop!(); maybe!(l.str_add_esc_hex_lc(c));  continue },
+                StartEsc        => { consume!(); push!(InEsc);             continue },
+                AccumEscNul     => { consume!(); pop!(); t.add_char('\0'); continue },
+                AccumEscLf      => { consume!(); pop!(); t.add_char('\n'); continue },
+                AccumEscCr      => { consume!(); pop!(); t.add_char('\r'); continue },
+                AccumEscTab     => { consume!(); pop!(); t.add_char('\t'); continue },
+                AccumEscChar    => { consume!(); pop!(); t.add_char(  c ); continue },
+                AccumEscNum     => { consume!(); pop!();                  maybe!(t.add_esc()) },
+                AccumEscHexDig  => { consume!(); pop!(); t.add_hex_dg(c); maybe!(t.add_esc()) },
+                AccumEscHexUc   => { consume!(); pop!(); t.add_hex_uc(c); maybe!(t.add_esc()) },
+                AccumEscHexLc   => { consume!(); pop!(); t.add_hex_lc(c); maybe!(t.add_esc()) },
 
                 // Simple Tokens
-                YieldBraceL         => { consume!(); BraceL      },
-                YieldBraceR         => { consume!(); BraceR      },
-                YieldParenL         => { consume!(); ParenL      },
-                YieldParenR         => { consume!(); ParenR      },
-                YieldBracketL       => { consume!(); BracketL    },
-                YieldBracketR       => { consume!(); BracketR    },
-                YieldDot            => {             Dot         },
-                YieldAt             => { consume!(); At          },
-                YieldPlusPlus       => { consume!(); PlusPlus    },
-                YieldMinusMinus     => { consume!(); MinusMinus  },
-                YieldBang           => {             Bang        },
-                YieldBang2          => { consume!(); Bang        },
-                YieldTilde          => { consume!(); Tilde       },
-                YieldQuestion       => { consume!(); Question    },
-                YieldStar           => { consume!(); Star        },
-                YieldSlash          => { consume!(); Slash       },
-                YieldPercent        => { consume!(); Percent     },
-                YieldPlus           => {             Plus        },
-                YieldMinus          => {             Minus       },
-                YieldLessLess       => { consume!(); LessLess    },
-                YieldMoreMore       => { consume!(); MoreMore    },
-                YieldAmpersand      => { consume!(); Ampersand   },
-                YieldCaret          => { consume!(); Caret       },
-                YieldPipe           => { consume!(); Pipe        },
-                YieldDotTilde       => { consume!(); DotTilde    },
-                YieldDotBang        => { consume!(); DotBang     },
-                YieldDotEqual       => { consume!(); DotEqual    },
-                YieldDotQuestion    => { consume!(); DotQuestion },
-                YieldLessMore       => { consume!(); LessMore    },
-                YieldEqualEqual     => { consume!(); EqualEqual  },
-                YieldBangEqual      => { consume!(); BangEqual   },
-                YieldLess           => {             Less        },
-                YieldMore           => {             More        },
-                YieldLessEqual      => { consume!(); LessEqual   },
-                YieldMoreEqual      => { consume!(); MoreEqual   },
-                YieldEqualArrow     => { consume!(); EqualArrow  },
-                YieldMinusArrow     => { consume!(); MinusArrow  },
-                YieldEqual          => {             Equal       },
-                YieldColon          => { consume!(); Colon       },
-                YieldComma          => { consume!(); Comma       },
+                YieldBraceL     => { consume!(); BraceL     },
+                YieldBraceR     => { consume!(); BraceR     },
+                YieldParenL     => { consume!(); ParenL     },
+                YieldParenR     => { consume!(); ParenR     },
+                YieldBracketL   => { consume!(); BracketL   },
+                YieldBracketR   => { consume!(); BracketR   },
+              //YieldDot        => {             Dot        },
+              //YieldAt         => { consume!(); At         },
+              //YieldEqual      => {             Equal      },
+              //YieldEqualArrow => { consume!(); EqualArrow },
+              //YieldMinusArrow => { consume!(); MinusArrow },
+              //YieldColon      => { consume!(); Colon      },
+              //YieldComma      => { consume!(); Comma      },
+              //YieldOperator   => { t.get_operator()       },
 
                 // Errors
-                ErrorInvalid        => { l.messages.err_unrec       (l.start, c); Error },
-                ErrorInvalidNum     => { l.messages.err_unrec_num   (l.start, c); Error },
-                ErrorInvalidEsc     => { l.messages.err_unrec_esc   (l.start, c); Error },
-                ErrorUntermChar     => { l.messages.err_unterm_char (l.start,  ); Error },
-                ErrorUntermStr      => { l.messages.err_unterm_str  (l.start,  ); Error },
-                ErrorUntermRaw      => { l.messages.err_unterm_raw  (l.start,  ); Error },
-                ErrorUntermEsc      => { l.messages.err_unterm_esc  (l.start,  ); Error },
-                ErrorLengthChar     => { l.messages.err_length_char (l.start,  ); Error },
+                ErrorInvalid    => { t.err_unrec       (c) },
+                ErrorInvalidNum => { t.err_unrec_num   (c) },
+                ErrorInvalidEsc => { t.err_unrec_esc   (c) },
+                ErrorUntermChar => { t.err_unterm_char ( ) },
+                ErrorUntermStr  => { t.err_unterm_str  ( ) },
+                ErrorUntermEsc  => { t.err_unterm_esc  ( ) },
+                ErrorLengthChar => { t.err_length_char ( ) },
             };
 
             // Remember state for next invocation
@@ -380,10 +240,9 @@ where I: Iterator<Item=char>
             self.state = state;
 
             // Yield
-            let start = l.start; l.start();
-            let end   = l.current;
-            println!("lex: yield {:?}", (start, token, end));
-            return (start, token, end);
+            let source = t.source();
+            t.start();
+            return (source, token);
         }
     }
 }
@@ -428,12 +287,12 @@ const STATES: &'static [TransitionSet] = &[
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2,19, 9, x, x,24,27, 8, 13,14,22,25,34,26,17,23, //  !"#$%&' ()*+,-./
-        6, 7, 7, 7, 7, 7, 7, 7,  7, 7,33, 4,30,32,31,21, // 01234567 89:;<=>?
-       18, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
-        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,15, x,16,28, 5, // PQRSTUVW XYZ[\]^_
-       10, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
-        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,11,29,12,20, x, // pqrstuvw xyz{|}~. <- DEL
+        2, x, 9, x, x, x, x, 8, 12,13, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+        6, 7, 7, 7, 7, 7, 7, 7,  7, 7, x, 4, x, x, x, x, // 01234567 89:;<=>?
+        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,14, x,15, x, 5, // PQRSTUVW XYZ[\]^_
+        x, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
+        5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,10, x,11, x, x, // pqrstuvw xyz{|}~. <- DEL
     ],&[
         //              State       Action
         /*  0: eof */ ( AtEof,      YieldEof       ),
@@ -442,39 +301,68 @@ const STATES: &'static [TransitionSet] = &[
         /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
         /*  4:  ;  */ ( AfterEos,   YieldEos       ),
         /*  5: id0 */ ( InIdOrKw,   AccumStr       ),
-
         /*  6:  0  */ ( AfterZero,  Skip           ),
         /*  7: 1-9 */ ( InNumDec,   AccumNumDec    ),
         /*  8:  '  */ ( InChar,     Skip           ),
         /*  9:  "  */ ( InStr,      Skip           ),
-        /* 10:  `  */ ( InRaw,      Skip           ),
-        /* 11:  {  */ ( Initial,    YieldBraceL    ),
-        /* 12:  }  */ ( Initial,    YieldBraceR    ),
-        /* 13:  (  */ ( Initial,    YieldParenL    ),
-        /* 14:  )  */ ( Initial,    YieldParenR    ),
-        /* 15:  [  */ ( Initial,    YieldBracketL  ),
-        /* 16:  ]  */ ( Initial,    YieldBracketR  ),
-        /* 17:  .  */ ( AfterDot,   Skip           ),
-        /* 18:  @  */ ( Initial,    YieldAt        ),
-        /* 19:  !  */ ( AfterBang,  Skip           ),
-        /* 20:  ~  */ ( Initial,    YieldTilde     ),
-        /* 21:  ?  */ ( Initial,    YieldQuestion  ),
-        /* 22:  *  */ ( Initial,    YieldStar      ),
-        /* 23:  /  */ ( Initial,    YieldSlash     ),
-        /* 24:  %  */ ( Initial,    YieldPercent   ),
-        /* 25:  +  */ ( AfterPlus,  Skip           ),
-        /* 26:  -  */ ( AfterMinus, Skip           ),
-        /* 27:  &  */ ( Initial,    YieldAmpersand ),
-        /* 28:  ^  */ ( Initial,    YieldCaret     ),
-        /* 29:  |  */ ( Initial,    YieldPipe      ),
-        /* 30:  <  */ ( AfterLess,  Skip           ),
-        /* 31:  >  */ ( AfterMore,  Skip           ),
-        /* 32:  =  */ ( AfterEqual, Skip           ),
-        /* 33:  :  */ ( Initial,    YieldColon     ),
-        /* 34:  ,  */ ( Initial,    YieldComma     ),
+        /* 10:  {  */ ( Initial,    YieldBraceL    ),
+        /* 11:  }  */ ( Initial,    YieldBraceR    ),
+        /* 12:  (  */ ( Initial,    YieldParenL    ),
+        /* 13:  )  */ ( Initial,    YieldParenR    ),
+        /* 14:  [  */ ( Initial,    YieldBracketL  ),
+        /* 15:  ]  */ ( Initial,    YieldBracketR  ),
     ]),
 
-    // InSpace - In whitespace
+    //// Initial
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2,19, 9, x, x,24,27, 8, 13,14,22,25,34,26,17,23, //  !"#$%&' ()*+,-./
+    //    6, 7, 7, 7, 7, 7, 7, 7,  7, 7,33, 4,30,32,31,21, // 01234567 89:;<=>?
+    //   18, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // @ABCDEFG HIJKLMNO
+    //    5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,15, x,16,28, 5, // PQRSTUVW XYZ[\]^_
+    //   10, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5, 5, 5, 5, 5, 5, // `abcdefg hijklmno
+    //    5, 5, 5, 5, 5, 5, 5, 5,  5, 5, 5,11,29,12,20, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //              State       Action
+    //    /*  0: eof */ ( AtEof,      YieldEof       ),
+    //    /*  1: ??? */ ( AtEof,      ErrorInvalid   ),
+    //    /*  2: \s  */ ( InSpace,    Skip           ),
+    //    /*  3: \n  */ ( AfterEos,   YieldEosEol    ),
+    //    /*  4:  ;  */ ( AfterEos,   YieldEos       ),
+    //    /*  5: id0 */ ( InIdOrKw,   AccumStr       ),
+    //    /*  6:  0  */ ( AfterZero,  Skip           ),
+    //    /*  7: 1-9 */ ( InNumDec,   AccumNumDec    ),
+    //    /*  8:  '  */ ( InChar,     Skip           ),
+    //    /*  9:  "  */ ( InStr,      Skip           ),
+    //    /* 10:  `  */ ( AtEof,      ErrorInvalid   ), // was raw string
+    //    /* 11:  {  */ ( Initial,    YieldBraceL    ),
+    //    /* 12:  }  */ ( Initial,    YieldBraceR    ),
+    //    /* 13:  (  */ ( Initial,    YieldParenL    ),
+    //    /* 14:  )  */ ( Initial,    YieldParenR    ),
+    //    /* 15:  [  */ ( Initial,    YieldBracketL  ),
+    //    /* 16:  ]  */ ( Initial,    YieldBracketR  ),
+    //    /* 17:  .  */ ( AfterDot,   Skip           ),
+    //    /* 18:  @  */ ( Initial,    YieldAt        ),
+    //    /* 19:  !  */ ( AfterBang,  Skip           ),
+    //    /* 20:  ~  */ ( Initial,    YieldTilde     ),
+    //    /* 21:  ?  */ ( Initial,    YieldQuestion  ),
+    //    /* 22:  *  */ ( Initial,    YieldStar      ),
+    //    /* 23:  /  */ ( Initial,    YieldSlash     ),
+    //    /* 24:  %  */ ( Initial,    YieldPercent   ),
+    //    /* 25:  +  */ ( AfterPlus,  Skip           ),
+    //    /* 26:  -  */ ( AfterMinus, Skip           ),
+    //    /* 27:  &  */ ( Initial,    YieldAmpersand ),
+    //    /* 28:  ^  */ ( Initial,    YieldCaret     ),
+    //    /* 29:  |  */ ( Initial,    YieldPipe      ),
+    //    /* 30:  <  */ ( AfterLess,  Skip           ),
+    //    /* 31:  >  */ ( AfterMore,  Skip           ),
+    //    /* 32:  =  */ ( AfterEqual, Skip           ),
+    //    /* 33:  :  */ ( Initial,    YieldColon     ),
+    //    /* 34:  ,  */ ( Initial,    YieldComma     ),
+    //]),
+
+    // InSpace - in whitespace
     ([
         x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -491,7 +379,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 2: \s  */ ( InSpace, Skip  ),
     ]),
 
-    // AfterEos - After end of statement
+    // AfterEos - after end of statement
     ([
         x, x, x, x, x, x, x, x,  x, 2, 3, x, x, 2, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -509,7 +397,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 3: \n  */ ( AfterEos, SkipEol ),
     ]),
 
-    // InIdOrKw - In identifier or keyword
+    // InIdOrKw - in identifier or keyword
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -531,7 +419,7 @@ const STATES: &'static [TransitionSet] = &[
         x, x, x, x, x, x, x, x,  x, 7, 8, x, x, 7, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
         7, 8, x, 8, 8, 8, 8, x,  8, 8, 8, 8, 8, 8, 8, 8, //  !"#$%&' ()*+,-./
-        2, 2, 2, 2, 2, 2, 2, 2,  2, 2, 8, 8, 8, 8, 8, 8, // 01234567 89:;<=>?
+        3, 2, 2, 2, 2, 2, 2, 2,  2, 2, 8, 8, 8, 8, 8, 8, // 01234567 89:;<=>?
         8, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
         x, x, x, x, x, x, x, x,  x, x, x, 8, 8, 8, 8, 3, // PQRSTUVW XYZ[\]^_
         8, x, 6, x, x, x, x, x,  x, x, x, x, x, x, x, 5, // `abcdefg hijklmno
@@ -540,8 +428,8 @@ const STATES: &'static [TransitionSet] = &[
         //             State     Action
         /* 0: eof */ ( AtEof,    YieldNum        ),
         /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
-        /* 2: 0-9 */ ( InNumDec, AccumNumDec     ),
-        /* 3:  _  */ ( InNumDec, Skip            ),
+        /* 2: 1-9 */ ( InNumDec, AccumNumDec     ),
+        /* 3: 0_  */ ( InNumDec, Skip            ),
         /* 4:  x  */ ( InNumHex, Skip            ),
         /* 5:  o  */ ( InNumOct, Skip            ),
         /* 6:  b  */ ( InNumBin, Skip            ),
@@ -607,8 +495,8 @@ const STATES: &'static [TransitionSet] = &[
         /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
         /* 2: 0-7 */ ( InNumOct, AccumNumOct     ),
         /* 3:  _  */ ( InNumOct, Skip            ),
-        /* 6: \s  */ ( InSpace,  YieldNum        ),
-        /* 4: opr */ ( Initial,  YieldNum        ),
+        /* 4: \s  */ ( InSpace,  YieldNum        ),
+        /* 5: opr */ ( Initial,  YieldNum        ),
     ]),
 
     // InNumBin - in a binary number
@@ -627,11 +515,11 @@ const STATES: &'static [TransitionSet] = &[
         /* 1: ??? */ ( AtEof,    ErrorInvalidNum ),
         /* 2: 0-1 */ ( InNumBin, AccumNumBin     ),
         /* 3:  _  */ ( InNumBin, Skip            ),
-        /* 6: \s  */ ( InSpace,  YieldNum        ),
-        /* 4: opr */ ( Initial,  YieldNum        ),
+        /* 4: \s  */ ( InSpace,  YieldNum        ),
+        /* 5: opr */ ( Initial,  YieldNum        ),
     ]),
 
-    // InChar <( ' )> : in a character literal
+    // InChar - in a character literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -649,7 +537,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 3:  '  */ ( AtEof,     ErrorLengthChar ),
     ]),
 
-    // AtCharEnd <( ' char )> : expecting the end of a character literal
+    // AtCharEnd - expecting ' to end a character literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -666,7 +554,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 2:  '  */ ( Initial, YieldChar       ),
     ]),
 
-    // InStr <( " )> : in a string literal
+    // InStr - in a string literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -684,24 +572,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 3:  "  */ ( Initial, YieldStr       ),
     ]),
 
-    // InRaw <( ` )> : in a raw output block
-    ([
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   ErrorUntermRaw ),
-        /* 1: ??? */ ( InRaw,   AccumStr       ),
-        /* 3:  `  */ ( Initial, YieldRaw       ),
-    ]),
-
-    // InEsc <( ['"] \ )> : after escape characer
+    // InEsc - after \ in a character or string literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -715,18 +586,18 @@ const STATES: &'static [TransitionSet] = &[
         //              State      Action
         /*  0: eof */ ( AtEof,     ErrorUntermEsc  ),
         /*  1: ??? */ ( AtEof,     ErrorInvalidEsc ),
-        /*  2:  0  */ ( InStr,     YieldEscNul     ), // pops state
-        /*  3:  n  */ ( InStr,     YieldEscLf      ), // pops state
-        /*  4:  r  */ ( InStr,     YieldEscCr      ), // pops state
-        /*  5:  t  */ ( InStr,     YieldEscTab     ), // pops state
-        /*  6:  \  */ ( InStr,     YieldEscChar    ), // pops state
-        /*  7:  '  */ ( InStr,     YieldEscChar    ), // pops state
-        /*  8:  "  */ ( InStr,     YieldEscChar    ), // pops state
+        /*  2:  0  */ ( InStr,     AccumEscNul     ), // pops state
+        /*  3:  n  */ ( InStr,     AccumEscLf      ), // pops state
+        /*  4:  r  */ ( InStr,     AccumEscCr      ), // pops state
+        /*  5:  t  */ ( InStr,     AccumEscTab     ), // pops state
+        /*  6:  \  */ ( InStr,     AccumEscChar    ), // pops state
+        /*  7:  '  */ ( InStr,     AccumEscChar    ), // pops state
+        /*  8:  "  */ ( InStr,     AccumEscChar    ), // pops state
         /*  9:  x  */ ( AtEscHex0, Skip            ),
         /* 10:  u  */ ( AtEscUni0, Skip            ),
     ]),
 
-    // AtEscHex0 <( ['"] \ x )> : at byte escape digit 0
+    // AtEscHex0 - after \x in a character or string literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -745,7 +616,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 4: a-f */ ( AtEscHex1, AccumNumHexLc   ),
     ]),
 
-    // AtEscHex1 <( ['"] \ x hex )> : at byte escape digit 1
+    // AtEscHex1 - after \x and a hex digit in a character or string literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -759,12 +630,12 @@ const STATES: &'static [TransitionSet] = &[
         //             State  Action
         /* 0: eof */ ( AtEof, ErrorUntermEsc  ),
         /* 1: ??? */ ( AtEof, ErrorInvalidEsc ),
-        /* 2: 0-9 */ ( InStr, YieldEscHexDig  ), // pops state
-        /* 3: A-F */ ( InStr, YieldEscHexUc   ), // pops state
-        /* 4: a-f */ ( InStr, YieldEscHexLc   ), // pops state
+        /* 2: 0-9 */ ( InStr, AccumEscHexDig  ), // pops state
+        /* 3: A-F */ ( InStr, AccumEscHexUc   ), // pops state
+        /* 4: a-f */ ( InStr, AccumEscHexLc   ), // pops state
     ]),
 
-    // AtEscUni0 <( ['"] \ u )> : in unicode escape, expecting {
+    // AtEscUni0 - after \u in a character or string literal, expecting {
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -781,7 +652,7 @@ const STATES: &'static [TransitionSet] = &[
         /* 2:  {  */ ( AtEscUni1, Skip            ),
     ]),
 
-    // AtEscUni1 <( ['"] \ u { )> : in unicode escape, expecting hex digit
+    // AtEscUni1 - after \u{ in a character or string literal
     ([
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
         x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -798,146 +669,146 @@ const STATES: &'static [TransitionSet] = &[
         /* 2: 0-9 */ ( AtEscUni1, AccumNumHexDig  ),
         /* 3: A-F */ ( AtEscUni1, AccumNumHexUc   ),
         /* 4: a-f */ ( AtEscUni1, AccumNumHexLc   ),
-        /* 5:  }  */ ( InStr,     YieldEscNum     ), // pops state
+        /* 5:  }  */ ( InStr,     AccumEscNum     ), // pops state
     ]),
 
-    // AfterDot <( . )> : after a dot
-    ([
-        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, 6, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   YieldDot         ),
-        /* 1: ??? */ ( Initial, YieldDot         ),
-        /* 2: \s  */ ( Initial, YieldDot         ),
-        /* 3:  ~  */ ( Initial, YieldDotTilde    ),
-        /* 4:  !  */ ( Initial, YieldDotBang     ),
-        /* 5:  =  */ ( Initial, YieldDotEqual    ),
-        /* 6:  ?  */ ( Initial, YieldDotQuestion ),
-    ]),
+    //// AfterDot <( . )> : after a dot
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, 5, x, 6, // 01234567 89:;<=>?
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 3, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //             State    Action
+    //    /* 0: eof */ ( AtEof,   YieldDot         ),
+    //    /* 1: ??? */ ( Initial, YieldDot         ),
+    //    /* 2: \s  */ ( Initial, YieldDot         ),
+    //    /* 3:  ~  */ ( Initial, YieldDotTilde    ),
+    //    /* 4:  !  */ ( Initial, YieldDotBang     ),
+    //    /* 5:  =  */ ( Initial, YieldDotEqual    ),
+    //    /* 6:  ?  */ ( Initial, YieldDotQuestion ),
+    //]),
 
-    // AfterPlus <( + )> : after a plus sign
-    ([
-        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, x, x, x, x, x, x,  x, x, x, 3, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   YieldPlus     ),
-        /* 1: ??? */ ( Initial, YieldPlus     ),
-        /* 2: \s  */ ( Initial, YieldPlus     ),
-        /* 3:  +  */ ( Initial, YieldPlusPlus ),
-    ]),
+    //// AfterPlus <( + )> : after a plus sign
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2, x, x, x, x, x, x, x,  x, x, x, 3, x, x, x, x, //  !"#$%&' ()*+,-./
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // 01234567 89:;<=>?
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //             State    Action
+    //    /* 0: eof */ ( AtEof,   YieldPlus     ),
+    //    /* 1: ??? */ ( Initial, YieldPlus     ),
+    //    /* 2: \s  */ ( Initial, YieldPlus     ),
+    //    /* 3:  +  */ ( Initial, YieldPlusPlus ),
+    //]),
 
-    // AfterMinus <( - )> : after a minus sign
-    ([
-        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, x, x, x, x, x, x,  x, x, x, x, x, 3, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 4, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   YieldMinus      ),
-        /* 1: ??? */ ( Initial, YieldMinus      ),
-        /* 2: \s  */ ( Initial, YieldMinus      ),
-        /* 3:  -  */ ( Initial, YieldMinusMinus ),
-        /* 4:  >  */ ( Initial, YieldMinusArrow ),
-    ]),
+    //// AfterMinus <( - )> : after a minus sign
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2, x, x, x, x, x, x, x,  x, x, x, x, x, 3, x, x, //  !"#$%&' ()*+,-./
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, 4, x, // 01234567 89:;<=>?
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //             State    Action
+    //    /* 0: eof */ ( AtEof,   YieldMinus      ),
+    //    /* 1: ??? */ ( Initial, YieldMinus      ),
+    //    /* 2: \s  */ ( Initial, YieldMinus      ),
+    //    /* 3:  -  */ ( Initial, YieldMinusMinus ),
+    //    /* 4:  >  */ ( Initial, YieldMinusArrow ),
+    //]),
 
-    // AfterLess <( < )> : after a less-than sign
-    ([
-        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, 3, 5, 4, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   YieldLess      ),
-        /* 1: ??? */ ( Initial, YieldLess      ),
-        /* 2: \s  */ ( Initial, YieldLess      ),
-        /* 3:  <  */ ( Initial, YieldLessLess  ),
-        /* 4:  >  */ ( Initial, YieldLessMore  ),
-        /* 5:  =  */ ( Initial, YieldLessEqual ),
-    ]),
+    //// AfterLess <( < )> : after a less-than sign
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, 3, 5, 4, x, // 01234567 89:;<=>?
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //             State    Action
+    //    /* 0: eof */ ( AtEof,   YieldLess      ),
+    //    /* 1: ??? */ ( Initial, YieldLess      ),
+    //    /* 2: \s  */ ( Initial, YieldLess      ),
+    //    /* 3:  <  */ ( Initial, YieldLessLess  ),
+    //    /* 4:  >  */ ( Initial, YieldLessMore  ),
+    //    /* 5:  =  */ ( Initial, YieldLessEqual ),
+    //]),
 
-    // AfterMore <( > )> : after a greater-than sign
-    ([
-        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, 3, 5, 4, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   YieldMore      ),
-        /* 1: ??? */ ( Initial, YieldMore      ),
-        /* 2: \s  */ ( Initial, YieldMore      ),
-        /* 3:  <  */ ( Initial, YieldMoreMore  ), // TODO: exchange
-        /* 4:  >  */ ( Initial, YieldMoreMore  ),
-        /* 5:  =  */ ( Initial, YieldMoreEqual ),
-    ]),
+    //// AfterMore <( > )> : after a greater-than sign
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, 3, 5, 4, x, // 01234567 89:;<=>?
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //             State    Action
+    //    /* 0: eof */ ( AtEof,   YieldMore      ),
+    //    /* 1: ??? */ ( Initial, YieldMore      ),
+    //    /* 2: \s  */ ( Initial, YieldMore      ),
+    //    /* 3:  <  */ ( Initial, YieldMoreMore  ), // TODO: exchange
+    //    /* 4:  >  */ ( Initial, YieldMoreMore  ),
+    //    /* 5:  =  */ ( Initial, YieldMoreEqual ),
+    //]),
 
-    // AfterEqual <( = )> : after an equal sign
-    ([
-        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, 4, 3, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State    Action
-        /* 0: eof */ ( AtEof,   YieldEqual      ),
-        /* 1: ??? */ ( Initial, YieldEqual      ),
-        /* 2: \s  */ ( Initial, YieldEqual      ),
-        /* 3:  >  */ ( Initial, YieldEqualArrow ),
-        /* 4:  =  */ ( Initial, YieldEqualEqual ),
-    ]),
+    //// AfterEqual <( = )> : after an equal sign
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, 4, 3, x, // 01234567 89:;<=>?
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //             State    Action
+    //    /* 0: eof */ ( AtEof,   YieldEqual      ),
+    //    /* 1: ??? */ ( Initial, YieldEqual      ),
+    //    /* 2: \s  */ ( Initial, YieldEqual      ),
+    //    /* 3:  >  */ ( Initial, YieldEqualArrow ),
+    //    /* 4:  =  */ ( Initial, YieldEqualEqual ),
+    //]),
 
-    // AfterBang <( ! )> : after a bang mark
-    ([
-        x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
-        2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, 3, x, x, // 01234567 89:;<=>?
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
-        x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
-    ],&[
-        //             State      Action
-        /* 0: eof */ ( AtEof,     YieldBang      ),
-        /* 1: ??? */ ( Initial,   YieldBang      ),
-        /* 2: \s  */ ( Initial,   YieldBang      ),
-        /* 3:  =  */ ( Initial,   YieldBangEqual ),
-        /* 4:  !  */ ( AfterBang, YieldBang2     ), // need to consume!
-    ]),
+    //// AfterBang <( ! )> : after a bang mark
+    //([
+    //    x, x, x, x, x, x, x, x,  x, 2, x, x, x, 2, x, x, // ........ .tn..r..
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
+    //    2, 4, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, //  !"#$%&' ()*+,-./
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, 3, x, x, // 01234567 89:;<=>?
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // @ABCDEFG HIJKLMNO
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // PQRSTUVW XYZ[\]^_
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // `abcdefg hijklmno
+    //    x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // pqrstuvw xyz{|}~. <- DEL
+    //],&[
+    //    //             State      Action
+    //    /* 0: eof */ ( AtEof,     YieldBang      ),
+    //    /* 1: ??? */ ( Initial,   YieldBang      ),
+    //    /* 2: \s  */ ( Initial,   YieldBang      ),
+    //    /* 3:  =  */ ( Initial,   YieldBangEqual ),
+    //    /* 4:  !  */ ( AfterBang, YieldBang2     ), // need to consume!
+    //]),
 
-//  // State <( prior chars )> : state description
+//  // State - Description
 //  ([
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ .tn..r..
 //      x, x, x, x, x, x, x, x,  x, x, x, x, x, x, x, x, // ........ ........
@@ -970,224 +841,12 @@ const STATES: &'static [TransitionSet] = &[
 ];
 
 // -----------------------------------------------------------------------------
-// Keywords
-
-const KEYWORDS: &'static [(&'static str, Token<'static>)] = &[
-    ( "type"     , KwType     ),
-    ( "struct"   , KwStruct   ),
-    ( "union"    , KwUnion    ),
-    ( "if"       , KwIf       ),
-    ( "else"     , KwElse     ),
-    ( "loop"     , KwLoop     ),
-    ( "while"    , KwWhile    ),
-    ( "break"    , KwBreak    ),
-    ( "continue" , KwContinue ),
-    ( "return"   , KwReturn   ),
-    ( "jump"     , KwJump     ),
-];
-
-// -----------------------------------------------------------------------------
-// Context
-
-struct Context<'l, 'a: 'l> {
-    start:      Pos<'a>,                        // position of token start
-    current:    Pos<'a>,                        // position of current character
-    number:     BigInt,                         // number builder
-    buffer:     String,                         // string builder
-    strings:    &'a StringInterner<'a>,         // string interner
-    keywords:   HashMap<&'a str, Token<'a>>,    // keyword table
-    operators:  &'l OpTable,                    // operator table
-    messages:   &'l mut Messages<'a>            // messages collector
-}
-
-impl<'l, 'a: 'l> Context<'l, 'a> {
-    fn new(compilation: &'l mut Compilation<'a>) -> Self {
-        let strings = compilation.strings;
-
-        let mut keywords = HashMap::new();
-        for &(k, t) in KEYWORDS {
-            keywords.insert(strings.intern_ref(k), t);
-        }
-
-        Context {
-            start:     Pos { file: "", byte: 0, line: 1, column: 1 },
-            current:   Pos { file: "", byte: 0, line: 1, column: 1 },
-            buffer:    String::with_capacity(128),
-            number:    num::zero(),
-            strings:   strings,
-            keywords:  keywords,
-            operators: &    compilation.ops,
-            messages:  &mut compilation.log
-        }
-    }
-
-    #[inline]
-    fn start(&mut self) {
-        self.start = self.current;
-    }
-
-    #[inline]
-    fn newline(&mut self) {
-        self.current.column = 1;
-        self.current.line  += 1;
-    }
-
-    // Number actions
-
-    #[inline]
-    fn num_add_dec(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add(10, int_from_dig(c))
-    }
-
-    #[inline]
-    fn num_add_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add(16, int_from_dig(c))
-    }
-
-    #[inline]
-    fn num_add_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add(16, int_from_hex_uc(c))
-    }
-
-    #[inline]
-    fn num_add_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add(16, int_from_hex_lc(c))
-    }
-
-    #[inline]
-    fn num_add_oct(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add(8, int_from_dig(c))
-    }
-
-    #[inline]
-    fn num_add_bin(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add(2, int_from_dig(c))
-    }
-
-    #[inline]
-    fn num_add(&mut self, base: u8, digit: u8) -> Option<Token<'a>> {
-        self.number = self.number.clone()
-            * BigInt::from(base)
-            + BigInt::from(digit);
-        None
-    }
-
-    #[inline]
-    fn num_get(&mut self) -> Token<'a> {
-        // TODO: Need to convert Int(n) to use BigInt, but this requires us to
-        // remove the Copy trait, which has collateral changes.
-        let n = self.number.to_u64().unwrap();
-        self.number = num::zero();
-        Int(n)
-    }
-
-    // Character/String Actions
-
-    #[inline]
-    fn str_add(&mut self, c: char) {
-        self.buffer.push(c);
-    }
-
-    #[inline]
-    fn str_add_esc(&mut self) -> Option<Token<'a>> {
-        let n = match self.number.to_u32() {
-            Some(n) if n <= UNICODE_MAX => n,
-            _                           => return self.err_overflow_esc()
-        };
-        let c = unsafe { mem::transmute(n) };
-        self.buffer.push(c);
-        None
-    }
-
-    #[inline]
-    fn str_add_esc_hex_dig(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_dig(c)
-            .or_else(|| self.str_add_esc())
-    }
-
-    #[inline]
-    fn str_add_esc_hex_uc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_uc(c)
-            .or_else(|| self.str_add_esc())
-    }
-
-    #[inline]
-    fn str_add_esc_hex_lc(&mut self, c: char) -> Option<Token<'a>> {
-        self.num_add_hex_lc(c)
-            .or_else(|| self.str_add_esc())
-    }
-
-    #[inline]
-    fn str_intern(&mut self) -> &'a str {
-        let id = self.strings.intern(self.buffer.clone());
-        self.buffer.clear();
-        id
-    }
-
-    #[inline]
-    fn str_get_char(&mut self) -> Token<'a> {
-        let c = self.buffer.chars().next().unwrap();
-        self.buffer.clear();
-        Char(c)
-    }
-
-    #[inline]
-    fn str_get_str(&mut self) -> Token<'a> {
-        Str(self.str_intern())
-    }
-
-    #[inline]
-    fn str_get_raw(&mut self) -> Token<'a> {
-        Raw(self.str_intern())
-    }
-
-    #[inline]
-    fn str_get_id_or_keyword(&mut self) -> Token<'a> {
-        let id = self.str_intern();
-
-        match self.keywords.get(&id) {
-            Some(&k) => k,
-            None     => Id(id)
-        }
-    }
-
-    // Error Actions
-
-    fn err_overflow_num(&mut self) -> Option<Token<'a>> {
-        self.messages.err_overflow_num(self.start);
-        Some(Error)
-    }
-
-    fn err_overflow_esc(&mut self) -> Option<Token<'a>> {
-        self.messages.err_overflow_esc(self.start);
-        Some(Error)
-    }
-}
-
-const UNICODE_MAX: u32 = 0x10FFFF;
-
-#[inline]
-fn int_from_dig(c: char) -> u8 {
-    c as u8 - 0x30 // c - '0'
-}
-
-#[inline]
-fn int_from_hex_uc(c: char) -> u8 {
-    c as u8 - 0x37 // 10 + c - 'A'
-}
-
-#[inline]
-fn int_from_hex_lc(c: char) -> u8 {
-    c as u8 - 0x57 // 10 + c - 'a'
-}
-
-// -----------------------------------------------------------------------------
 // Tests
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::Token::*;
+    use aex::token::Token::*;
 
     #[test]
     fn empty() {
@@ -1196,20 +855,20 @@ mod tests {
 
     #[test]
     fn space() {
-        lex( " \r\t" , |it| { it                              .yields(Eof); });
-        lex( " \r\t1", |it| { it.yields(Int(1))               .yields(Eof); });
-        lex("1 \r\t" , |it| { it.yields(Int(1))               .yields(Eof); });
-        lex("1 \r\t2", |it| { it.yields(Int(1)).yields(Int(2)).yields(Eof); });
+        lex( " \r\t" , |it| { it                            .yields(Eof); });
+        lex( " \r\t1", |it| { it.yields_int(1)              .yields(Eof); });
+        lex("1 \r\t" , |it| { it.yields_int(1)              .yields(Eof); });
+        lex("1 \r\t2", |it| { it.yields_int(1).yields_int(2).yields(Eof); });
     }
 
     #[test]
     fn eos() {
-        lex(";"         , |it| { it.yields(Eos)               .yields(Eof); });
-        lex("\n"        , |it| { it.yields(Eos)               .yields(Eof); });
-        lex(";1"        , |it| { it.yields(Eos).yields(Int(1)).yields(Eof); });
-        lex("\n1"       , |it| { it.yields(Eos).yields(Int(1)).yields(Eof); });
-        lex("; \r\t\n;" , |it| { it.yields(Eos)               .yields(Eof); });
-        lex("\n \r\t\n;", |it| { it.yields(Eos)               .yields(Eof); });
+        lex(";"         , |it| { it.yields(Eos)              .yields(Eof); });
+        lex("\n"        , |it| { it.yields(Eos)              .yields(Eof); });
+        lex(";1"        , |it| { it.yields(Eos).yields_int(1).yields(Eof); });
+        lex("\n1"       , |it| { it.yields(Eos).yields_int(1).yields(Eof); });
+        lex("; \r\t\n;" , |it| { it.yields(Eos)              .yields(Eof); });
+        lex("\n \r\t\n;", |it| { it.yields(Eos)              .yields(Eof); });
     }
 
     #[test]
@@ -1223,19 +882,19 @@ mod tests {
 
     #[test]
     fn num() {
-        lex( "123456789", |it| { it.yields(Int( 123456789)).yields(Eof); });
-        lex("0x01234567", |it| { it.yields(Int(0x01234567)).yields(Eof); });
-        lex("0x89ABCDEF", |it| { it.yields(Int(0x89ABCDEF)).yields(Eof); });
-        lex("0x89abcdef", |it| { it.yields(Int(0x89ABCDEF)).yields(Eof); });
-        lex("0o01234567", |it| { it.yields(Int(0o01234567)).yields(Eof); });
-        lex(      "0b01", |it| { it.yields(Int(      0b01)).yields(Eof); });
-        lex(       "012", |it| { it.yields(Int(        12)).yields(Eof); });
-        lex(         "0", |it| { it.yields(Int(         0)).yields(Eof); });
-        lex(    "1__2__", |it| { it.yields(Int(        12)).yields(Eof); });
-        lex("0x__1__2__", |it| { it.yields(Int(      0x12)).yields(Eof); });
-        lex(       "0__", |it| { it.yields(Int(         0)).yields(Eof); });
-        lex(     "0b1  ", |it| { it.yields(Int(         1)).yields(Eof); });
-        lex(      "0b1;", |it| { it.yields(Int(         1)).yields(Eos).yields(Eof); });
+        lex( "123456789", |it| { it.yields_int( 123456789).yields(Eof); });
+        lex("0x01234567", |it| { it.yields_int(0x01234567).yields(Eof); });
+        lex("0x89ABCDEF", |it| { it.yields_int(0x89ABCDEF).yields(Eof); });
+        lex("0x89abcdef", |it| { it.yields_int(0x89ABCDEF).yields(Eof); });
+        lex("0o01234567", |it| { it.yields_int(0o01234567).yields(Eof); });
+        lex(      "0b01", |it| { it.yields_int(      0b01).yields(Eof); });
+        lex(       "012", |it| { it.yields_int(        12).yields(Eof); });
+        lex(         "0", |it| { it.yields_int(         0).yields(Eof); });
+        lex(    "1__2__", |it| { it.yields_int(        12).yields(Eof); });
+        lex("0x__1__2__", |it| { it.yields_int(      0x12).yields(Eof); });
+        lex(       "0__", |it| { it.yields_int(         0).yields(Eof); });
+        lex(     "0b1  ", |it| { it.yields_int(         1).yields(Eof); });
+        lex(      "0b1;", |it| { it.yields_int(         1).yields(Eos).yields(Eof); });
         lex(     "0b19z", |it| { it.yields_error(); });
     }
 
@@ -1304,53 +963,56 @@ mod tests {
     }
 
     #[test]
-    fn raw() {
-        lex("`a`", |it| { it.yields(Raw("a")); });
-    }
-
-    #[test]
     fn punctuation() {
-        lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - << >> & ^ | .~ .! .= .? \
-             <> == != < > <= >= => -> = : ,", |it| { it
-            .yields(BraceL)     .yields(BraceR)     .yields(ParenL)    .yields(ParenR)
-            .yields(BracketL)   .yields(BracketR)   .yields(Dot)       .yields(At)
-            .yields(PlusPlus)   .yields(MinusMinus)
-            .yields(Bang)       .yields(Tilde)      .yields(Question)
-            .yields(Star)       .yields(Slash)      .yields(Percent)
-            .yields(Plus)       .yields(Minus)
-            .yields(LessLess)   .yields(MoreMore)
-            .yields(Ampersand)  .yields(Caret)      .yields(Pipe)
-            .yields(DotTilde)   .yields(DotBang)    .yields(DotEqual)  .yields(DotQuestion)
-            .yields(LessMore)   .yields(EqualEqual) .yields(BangEqual)
-            .yields(Less)       .yields(More)       .yields(LessEqual) .yields(MoreEqual)
-            .yields(EqualArrow) .yields(MinusArrow) .yields(Equal)
-            .yields(Colon)      .yields(Comma)
-            .yields(Eof);
-        });
+        lex("{}", |it| { it.yields(BraceL)  .yields(BraceR);   });
+        lex("()", |it| { it.yields(ParenL)  .yields(ParenR);   });
+        lex("[]", |it| { it.yields(BracketL).yields(BracketR); });
+//        lex("{ } ( ) [ ] . @ ++ -- ! ~ ? * / % + - << >> & ^ | .~ .! .= .? \
+//             <> == != < > <= >= => -> = : ,", |it| { it
+//            .yields(BraceL)     .yields(BraceR)     .yields(ParenL)    .yields(ParenR)
+//            .yields(BracketL)   .yields(BracketR)   .yields(Dot)       .yields(At)
+//            .yields(PlusPlus)   .yields(MinusMinus)
+//            .yields(Bang)       .yields(Tilde)      .yields(Question)
+//            .yields(Star)       .yields(Slash)      .yields(Percent)
+//            .yields(Plus)       .yields(Minus)
+//            .yields(LessLess)   .yields(MoreMore)
+//            .yields(Ampersand)  .yields(Caret)      .yields(Pipe)
+//            .yields(DotTilde)   .yields(DotBang)    .yields(DotEqual)  .yields(DotQuestion)
+//            .yields(LessMore)   .yields(EqualEqual) .yields(BangEqual)
+//            .yields(Less)       .yields(More)       .yields(LessEqual) .yields(MoreEqual)
+//            .yields(EqualArrow) .yields(MinusArrow) .yields(Equal)
+//            .yields(Colon)      .yields(Comma)
+//            .yields(Eof);
+//        });
     }
 
     // Test Harness
 
-    use std::str::Chars;
-    use aex::compilation::{Compilation, Memory};
+    use num::BigInt;
+    //use aex::compiler::Compiler;
+    use aex::source::File;
+    use aex::token::*;
 
     fn lex<'a, F>(input: &'a str, assert: F)
-                 where F: FnOnce(&mut LexerHarness) {
-
-        let     memory      = Memory::new();
-        let mut compilation = Compilation::new(&memory);
-        let     lexer       = Lexer::new(&mut compilation, input.chars());
-        let mut harness     = LexerHarness(lexer);
+    where F: FnOnce(&mut LexerHarness) {
+        let     file     = File::new("test", input);
+        let     compiler = Compiler::new();
+        let     lexer    = Lexer::new(&compiler, &file);
+        let mut harness  = LexerHarness(lexer);
 
         assert(&mut harness)
     }
 
-    struct LexerHarness<'l, 'a: 'l> (Lexer<'l, 'a, Chars<'a>>);
+    struct LexerHarness<'a> (Lexer<'a>);
 
-    impl<'l, 'a: 'l> LexerHarness<'l, 'a> {
+    impl<'a> LexerHarness<'a> {
         fn yields(&mut self, token: Token) -> &mut Self {
             assert_eq!(token, self.0.lex().1);
             self
+        }
+
+        fn yields_int(&mut self, n: u64) -> &mut Self {
+            self.yields(Int(BigInt::from(n)))
         }
 
         fn yields_error(&mut self) -> &mut Self {

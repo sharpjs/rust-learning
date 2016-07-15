@@ -17,26 +17,29 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 #[macro_use]
-mod fmt;
-
-//mod asm;
-//mod ast;
-mod compiler;
-//mod codegen;
-mod mem;
-//mod message;
-//mod lexer;
-//mod operator;
-//mod output;
-mod pos;
-//mod parser;
-//mod scope;
-//mod source;
-//mod symbol;
-//mod target;
-mod types;
 mod util;
 
-pub use aex::compiler::compile;
-//pub use aex::target::ColdFire;
+//mod analyze;  // probably obsolete
+mod asm;
+mod ast;
+mod compiler;
+mod context;
+mod cg;
+mod lexer;
+mod mem;
+mod message;
+mod operator;
+mod output;
+mod pos;
+//mod parser;   // TODO
+mod scope;
+mod source;
+mod symbol;
+mod target;
+mod token;
+mod types;
+mod value;
+
+pub use aex::compiler::Compiler;
+pub use aex::target::*;
 
