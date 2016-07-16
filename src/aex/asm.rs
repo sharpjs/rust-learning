@@ -114,3 +114,13 @@ impl Write for Assembly {
     }
 }
 
+// -----------------------------------------------------------------------------
+
+pub trait Asm {
+    fn fmt(&self, f: &mut AsmFormatter) -> fmt::Result;
+}
+
+pub trait AsmFormatter {
+    fn fmt_reg(&mut self, name: &str) -> fmt::Result;
+}
+
