@@ -16,11 +16,18 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::fmt::{self, Display, Formatter, Write};
 use num::{BigInt}; //, ToPrimitive};
 
 use aex::pos::Source;
 use aex::types::Type;
+
+// Temporary
+use std::fmt::{self, Display, Formatter};
+impl<'a> Display for Expr<'a> {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str("")
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Statements

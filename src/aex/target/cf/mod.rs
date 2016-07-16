@@ -16,18 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//mod loc;
+mod value;
 //mod code_gen;
 
-//use aex::ast::Expr;
-//use aex::operator::{Operator, OperatorTable, Const, Assoc, Fixity, binary_op};
-//use aex::operator::Assoc::*;
-//use aex::operator::Fixity::*;
-//use aex::operator::Arity::*;
-//use aex::operator::{Constness, Operand};
-//use aex::pos::{Source /*, Pos*/};
 use aex::target::Target;
-//use aex::types::builtin::*;
 
 #[derive(Debug)]
 pub struct ColdFire;
@@ -73,16 +65,16 @@ impl<'a> Const for Value<'a> {
 fn def_operators<'a>(table: &mut OperatorTable<Value<'a>>) {
     table.add(binary_op::<Value<'a>>("q", 1, Assoc::Left, Fixity::Infix));
 }
+
+// Temporary
+pub enum CfTerm<'a> { A(&'a str), B }
+
+impl<'a> Constness for CfTerm<'a> {
+    type Expr = Expr<'a, Self>;
+
+    fn new_const(expr: Self::Expr) -> Self { panic!() }
+    fn is_const(&self) -> bool { panic!() }
+    fn to_const( self) -> Self::Expr { panic!() }
+}
+
 */
-
-//// Temporary
-//pub enum CfTerm<'a> { A(&'a str), B }
-//
-//impl<'a> Constness for CfTerm<'a> {
-//    type Expr = Expr<'a, Self>;
-//
-//    fn new_const(expr: Self::Expr) -> Self { panic!() }
-//    fn is_const(&self) -> bool { panic!() }
-//    fn to_const( self) -> Self::Expr { panic!() }
-//}
-

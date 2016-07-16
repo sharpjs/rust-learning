@@ -17,13 +17,13 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 #![allow(non_upper_case_globals)]
+// ^ Because we like our M_* constants as they are.
 
 use std::fmt::{self, Display, Formatter, Write};
 use std::ops::BitOr;
 use num::ToPrimitive;
 
 use aex::ast::Expr;
-use aex::codegen::ops;
 
 use self::AddrReg::*;
 use self::DataReg::*;
@@ -69,51 +69,53 @@ pub fn mode_any(mode: Mode, modes: Mode) -> bool {
 }
 
 // -----------------------------------------------------------------------------
-// Loc - a location where data can be read or written
+// Values
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
-pub enum Loc<'a> {
-    Imm         (Expr<'a>),
-    Abs16       (Expr<'a>),
-    Abs32       (Expr<'a>),
-    Data        (DataReg),
-    Addr        (AddrReg),
-    AddrInd     (AddrReg),
-    AddrIndDec  (AddrReg),
-    AddrIndInc  (AddrReg),
-    AddrDisp    (AddrDisp   <'a>),
-    AddrDispIdx (AddrDispIdx<'a>),
-    PcDisp      (PcDisp     <'a>),
-    PcDispIdx   (PcDispIdx  <'a>),
+#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
+pub enum CfValue<'a> {
+    // Normal
+    Imm         (Expr<'a>),         // Immediate
+    Abs16       (Expr<'a>),         // Absolute 16-bit value
+    Abs32       (Expr<'a>),         // Absolute 32-bit value
+    Data        (DataReg),          // Data register
+    Addr        (AddrReg),          // Address register
+    AddrInd     (AddrReg),          // Address register indirect
+    AddrIndDec  (AddrReg),          // Address register indirect, pre-decrement
+    AddrIndInc  (AddrReg),          // Address register indirect, post-increment
+    AddrDisp    (AddrDisp   <'a>),  // Address register indirect, displaced
+    AddrDispIdx (AddrDispIdx<'a>),  // Address register indirect, displaced, indexed
+    PcDisp      (PcDisp     <'a>),  // PC-relative, displaced
+    PcDispIdx   (PcDispIdx  <'a>),  // PC-relative, displaced, indexed
 
-    Regs        (RegSet),
-    Ctrl        (CtrlReg),
-    Sr,
-    Ccr,
-    Bc,
+    // Special
+    Regs        (RegSet),           // Multiple register (movem)
+    Ctrl        (CtrlReg),          // Control register  (movec)
+    Sr,                             // Status register
+    Ccr,                            // Condition code register
+    Bc,                             // Cache specifier (both i+d)
 }
 
-impl<'a> Loc<'a> {
+impl<'a> CfValue<'a> {
     pub fn mode(&self) -> Mode {
         match *self {
-            Loc::Imm         (..) => M_Imm,
-            Loc::Abs16       (..) => M_Abs16,
-            Loc::Abs32       (..) => M_Abs32,
-            Loc::Data        (..) => M_Data,
-            Loc::Addr        (..) => M_Addr,
-            Loc::AddrInd     (..) => M_AddrInd,
-            Loc::AddrIndDec  (..) => M_AddrIndDec,
-            Loc::AddrIndInc  (..) => M_AddrIndInc,
-            Loc::AddrDisp    (..) => M_AddrDisp,
-            Loc::AddrDispIdx (..) => M_AddrDispIdx,
-            Loc::PcDisp      (..) => M_PcDisp,
-            Loc::PcDispIdx   (..) => M_PcDispIdx,
+            CfValue::Imm         (..) => M_Imm,
+            CfValue::Abs16       (..) => M_Abs16,
+            CfValue::Abs32       (..) => M_Abs32,
+            CfValue::Data        (..) => M_Data,
+            CfValue::Addr        (..) => M_Addr,
+            CfValue::AddrInd     (..) => M_AddrInd,
+            CfValue::AddrIndDec  (..) => M_AddrIndDec,
+            CfValue::AddrIndInc  (..) => M_AddrIndInc,
+            CfValue::AddrDisp    (..) => M_AddrDisp,
+            CfValue::AddrDispIdx (..) => M_AddrDispIdx,
+            CfValue::PcDisp      (..) => M_PcDisp,
+            CfValue::PcDispIdx   (..) => M_PcDispIdx,
 
-            Loc::Regs        (..) => M_Regs,
-            Loc::Ctrl        (..) => M_Ctrl,
-            Loc::Sr               => M_SR,
-            Loc::Ccr              => M_CCR,
-            Loc::Bc               => M_BC,
+            CfValue::Regs        (..) => M_Regs,
+            CfValue::Ctrl        (..) => M_Ctrl,
+            CfValue::Sr               => M_SR,
+            CfValue::Ccr              => M_CCR,
+            CfValue::Bc               => M_BC,
         }
     }
 
@@ -123,76 +125,48 @@ impl<'a> Loc<'a> {
 
     pub fn is_q(&self) -> bool {
         match *self {
-            Loc::Imm(Expr::Int(ref n)) => {
-                match n.to_u8() {
+            CfValue::Imm(Expr::Int(ref n)) => {
+                match n.val.to_u8() {
                     Some(n) => 1 <= n && n <= 8,
                     None    => false
                 }
             },
-            Loc::Imm(_) => true, // let assembler figure it out
+            CfValue::Imm(_) => true, // let assembler figure it out
             _ => false
         }
     }
 
     pub fn as_expr(&self) -> &Expr<'a> {
         match *self {
-            Loc::Imm   (ref e) => e,
-            Loc::Abs16 (ref e) => e,
-            Loc::Abs32 (ref e) => e,
+            CfValue::Imm   (ref e) => e,
+            CfValue::Abs16 (ref e) => e,
+            CfValue::Abs32 (ref e) => e,
             _ => panic!("Cannot unwrap to expression.")
         }
     }
 }
 
-impl<'a> ops::Loc<'a, Mode> for Loc<'a> {
-    #[inline(always)]
-    fn mode(&self) -> Mode {
-        self.mode()
-    }
-
-    #[inline(always)]
-    fn new_const(e: Expr<'a>) -> Self {
-        Loc::Imm(e)
-    }
-
-    #[inline]
-    fn is_const(&self) -> bool {
-        match *self {
-            Loc::Imm(_) => true,
-            _           => false,
-        }
-    }
-
-    #[inline]
-    fn to_const(self) -> Expr<'a> {
-        match self {
-            Loc::Imm(e) => e,
-            _           => panic!(),
-        }
-    }
-}
-
-impl<'a> Display for Loc<'a> {
+impl<'a> Display for CfValue<'a> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Loc::Imm         (ref e) => write!(f, "#{}",  e),
-            Loc::Abs16       (ref e) => write!(f, "{}:w", e),
-            Loc::Abs32       (ref e) => write!(f, "{}:l", e),
-            Loc::Data        (ref r) => r.fmt(f),
-            Loc::Addr        (ref r) => r.fmt(f),
-            Loc::AddrInd     (ref r) => write!(f, "({})", r),
-            Loc::AddrIndDec  (ref r) => write!(f, "-({})", r),
-            Loc::AddrIndInc  (ref r) => write!(f, "({})+", r),
-            Loc::AddrDisp    (ref a) => a.fmt(f),
-            Loc::AddrDispIdx (ref a) => a.fmt(f),
-            Loc::PcDisp      (ref a) => a.fmt(f),
-            Loc::PcDispIdx   (ref a) => a.fmt(f),
+            CfValue::Imm         (ref e) => write!(f, "#{}",    e),
+            CfValue::Abs16       (ref e) => write!(f, "({}).w", e),
+            CfValue::Abs32       (ref e) => write!(f, "({}).l", e),
+            CfValue::Data        (ref r) => r.fmt(f),
+            CfValue::Addr        (ref r) => r.fmt(f),
+            CfValue::AddrInd     (ref r) => write!(f,  "({})",  r),
+            CfValue::AddrIndDec  (ref r) => write!(f, "-({})",  r),
+            CfValue::AddrIndInc  (ref r) => write!(f,  "({})+", r),
+            CfValue::AddrDisp    (ref a) => a.fmt(f),
+            CfValue::AddrDispIdx (ref a) => a.fmt(f),
+            CfValue::PcDisp      (ref a) => a.fmt(f),
+            CfValue::PcDispIdx   (ref a) => a.fmt(f),
 
-            Loc::Regs        (ref r) => r.fmt(f),
-            Loc::Ctrl        (ref r) => r.fmt(f),
-            Loc::Sr               => f.write_str("%sr"),
-            Loc::Ccr              => f.write_str("%ccr"),
-            Loc::Bc               => f.write_str("bc"),
+            CfValue::Regs        (ref r) => r.fmt(f),
+            CfValue::Ctrl        (ref r) => r.fmt(f),
+            CfValue::Sr                  => f.write_str("%sr"),
+            CfValue::Ccr                 => f.write_str("%ccr"),
+            CfValue::Bc                  => f.write_str("bc"),
         }
     }
 }
@@ -200,7 +174,7 @@ impl<'a> Display for Loc<'a> {
 // -----------------------------------------------------------------------------
 // Data Registers
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(u8)]
 pub enum DataReg { D0, D1, D2, D3, D4, D5, D6, D7 }
 
@@ -225,7 +199,7 @@ impl Display for DataReg {
 // -----------------------------------------------------------------------------
 // Address Registers
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Debug)]
+#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, PartialOrd, Ord, Debug)]
 #[repr(u8)]
 pub enum AddrReg { A0, A1, A2, A3, A4, A5, A6, A7 }
 
@@ -250,7 +224,7 @@ impl Display for AddrReg {
 // -----------------------------------------------------------------------------
 // Control Registers
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, Debug)]
 pub enum CtrlReg { VBR, CACR, ACR0, ACR1, MBAR, RAMBAR }
 
 impl Display for CtrlReg {
@@ -270,7 +244,7 @@ impl Display for CtrlReg {
 // -----------------------------------------------------------------------------
 // Register Set
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct RegSet (u16);
 
 // This is a bitmask of the numbered registers:
@@ -350,7 +324,7 @@ fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool, f: &mut Formatter)
 // -----------------------------------------------------------------------------
 // Index (for indexed addressing modes)
 
-#[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, Debug)]
 enum Index {
     Data (DataReg),
     Addr (AddrReg),
@@ -368,7 +342,7 @@ impl Display for Index {
 // -----------------------------------------------------------------------------
 // Address Register Base + Displacement
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct AddrDisp<'a> {
     base: AddrReg,
     disp: Expr<'a>
@@ -383,7 +357,7 @@ impl<'a> Display for AddrDisp<'a> {
 // -----------------------------------------------------------------------------
 // Address Register Base + Displacement + Index
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct AddrDispIdx<'a> {
     base:  AddrReg,
     disp:  Expr<'a>,
@@ -400,7 +374,7 @@ impl<'a> Display for AddrDispIdx<'a> {
 // -----------------------------------------------------------------------------
 // Program Counter + Displacement
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct PcDisp<'a> {
     disp: Expr<'a>
 }
@@ -414,7 +388,7 @@ impl<'a> Display for PcDisp<'a> {
 // -----------------------------------------------------------------------------
 // Program Counter + Displacement + Index
 
-#[derive(Clone, Hash, Eq, PartialEq, Debug)]
+#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct PcDispIdx<'a> {
     disp:  Expr<'a>,
     index: Index,
