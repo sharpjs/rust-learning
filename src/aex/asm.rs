@@ -118,10 +118,9 @@ impl Write for Assembly {
 
 use num::BigInt;
 //use aex::ast::Expr;
-use aex::util::WriteFn;
 
 pub struct AsmFlavor {
-    pub write_int: WriteFn<BigInt>,
+    pub write_int: fn(&mut Formatter, &BigInt) -> fmt::Result,
 }
 
 pub static GAS_FLAVOR: AsmFlavor = AsmFlavor {

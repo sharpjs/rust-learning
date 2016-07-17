@@ -24,8 +24,6 @@ pub trait DisplayWith<C: ?Sized> {
     fn fmt(&self, f: &mut Formatter, c: &C) -> fmt::Result;
 }
 
-pub type WriteFn<V> = fn(f: &mut Formatter, v: &V) -> fmt::Result;
-
 // -----------------------------------------------------------------------------
 
 pub trait Lookup<K: ?Sized, V: ?Sized> {
