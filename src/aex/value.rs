@@ -31,7 +31,7 @@ pub enum Value<'a> {
     Const(Expr<'a>),
 
     /// ColdFire value
-    Cf(CfValue),
+    Cf(CfValue<'a>),
 
     /// Test value
     Test(TestValue),

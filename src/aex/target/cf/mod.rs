@@ -21,17 +21,13 @@ mod value;
 
 use aex::target::Target;
 
+pub use self::value::CfValue;
+
 #[derive(Debug)]
 pub struct ColdFire;
 
 impl Target for ColdFire {
     // ...
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum CfValue {
-    DataReg,
-    AddrReg,
 }
 
 // -------------------------------------------------------------------------
