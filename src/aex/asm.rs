@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Write};
+use std::fmt::{self, Display, Formatter, Write};
 use std::ops::Deref;
 
 #[derive(Clone, Eq, PartialEq, Hash, Debug)]
@@ -116,11 +116,41 @@ impl Write for Assembly {
 
 // -----------------------------------------------------------------------------
 
-pub trait Asm {
-    fn fmt(&self, f: &mut AsmFormatter) -> fmt::Result;
+use num::BigInt;
+//use aex::ast::Expr;
+use aex::util::WriteFn;
+
+pub struct AsmFlavor {
+    pub write_int: WriteFn<BigInt>,
 }
 
-pub trait AsmFormatter {
-    fn fmt_reg(&mut self, name: &str) -> fmt::Result;
+pub static GAS_FLAVOR: AsmFlavor = AsmFlavor {
+    write_int: write_int_c
+};
+
+pub static VASM_MOT_FLAVOR: AsmFlavor = AsmFlavor {
+    write_int: write_int_moto
+};
+
+pub fn write_int_c(f: &mut Formatter, n: &BigInt) -> fmt::Result {
+    write!(f, "0x{:X}", n)
 }
+
+pub fn write_int_intel(f: &mut Formatter, n: &BigInt) -> fmt::Result {
+    write!(f, "0{:X}h", n)
+}
+
+pub fn write_int_moto(f: &mut Formatter, n: &BigInt) -> fmt::Result {
+    write!(f, "${:X}", n)
+}
+
+// numbers:     0xFF     $FF     0FFh
+// 
+// immediate:   #v       $v
+// 
+// registers:   %d0      d0
+// 
+// absolute:    (v).w    [v]
+// 
+// displaced:   (a0,4)   (4a0)  4(a0)   a0@(4)   [a0+4]
 

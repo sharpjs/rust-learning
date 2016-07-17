@@ -34,47 +34,35 @@ pub enum CfValue {
     AddrReg,
 }
 
-/*
-type CfExpr<'a> = Expr<ColdFire<'a>>;
+// -------------------------------------------------------------------------
 
-#[derive(Clone, Eq, PartialEq, Debug)]
-enum Value<'a> {
-    Const (Expr<ColdFire<'a>>),
-    Other
+use std::fmt::{self, Formatter};
+use aex::asm::AsmFlavor;
+use aex::ast::Expr;
+use aex::util::{DisplayWith, WriteFn};
+
+pub struct CfFlavor {
+    pub base:         AsmFlavor,
+    pub write_abs_16: WriteFn<u64>,
 }
 
-impl<'a> Const for Value<'a> {
-    type Expr = Expr<ColdFire<'a>>;
-
-    #[inline]
-    fn new_const(expr: Self::Expr) -> Self {
-        Value::Const(expr)
-    }
-
-    #[inline]
-    fn is_const(&self) -> bool { 
-        match *self { Value::Const(_) => true, _ => false }
-    }
-
-    #[inline]
-    fn unwrap_const(self) -> Self::Expr {
-        match self { Value::Const(e) => e, _ => panic!() }
-    }
+pub fn write_abs_16<'a>(f: &mut Formatter, c: &CfFlavor, v: &Expr<'a>)
+                        -> fmt::Result {
+    write_abs(f, c, v, "w")
 }
 
-fn def_operators<'a>(table: &mut OperatorTable<Value<'a>>) {
-    table.add(binary_op::<Value<'a>>("q", 1, Assoc::Left, Fixity::Infix));
+pub fn write_abs_32<'a>(f: &mut Formatter, c: &CfFlavor, v: &Expr<'a>)
+                        -> fmt::Result {
+    write_abs(f, c, v, "l")
 }
 
-// Temporary
-pub enum CfTerm<'a> { A(&'a str), B }
-
-impl<'a> Constness for CfTerm<'a> {
-    type Expr = Expr<'a, Self>;
-
-    fn new_const(expr: Self::Expr) -> Self { panic!() }
-    fn is_const(&self) -> bool { panic!() }
-    fn to_const( self) -> Self::Expr { panic!() }
+#[inline]
+pub fn write_abs<'a>(f: &mut Formatter, c: &CfFlavor, v: &Expr<'a>, s: &str)
+                     -> fmt::Result {
+    try!(f.write_str("("));
+    try!(v.fmt(f, &c.base));
+    try!(f.write_str(")."));
+    try!(f.write_str(s));
+    Ok(())
 }
 
-*/

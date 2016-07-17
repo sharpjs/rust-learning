@@ -16,16 +16,30 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//pub mod fmap;
+use std::fmt::{self, Formatter};
+
+// -----------------------------------------------------------------------------
+
+pub trait DisplayWith<C: ?Sized> {
+    fn fmt(&self, f: &mut Formatter, c: &C) -> fmt::Result;
+}
+
+pub type WriteFn<V> = fn(f: &mut Formatter, v: &V) -> fmt::Result;
+
+// -----------------------------------------------------------------------------
 
 pub trait Lookup<K: ?Sized, V: ?Sized> {
     fn lookup(&self, key: &K) -> Option<&V>;
 }
 
+// -----------------------------------------------------------------------------
+
 #[inline(always)]
 pub fn ref_eq<T: ?Sized>(x: &T, y: &T) -> bool {
     x as *const _ == y as *const _
 }
+
+// -----------------------------------------------------------------------------
 
 #[macro_export]
 macro_rules! result {
@@ -40,6 +54,8 @@ macro_rules! result {
     );
 }
 
+// -----------------------------------------------------------------------------
+
 // From http://stackoverflow.com/a/28392068/142138
 #[macro_export]
 macro_rules! hash_map {
@@ -49,6 +65,8 @@ macro_rules! hash_map {
          map
     }}
 }
+
+// -----------------------------------------------------------------------------
 
 #[cfg(test)]
 mod tests {

@@ -171,6 +171,15 @@ impl<'a> Display for CfValue<'a> {
     }
 }
 
+use aex::asm::AsmFlavor;
+use aex::util::DisplayWith;
+
+impl<'a> DisplayWith<AsmFlavor> for Expr<'a> {
+    fn fmt(&self, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result {
+        Ok(())
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Data Registers
 
