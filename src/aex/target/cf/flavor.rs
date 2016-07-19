@@ -1,4 +1,4 @@
-// Freescale ColdFire Assembly Flavors
+// Freescale ColdFire Output Flavors
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -24,8 +24,8 @@ use aex::util::DisplayWith;
 
 pub struct CfFlavor {
     pub base:         &'static AsmFlavor,
-    pub write_abs_16: for<'a> fn(&mut Formatter, &CfFlavor, &Expr<'a>) -> fmt::Result,
-    pub write_abs_32: for<'a> fn(&mut Formatter, &CfFlavor, &Expr<'a>) -> fmt::Result,
+    pub write_abs_16: fn(&mut Formatter, &CfFlavor, &Expr) -> fmt::Result,
+    pub write_abs_32: fn(&mut Formatter, &CfFlavor, &Expr) -> fmt::Result,
 }
 
 pub static CF_GAS_FLAVOR: CfFlavor = CfFlavor {
@@ -50,7 +50,6 @@ pub fn write_abs_32(f: &mut Formatter, c: &CfFlavor, v: &Expr)
     write_abs(f, c, v, "l")
 }
 
-#[inline]
 pub fn write_abs(f: &mut Formatter, c: &CfFlavor, v: &Expr, s: &str)
                  -> fmt::Result {
     try!(f.write_str("("));
@@ -59,4 +58,10 @@ pub fn write_abs(f: &mut Formatter, c: &CfFlavor, v: &Expr, s: &str)
     try!(f.write_str(s));
     Ok(())
 }
+
+//pub fn write_disp<R: DisplayWith<CfFlavor>>
+//                 (f: &mut Formatter, c: &CfFlavor, base: &R, disp: &Expr)
+//                 -> fmt::Result {
+//    write!(f, "({}, {})", base, disp)
+//}
 

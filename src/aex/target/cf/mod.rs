@@ -18,7 +18,6 @@
 
 mod flavor;
 mod value;
-//mod code_gen;
 
 use super::Target;
 
