@@ -29,11 +29,6 @@ pub trait DisplayWith<C: ?Sized> {
 #[derive(Clone, Copy, Debug)]
 pub struct With<A, B> (pub A, pub B);
 
-//impl<A, B> Deref for With<A, B> {
-//    type Target = A;
-//    fn deref(&self) -> &A { &self.0 }
-//}
-
 // -----------------------------------------------------------------------------
 
 pub trait Lookup<K: ?Sized, V: ?Sized> {
