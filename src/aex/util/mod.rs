@@ -16,7 +16,41 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
+use std::fmt::{self, Display, Formatter};
+use std::ops::{Deref, Shl};
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct With<T, C> (pub T, pub C);
+
+impl<'a, T, C> Deref for With<&'a T, C> {
+    type Target = T;
+
+    #[inline(always)]
+    fn deref(&self) -> &T {
+        self.0
+    }
+}
+
+impl<T, U, C> Shl<U> for With<T, C> {
+    type Output = With<U, C>;
+
+    #[inline(always)]
+    fn shl(self, rhs: U) -> With<U, C> {
+        With(rhs, self.1)
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+pub trait ToWith : Sized {
+    fn with<C>(self, c: C) -> With<Self, C> {
+        With(self, c)
+    }
+}
+
+impl<T: Sized> ToWith for T { } 
 
 // -----------------------------------------------------------------------------
 
@@ -24,10 +58,12 @@ pub trait DisplayWith<C: ?Sized> {
     fn fmt(&self, f: &mut Formatter, c: &C) -> fmt::Result;
 }
 
-// -----------------------------------------------------------------------------
-
-#[derive(Clone, Copy, Debug)]
-pub struct With<A, B> (pub A, pub B);
+impl<'a, T, C> Display for With<&'a T, &'a C> where T: DisplayWith<C> {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.0.fmt(f, self.1)
+    }
+}
 
 // -----------------------------------------------------------------------------
 

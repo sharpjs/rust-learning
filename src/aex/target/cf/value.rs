@@ -19,7 +19,7 @@
 #![allow(non_upper_case_globals)]
 // ^ Because we like our M_* constants as they are.
 
-use std::fmt::{self, Display, Formatter, Write};
+use std::fmt::{self, Formatter, Write};
 use std::ops::BitOr;
 use num::ToPrimitive;
 
@@ -207,32 +207,6 @@ impl DataReg {
     }
 }
 
-use aex::util::With;
-
-//pub struct Flavored<T> {
-//    value:  T,
-//    flavor: &'static CfFlavor,
-//}
-
-type Flavored<T> = With<T, &'static CfFlavor>;
-
-use std::ops::Deref;
-
-impl<T> Deref for Flavored<T> {
-    type Target = T;
-    fn deref(&self) -> &T { &self.0 }
-}
-
-impl<T> Flavored<T> {
-    fn flavor(&self) -> &'static CfFlavor { &self.1 }
-}
-
-impl Display for Flavored<DataReg> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        (self.flavor().base.write_reg)(f, self.name())
-    }
-}
-
 impl DisplayWith<CfFlavor> for DataReg {
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         (c.base.write_reg)(f, self.name())
@@ -392,7 +366,7 @@ fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool,
 // Index (for indexed addressing modes)
 
 #[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, Debug)]
-enum Index {
+pub enum Index {
     Data (DataReg),
     Addr (AddrReg),
 }
@@ -411,8 +385,8 @@ impl DisplayWith<CfFlavor> for Index {
 
 #[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct AddrDisp<'a> {
-    base: AddrReg,
-    disp: Expr<'a>
+    pub base: AddrReg,
+    pub disp: Expr<'a>
 }
 
 //impl<'a> DisplayWith<CfFlavor> for AddrDisp<'a> {
@@ -426,10 +400,10 @@ pub struct AddrDisp<'a> {
 
 #[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct AddrDispIdx<'a> {
-    base:  AddrReg,
-    disp:  Expr<'a>,
-    index: Index,
-    scale: Expr<'a>
+    pub base:  AddrReg,
+    pub disp:  Expr<'a>,
+    pub index: Index,
+    pub scale: Expr<'a>
 }
 
 //impl<'a> DisplayWith<CfFlavor> for AddrDispIdx<'a> {
@@ -443,7 +417,7 @@ pub struct AddrDispIdx<'a> {
 
 #[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct PcDisp<'a> {
-    disp: Expr<'a>
+    pub disp: Expr<'a>
 }
 
 //impl<'a> DisplayWith<CfFlavor> for PcDisp<'a> {
@@ -457,9 +431,9 @@ pub struct PcDisp<'a> {
 
 #[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
 pub struct PcDispIdx<'a> {
-    disp:  Expr<'a>,
-    index: Index,
-    scale: Expr<'a>
+    pub disp:  Expr<'a>,
+    pub index: Index,
+    pub scale: Expr<'a>
 }
 
 //impl<'a> DisplayWith<CfFlavor> for PcDispIdx<'a> {

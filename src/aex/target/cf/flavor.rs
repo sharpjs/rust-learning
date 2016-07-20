@@ -20,7 +20,9 @@ use std::fmt::{self, Formatter};
 
 use aex::asm::*; //AsmFlavor;
 use aex::ast::Expr;
-use aex::util::DisplayWith;
+use aex::util::ToWith;
+
+use super::value::*;
 
 pub struct CfFlavor {
     pub base:         &'static AsmFlavor,
@@ -40,28 +42,69 @@ pub static CF_VASM_MOT_FLAVOR: CfFlavor = CfFlavor {
     write_abs_32: write_abs_32,
 };
 
-pub fn write_abs_16(f: &mut Formatter, c: &CfFlavor, v: &Expr)
-                    -> fmt::Result {
-    write_abs(f, c, v, "w")
+pub fn write_abs_16(f: &mut Formatter, c: &CfFlavor, e: &Expr)
+                   -> fmt::Result {
+    write_abs(f, c, e, "w")
 }
 
-pub fn write_abs_32(f: &mut Formatter, c: &CfFlavor, v: &Expr)
-                    -> fmt::Result {
-    write_abs(f, c, v, "l")
+pub fn write_abs_32(f: &mut Formatter, c: &CfFlavor, e: &Expr)
+                   -> fmt::Result {
+    write_abs(f, c, e, "l")
 }
 
-pub fn write_abs(f: &mut Formatter, c: &CfFlavor, v: &Expr, s: &str)
+pub fn write_abs(f: &mut Formatter, c: &CfFlavor, e: &Expr, s: &str)
                  -> fmt::Result {
-    try!(f.write_str("("));
-    try!(v.fmt(f, c.base));
-    try!(f.write_str(")."));
-    try!(f.write_str(s));
-    Ok(())
+    write!(f, "({}).{}", e.with(c.base), s)
 }
 
-//pub fn write_disp<R: DisplayWith<CfFlavor>>
-//                 (f: &mut Formatter, c: &CfFlavor, base: &R, disp: &Expr)
-//                 -> fmt::Result {
-//    write!(f, "({}, {})", base, disp)
-//}
+pub fn write_indirect(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
+                      -> fmt::Result {
+    write!(f, "({})", r.with(c))
+}
+
+pub fn write_pre_dec(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
+                     -> fmt::Result {
+    write!(f, "-({})", r.with(c))
+}
+
+pub fn write_post_inc(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
+                      -> fmt::Result {
+    write!(f, "({})+", r.with(c))
+}
+
+pub fn write_displaced(f: &mut Formatter,
+                       c: &CfFlavor,
+                       v: &AddrDisp)
+                       -> fmt::Result {
+    write!(f, "({}, {})",
+        (&v.base).with(c),
+        (&v.disp).with(c.base)
+    )
+}
+
+pub fn write_indexed(f: &mut Formatter, c: &CfFlavor, v: &AddrDispIdx)
+                     -> fmt::Result {
+    write!(f, "({}, {}, {}*{})",
+        (&v.base) .with(c),
+        (&v.disp) .with(c.base),
+        (&v.index).with(c),
+        (&v.scale).with(c.base),
+    )
+}
+
+pub fn write_pc_displaced(f: &mut Formatter, c: &CfFlavor, v: &PcDisp)
+                          -> fmt::Result {
+    write!(f, "(%pc, {})",
+        (&v.disp).with(c.base)
+    )
+}
+
+pub fn write_pc_indexed(f: &mut Formatter, c: &CfFlavor, v: &PcDispIdx)
+                        -> fmt::Result {
+    write!(f, "(%pc, {}, {}*{})",
+        (&v.disp) .with(c.base),
+        (&v.index).with(c),
+        (&v.scale).with(c.base),
+    )
+}
 
