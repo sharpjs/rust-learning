@@ -280,6 +280,18 @@ impl DisplayWith<CfFlavor> for CtrlReg {
     }
 }
 
+// -------------------------------------------------------------------------
+// Program Counter Register
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub struct PcReg;
+
+impl DisplayWith<CfFlavor> for PcReg {
+    fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
+        (c.base.write_reg)(f, "pc")
+    }
+}
+
 // -----------------------------------------------------------------------------
 // Register Set
 

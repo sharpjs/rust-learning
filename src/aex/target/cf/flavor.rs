@@ -94,14 +94,16 @@ pub fn write_indexed(f: &mut Formatter, c: &CfFlavor, v: &AddrDispIdx)
 
 pub fn write_pc_displaced(f: &mut Formatter, c: &CfFlavor, v: &PcDisp)
                           -> fmt::Result {
-    write!(f, "(%pc, {})",
-        (&v.disp).with(c.base)
+    write!(f, "({}, {})",
+        (&PcReg) .with(c),
+        (&v.disp).with(c.base),
     )
 }
 
 pub fn write_pc_indexed(f: &mut Formatter, c: &CfFlavor, v: &PcDispIdx)
                         -> fmt::Result {
-    write!(f, "(%pc, {}, {}*{})",
+    write!(f, "({}, {}, {}*{})",
+        (&PcReg)  .with(c),
         (&v.disp) .with(c.base),
         (&v.index).with(c),
         (&v.scale).with(c.base),
