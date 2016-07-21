@@ -176,7 +176,7 @@ impl<'a> DisplayWith<CfFlavor> for CfValue<'a> {
 
 use self::DataReg::*;
 
-#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum DataReg {
     D0, D1, D2, D3, D4, D5, D6, D7
@@ -218,7 +218,7 @@ impl DisplayWith<CfFlavor> for DataReg {
 
 use self::AddrReg::*;
 
-#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum AddrReg {
     A0, A1, A2, A3, A4, A5, A6, A7
