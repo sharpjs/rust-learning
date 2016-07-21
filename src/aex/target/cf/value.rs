@@ -375,6 +375,24 @@ fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool,
 }
 
 // -----------------------------------------------------------------------------
+// Base (for displaced and indexed addressing modes)
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Base {
+    Addr (AddrReg),
+    Pc
+}
+
+impl DisplayWith<CfFlavor> for Base {
+    fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
+        match *self {
+            Base::Addr(ref r) =>     r.fmt(f, c),
+            Base::Pc          => PcReg.fmt(f, c),
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
 // Index (for indexed addressing modes)
 
 #[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, Debug)]
