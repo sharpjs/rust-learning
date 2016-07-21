@@ -395,7 +395,7 @@ impl DisplayWith<CfFlavor> for Base {
 // -----------------------------------------------------------------------------
 // Index (for indexed addressing modes)
 
-#[derive(Clone, Copy, /*Hash,*/ PartialEq, Eq, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Index {
     Data (DataReg),
     Addr (AddrReg),
@@ -413,7 +413,7 @@ impl DisplayWith<CfFlavor> for Index {
 // -----------------------------------------------------------------------------
 // Address Register Base + Displacement
 
-#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, /*Hash,*/ Debug)]
 pub struct AddrDisp<'a> {
     pub base: AddrReg,
     pub disp: Expr<'a>
@@ -428,7 +428,7 @@ pub struct AddrDisp<'a> {
 // -----------------------------------------------------------------------------
 // Address Register Base + Displacement + Index
 
-#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, /*Hash,*/ Debug)]
 pub struct AddrDispIdx<'a> {
     pub base:  AddrReg,
     pub disp:  Expr<'a>,
@@ -445,7 +445,7 @@ pub struct AddrDispIdx<'a> {
 // -----------------------------------------------------------------------------
 // Program Counter + Displacement
 
-#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, /*Hash,*/ Debug)]
 pub struct PcDisp<'a> {
     pub disp: Expr<'a>
 }
@@ -459,7 +459,7 @@ pub struct PcDisp<'a> {
 // -----------------------------------------------------------------------------
 // Program Counter + Displacement + Index
 
-#[derive(Clone, /*Hash,*/ PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, /*Hash,*/ Debug)]
 pub struct PcDispIdx<'a> {
     pub disp:  Expr<'a>,
     pub index: Index,
