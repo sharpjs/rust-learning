@@ -43,12 +43,12 @@ pub static CF_VASM_MOT_FLAVOR: CfFlavor = CfFlavor {
 };
 
 pub fn write_abs_16(f: &mut Formatter, c: &CfFlavor, e: &Expr)
-                   -> fmt::Result {
+                    -> fmt::Result {
     write_abs(f, c, e, "w")
 }
 
 pub fn write_abs_32(f: &mut Formatter, c: &CfFlavor, e: &Expr)
-                   -> fmt::Result {
+                    -> fmt::Result {
     write_abs(f, c, e, "l")
 }
 
@@ -72,9 +72,7 @@ pub fn write_post_inc(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
     write!(f, "({})+", r.with(c))
 }
 
-pub fn write_displaced(f: &mut Formatter,
-                       c: &CfFlavor,
-                       v: &AddrDisp)
+pub fn write_displaced(f: &mut Formatter, c: &CfFlavor, v: &AddrDisp)
                        -> fmt::Result {
     write!(f, "({}, {})",
         (&v.base).with(c),
@@ -85,8 +83,8 @@ pub fn write_displaced(f: &mut Formatter,
 pub fn write_indexed(f: &mut Formatter, c: &CfFlavor, v: &AddrDispIdx)
                      -> fmt::Result {
     write!(f, "({}, {}, {}*{})",
-        (&v.base) .with(c),
-        (&v.disp) .with(c.base),
+        (&v.base ).with(c),
+        (&v.disp ).with(c.base),
         (&v.index).with(c),
         (&v.scale).with(c.base),
     )
@@ -95,7 +93,7 @@ pub fn write_indexed(f: &mut Formatter, c: &CfFlavor, v: &AddrDispIdx)
 pub fn write_pc_displaced(f: &mut Formatter, c: &CfFlavor, v: &PcDisp)
                           -> fmt::Result {
     write!(f, "({}, {})",
-        (&PcReg) .with(c),
+        (&PcReg ).with(c),
         (&v.disp).with(c.base),
     )
 }
@@ -103,8 +101,8 @@ pub fn write_pc_displaced(f: &mut Formatter, c: &CfFlavor, v: &PcDisp)
 pub fn write_pc_indexed(f: &mut Formatter, c: &CfFlavor, v: &PcDispIdx)
                         -> fmt::Result {
     write!(f, "({}, {}, {}*{})",
-        (&PcReg)  .with(c),
-        (&v.disp) .with(c.base),
+        (&PcReg  ).with(c),
+        (&v.disp ).with(c.base),
         (&v.index).with(c),
         (&v.scale).with(c.base),
     )
