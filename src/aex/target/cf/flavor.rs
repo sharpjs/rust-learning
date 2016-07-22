@@ -26,101 +26,93 @@ use super::value::*;
 
 pub struct CfFlavor {
     pub base:                &'static AsmFlavor,
-    pub write_abs_16:        fn(&mut Formatter, &CfFlavor, &Expr       ) -> fmt::Result,
-    pub write_abs_32:        fn(&mut Formatter, &CfFlavor, &Expr       ) -> fmt::Result,
-    pub write_addr_ind:      fn(&mut Formatter, &CfFlavor, &AddrReg    ) -> fmt::Result,
-    pub write_addr_ind_dec:  fn(&mut Formatter, &CfFlavor, &AddrReg    ) -> fmt::Result,
-    pub write_addr_ind_inc:  fn(&mut Formatter, &CfFlavor, &AddrReg    ) -> fmt::Result,
-    pub write_addr_disp:     fn(&mut Formatter, &CfFlavor, &AddrDisp   ) -> fmt::Result,
-    pub write_addr_disp_idx: fn(&mut Formatter, &CfFlavor, &AddrDispIdx) -> fmt::Result,
-    pub write_pc_disp:       fn(&mut Formatter, &CfFlavor, &PcDisp     ) -> fmt::Result,
-    pub write_pc_disp_idx:   fn(&mut Formatter, &CfFlavor, &PcDispIdx  ) -> fmt::Result,
-
-    pub write_data_regs: fn(bits: u8,
-                            regs: &[DataReg; 8],
-                            join: bool,
-                            f:    &mut Formatter,
-                            c:    &CfFlavor)
-                            ->    Result<bool, fmt::Error>,
-
-    pub write_addr_regs: fn(bits: u8,
-                            regs: &[AddrReg; 8],
-                            join: bool,
-                            f:    &mut Formatter,
-                            c:    &CfFlavor)
-                            ->    Result<bool, fmt::Error>,
+    pub fmt_abs_16:        fn(&mut Formatter, &CfFlavor, &Expr       ) -> fmt::Result,
+    pub fmt_abs_32:        fn(&mut Formatter, &CfFlavor, &Expr       ) -> fmt::Result,
+    pub fmt_addr_ind:      fn(&mut Formatter, &CfFlavor, &AddrReg    ) -> fmt::Result,
+    pub fmt_addr_ind_dec:  fn(&mut Formatter, &CfFlavor, &AddrReg    ) -> fmt::Result,
+    pub fmt_addr_ind_inc:  fn(&mut Formatter, &CfFlavor, &AddrReg    ) -> fmt::Result,
+    pub fmt_addr_disp:     fn(&mut Formatter, &CfFlavor, &AddrDisp   ) -> fmt::Result,
+    pub fmt_addr_disp_idx: fn(&mut Formatter, &CfFlavor, &AddrDispIdx) -> fmt::Result,
+    pub fmt_pc_disp:       fn(&mut Formatter, &CfFlavor, &PcDisp     ) -> fmt::Result,
+    pub fmt_pc_disp_idx:   fn(&mut Formatter, &CfFlavor, &PcDispIdx  ) -> fmt::Result,
+    pub fmt_data_regs:     WriteRegsFn<DataReg>,
+    pub fmt_addr_regs:     WriteRegsFn<AddrReg>,
 }
 
+pub type WriteRegsFn<R> = fn(bits: u8, regs: &[R; 8], join: bool,
+                             f: &mut Formatter, c: &CfFlavor)
+                             -> Result<bool, fmt::Error>;
+
 pub static CF_GAS_FLAVOR: CfFlavor = CfFlavor {
-    base:                &GAS_FLAVOR,
-    write_abs_16:        write_abs_16,
-    write_abs_32:        write_abs_32,
-    write_addr_ind:      write_addr_ind,
-    write_addr_ind_dec:  write_addr_ind_dec,
-    write_addr_ind_inc:  write_addr_ind_inc,
-    write_addr_disp:     write_addr_disp,
-    write_addr_disp_idx: write_addr_disp_idx,
-    write_pc_disp:       write_pc_disp,
-    write_pc_disp_idx:   write_pc_disp_idx,
-    write_data_regs:     write_regs,
-    write_addr_regs:     write_regs,
+    base:              &GAS_FLAVOR,
+    fmt_abs_16:        fmt_abs_16,
+    fmt_abs_32:        fmt_abs_32,
+    fmt_addr_ind:      fmt_addr_ind,
+    fmt_addr_ind_dec:  fmt_addr_ind_dec,
+    fmt_addr_ind_inc:  fmt_addr_ind_inc,
+    fmt_addr_disp:     fmt_addr_disp,
+    fmt_addr_disp_idx: fmt_addr_disp_idx,
+    fmt_pc_disp:       fmt_pc_disp,
+    fmt_pc_disp_idx:   fmt_pc_disp_idx,
+    fmt_data_regs:     fmt_regs,
+    fmt_addr_regs:     fmt_regs,
 };
 
 pub static CF_VASM_MOT_FLAVOR: CfFlavor = CfFlavor {
-    base:                &VASM_MOT_FLAVOR,
-    write_abs_16:        write_abs_16,
-    write_abs_32:        write_abs_32,
-    write_addr_ind:      write_addr_ind,
-    write_addr_ind_dec:  write_addr_ind_dec,
-    write_addr_ind_inc:  write_addr_ind_inc,
-    write_addr_disp:     write_addr_disp,
-    write_addr_disp_idx: write_addr_disp_idx,
-    write_pc_disp:       write_pc_disp,
-    write_pc_disp_idx:   write_pc_disp_idx,
-    write_data_regs:     write_regs,
-    write_addr_regs:     write_regs,
+    base:              &VASM_MOT_FLAVOR,
+    fmt_abs_16:        fmt_abs_16,
+    fmt_abs_32:        fmt_abs_32,
+    fmt_addr_ind:      fmt_addr_ind,
+    fmt_addr_ind_dec:  fmt_addr_ind_dec,
+    fmt_addr_ind_inc:  fmt_addr_ind_inc,
+    fmt_addr_disp:     fmt_addr_disp,
+    fmt_addr_disp_idx: fmt_addr_disp_idx,
+    fmt_pc_disp:       fmt_pc_disp,
+    fmt_pc_disp_idx:   fmt_pc_disp_idx,
+    fmt_data_regs:     fmt_regs,
+    fmt_addr_regs:     fmt_regs,
 };
 
-pub fn write_abs_16(f: &mut Formatter, c: &CfFlavor, e: &Expr)
-                    -> fmt::Result {
-    write_abs(f, c, e, "w")
-}
-
-pub fn write_abs_32(f: &mut Formatter, c: &CfFlavor, e: &Expr)
-                    -> fmt::Result {
-    write_abs(f, c, e, "l")
-}
-
-pub fn write_abs(f: &mut Formatter, c: &CfFlavor, e: &Expr, s: &str)
+pub fn fmt_abs_16(f: &mut Formatter, c: &CfFlavor, e: &Expr)
                  -> fmt::Result {
+    fmt_abs(f, c, e, "w")
+}
+
+pub fn fmt_abs_32(f: &mut Formatter, c: &CfFlavor, e: &Expr)
+                 -> fmt::Result {
+    fmt_abs(f, c, e, "l")
+}
+
+pub fn fmt_abs(f: &mut Formatter, c: &CfFlavor, e: &Expr, s: &str)
+              -> fmt::Result {
     write!(f, "({}).{}", e.with(c.base), s)
 }
 
-pub fn write_addr_ind(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
-                      -> fmt::Result {
+pub fn fmt_addr_ind(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
+                   -> fmt::Result {
     write!(f, "({})", r.with(c))
 }
 
-pub fn write_addr_ind_dec(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
-                     -> fmt::Result {
+pub fn fmt_addr_ind_dec(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
+                       -> fmt::Result {
     write!(f, "-({})", r.with(c))
 }
 
-pub fn write_addr_ind_inc(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
-                      -> fmt::Result {
+pub fn fmt_addr_ind_inc(f: &mut Formatter, c: &CfFlavor, r: &AddrReg)
+                       -> fmt::Result {
     write!(f, "({})+", r.with(c))
 }
 
-pub fn write_addr_disp(f: &mut Formatter, c: &CfFlavor, v: &AddrDisp)
-                       -> fmt::Result {
+pub fn fmt_addr_disp(f: &mut Formatter, c: &CfFlavor, v: &AddrDisp)
+                    -> fmt::Result {
     write!(f, "({}, {})",
         (&v.base).with(c),
         (&v.disp).with(c.base)
     )
 }
 
-pub fn write_addr_disp_idx(f: &mut Formatter, c: &CfFlavor, v: &AddrDispIdx)
-                           -> fmt::Result {
+pub fn fmt_addr_disp_idx(f: &mut Formatter, c: &CfFlavor, v: &AddrDispIdx)
+                        -> fmt::Result {
     write!(f, "({}, {}, {}*{})",
         (&v.base ).with(c),
         (&v.disp ).with(c.base),
@@ -129,16 +121,16 @@ pub fn write_addr_disp_idx(f: &mut Formatter, c: &CfFlavor, v: &AddrDispIdx)
     )
 }
 
-pub fn write_pc_disp(f: &mut Formatter, c: &CfFlavor, v: &PcDisp)
-                     -> fmt::Result {
+pub fn fmt_pc_disp(f: &mut Formatter, c: &CfFlavor, v: &PcDisp)
+                  -> fmt::Result {
     write!(f, "({}, {})",
         (&PcReg ).with(c),
         (&v.disp).with(c.base),
     )
 }
 
-pub fn write_pc_disp_idx(f: &mut Formatter, c: &CfFlavor, v: &PcDispIdx)
-                         -> fmt::Result {
+pub fn fmt_pc_disp_idx(f: &mut Formatter, c: &CfFlavor, v: &PcDispIdx)
+                      -> fmt::Result {
     write!(f, "({}, {}, {}*{})",
         (&PcReg  ).with(c),
         (&v.disp ).with(c.base),
@@ -147,13 +139,9 @@ pub fn write_pc_disp_idx(f: &mut Formatter, c: &CfFlavor, v: &PcDispIdx)
     )
 }
 
-fn write_regs<R>(bits: u8,
-                 regs: &[R; 8],
-                 join: bool,
-                 f:    &mut Formatter,
-                 c:    &CfFlavor)
-                 ->    Result<bool, fmt::Error>
-where R: DisplayWith<CfFlavor> {
+fn fmt_regs<R: DisplayWith<CfFlavor>>
+           (bits: u8, regs: &[R; 8], join: bool, f: &mut Formatter, c: &CfFlavor)
+           -> Result<bool, fmt::Error> {
     let mut n     = 0;      // register number
     let mut bit   = 1;      // bit for register in bitmask
     let mut start = None;   // register number starting current range

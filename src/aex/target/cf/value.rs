@@ -149,9 +149,9 @@ impl<'a> CfValue<'a> {
 impl<'a> DisplayWith<CfFlavor> for CfValue<'a> {
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         match *self {
-            CfValue::Imm         (ref e) => (c.base.write_imm)(f,    e),
-            CfValue::Abs16       (ref e) => (c.write_abs_16  )(f, c, e),
-            CfValue::Abs32       (ref e) => (c.write_abs_32  )(f, c, e),
+            CfValue::Imm         (ref e) => (c.base.fmt_imm)(f,    e),
+            CfValue::Abs16       (ref e) => (c.fmt_abs_16  )(f, c, e),
+            CfValue::Abs32       (ref e) => (c.fmt_abs_32  )(f, c, e),
             CfValue::Data        (ref r) => r.fmt(f, c),
             CfValue::Addr        (ref r) => r.fmt(f, c),
             CfValue::AddrInd     (ref r) => r.fmt(f, c),
@@ -164,8 +164,8 @@ impl<'a> DisplayWith<CfFlavor> for CfValue<'a> {
 
             CfValue::Regs        (ref r) => r.fmt(f, c),
             CfValue::Ctrl        (ref r) => r.fmt(f, c),
-            CfValue::Sr                  => (c.base.write_reg)(f, "sr" ),
-            CfValue::Ccr                 => (c.base.write_reg)(f, "ccr"),
+            CfValue::Sr                  => (c.base.fmt_reg)(f, "sr" ),
+            CfValue::Ccr                 => (c.base.fmt_reg)(f, "ccr"),
             CfValue::Bc                  => f.write_str("bc"),
         }
     }
@@ -208,8 +208,9 @@ impl DataReg {
 }
 
 impl DisplayWith<CfFlavor> for DataReg {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.base.write_reg)(f, self.name())
+        (c.base.fmt_reg)(f, self.name())
     }
 }
 
@@ -250,8 +251,9 @@ impl AddrReg {
 }
 
 impl DisplayWith<CfFlavor> for AddrReg {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.base.write_reg)(f, self.name())
+        (c.base.fmt_reg)(f, self.name())
     }
 }
 
@@ -275,8 +277,9 @@ impl CtrlReg {
 }
 
 impl DisplayWith<CfFlavor> for CtrlReg {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.base.write_reg)(f, self.name())
+        (c.base.fmt_reg)(f, self.name())
     }
 }
 
@@ -287,8 +290,9 @@ impl DisplayWith<CfFlavor> for CtrlReg {
 pub struct PcReg;
 
 impl DisplayWith<CfFlavor> for PcReg {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.base.write_reg)(f, "pc")
+        (c.base.fmt_reg)(f, "pc")
     }
 }
 
@@ -326,10 +330,11 @@ impl<R: Into<RegSet>> BitOr<R> for RegSet {
 }
 
 impl DisplayWith<CfFlavor> for RegSet {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         let join =
-        try!((c.write_data_regs)((self.0 & 0xFF) as u8, &DATA_REGS, false, f, c));
-        try!((c.write_addr_regs)((self.0 >>   8) as u8, &ADDR_REGS, join,  f, c));
+        try!((c.fmt_data_regs)((self.0 & 0xFF) as u8, &DATA_REGS, false, f, c));
+        try!((c.fmt_addr_regs)((self.0 >>   8) as u8, &ADDR_REGS, join,  f, c));
         Ok(())
     }
 }
@@ -344,6 +349,7 @@ pub enum Base {
 }
 
 impl DisplayWith<CfFlavor> for Base {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         match *self {
             Base::Addr(ref r) =>     r.fmt(f, c),
@@ -362,6 +368,7 @@ pub enum Index {
 }
 
 impl DisplayWith<CfFlavor> for Index {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         match *self {
             Index::Data(ref r) => r.fmt(f, c),
@@ -380,8 +387,9 @@ pub struct AddrDisp<'a> {
 }
 
 impl<'a> DisplayWith<CfFlavor> for AddrDisp<'a> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.write_addr_disp)(f, c, self)
+        (c.fmt_addr_disp)(f, c, self)
     }
 }
 
@@ -397,8 +405,9 @@ pub struct AddrDispIdx<'a> {
 }
 
 impl<'a> DisplayWith<CfFlavor> for AddrDispIdx<'a> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.write_addr_disp_idx)(f, c, self)
+        (c.fmt_addr_disp_idx)(f, c, self)
     }
 }
 
@@ -411,8 +420,9 @@ pub struct PcDisp<'a> {
 }
 
 impl<'a> DisplayWith<CfFlavor> for PcDisp<'a> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.write_pc_disp)(f, c, self)
+        (c.fmt_pc_disp)(f, c, self)
     }
 }
 
@@ -427,8 +437,9 @@ pub struct PcDispIdx<'a> {
 }
 
 impl<'a> DisplayWith<CfFlavor> for PcDispIdx<'a> {
+    #[inline]
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-        (c.write_pc_disp_idx)(f, c, self)
+        (c.fmt_pc_disp_idx)(f, c, self)
     }
 }
 

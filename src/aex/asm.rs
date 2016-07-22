@@ -122,44 +122,44 @@ use num::BigInt;
 use aex::ast::Expr;
 
 pub struct AsmFlavor {
-    pub write_int: fn(&mut Formatter, &BigInt) -> fmt::Result,
-    pub write_reg: fn(&mut Formatter, &str   ) -> fmt::Result,
-    pub write_imm: fn(&mut Formatter, &Expr  ) -> fmt::Result,
+    pub fmt_int: fn(&mut Formatter, &BigInt) -> fmt::Result,
+    pub fmt_reg: fn(&mut Formatter, &str   ) -> fmt::Result,
+    pub fmt_imm: fn(&mut Formatter, &Expr  ) -> fmt::Result,
 }
 
 pub static GAS_FLAVOR: AsmFlavor = AsmFlavor {
-    write_int: write_int_c,
-    write_reg: write_reg_att,
-    write_imm: write_imm_att,
+    fmt_int: fmt_int_c,
+    fmt_reg: fmt_reg_att,
+    fmt_imm: fmt_imm_att,
 };
 
 pub static VASM_MOT_FLAVOR: AsmFlavor = AsmFlavor {
-    write_int: write_int_moto,
-    write_reg: write_reg_att,
-    write_imm: write_imm_att,
+    fmt_int: fmt_int_moto,
+    fmt_reg: fmt_reg_att,
+    fmt_imm: fmt_imm_att,
 };
 
-pub fn write_raw(f: &mut Formatter, s: &str) -> fmt::Result {
+pub fn fmt_raw(f: &mut Formatter, s: &str) -> fmt::Result {
     f.write_str(s)
 }
 
-pub fn write_reg_att(f: &mut Formatter, r: &str) -> fmt::Result {
+pub fn fmt_reg_att(f: &mut Formatter, r: &str) -> fmt::Result {
     write!(f, "%{}", r)
 }
 
-pub fn write_int_c(f: &mut Formatter, n: &BigInt) -> fmt::Result {
+pub fn fmt_int_c(f: &mut Formatter, n: &BigInt) -> fmt::Result {
     write!(f, "0x{:X}", n)
 }
 
-pub fn write_int_intel(f: &mut Formatter, n: &BigInt) -> fmt::Result {
+pub fn fmt_int_intel(f: &mut Formatter, n: &BigInt) -> fmt::Result {
     write!(f, "0{:X}h", n)
 }
 
-pub fn write_int_moto(f: &mut Formatter, n: &BigInt) -> fmt::Result {
+pub fn fmt_int_moto(f: &mut Formatter, n: &BigInt) -> fmt::Result {
     write!(f, "${:X}", n)
 }
 
-pub fn write_imm_att(f: &mut Formatter, v: &Expr) -> fmt::Result {
+pub fn fmt_imm_att(f: &mut Formatter, v: &Expr) -> fmt::Result {
     write!(f, "#{}", v)
 }
 
