@@ -55,66 +55,66 @@ pub enum Stmt<'a> {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct TypeDef<'a> {
-    pub id:  Id     <'a>,
-    pub ty:  Type   <'a>,
-    pub src: Source <'a>,
+    pub id:  Id<'a>,
+    pub ty:  Type<'a>,
+    pub src: Source<'a>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Label<'a> {
-    pub id:  Id     <'a>,
-    pub src: Source <'a>,
+    pub id:  Id<'a>,
+    pub src: Source<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DataLoc<'a> {
-    pub id:  Id     <'a>,
-    pub ty:  Type   <'a>,
-    pub src: Source <'a>,
+    pub id:  Id<'a>,
+    pub ty:  Type<'a>,
+    pub src: Source<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DataVal<'a> {
-    pub id:  Id     <'a>,
-    pub ty:  Type   <'a>,
-    pub val: Expr   <'a>,
-    pub src: Source <'a>,
+    pub id:  Id<'a>,
+    pub ty:  Type<'a>,
+    pub val: Expr<'a>,
+    pub src: Source<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Func<'a> {
-    pub id:  Id     <'a>,
-    pub ty:  Type   <'a>,
-    pub ast: Ast    <'a>,
-    pub src: Source <'a>,
+    pub id:  Id<'a>,
+    pub ty:  Type<'a>,
+    pub ast: Ast<'a>,
+    pub src: Source<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Loop<'a> {
-    pub ast: Ast    <'a>,
-    pub src: Source <'a>,
+    pub ast: Ast<'a>,
+    pub src: Source<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct If<'a> {
-    pub cond:     Cond   <'a>,
-    pub if_true:  Ast    <'a>,
-    pub if_false: Ast    <'a>,
-    pub src:      Source <'a>,
+    pub cond:     Cond<'a>,
+    pub if_true:  Ast<'a>,
+    pub if_false: Ast<'a>,
+    pub src:      Source<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct While<'a> {
-    pub cond: Cond   <'a>,
-    pub ast:  Ast    <'a>,
-    pub src:  Source <'a>,
+    pub cond: Cond<'a>,
+    pub ast:  Ast<'a>,
+    pub src:  Source<'a>,
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Cond<'a> {
-    pub sel:         Id     <'a>,
-    pub expr: Option<Expr   <'a>>,
-    pub src:         Source <'a>,
+    pub sel:  Id<'a>,
+    pub expr: Option<Expr<'a>>,
+    pub src:  Source<'a>,
 }
 
 // -----------------------------------------------------------------------------
