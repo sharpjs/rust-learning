@@ -19,7 +19,7 @@
 #![allow(non_upper_case_globals)]
 // ^ Because we like our M_* constants as they are.
 
-use std::fmt::{self, Formatter, Write};
+use std::fmt::{self, Formatter};
 use std::ops::BitOr;
 use num::ToPrimitive;
 
@@ -149,18 +149,18 @@ impl<'a> CfValue<'a> {
 impl<'a> DisplayWith<CfFlavor> for CfValue<'a> {
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         match *self {
-            CfValue::Imm         (ref e) => (c.base.write_imm) (f,    e),
-            CfValue::Abs16       (ref e) => (c.write_abs_16)   (f, c, e),
-            CfValue::Abs32       (ref e) => (c.write_abs_32)   (f, c, e),
+            CfValue::Imm         (ref e) => (c.base.write_imm)(f,    e),
+            CfValue::Abs16       (ref e) => (c.write_abs_16  )(f, c, e),
+            CfValue::Abs32       (ref e) => (c.write_abs_32  )(f, c, e),
             CfValue::Data        (ref r) => r.fmt(f, c),
             CfValue::Addr        (ref r) => r.fmt(f, c),
-            CfValue::AddrInd     (ref r) => Ok(()), //write!(f,  "({})",  r),
-            CfValue::AddrIndDec  (ref r) => Ok(()), //write!(f, "-({})",  r),
-            CfValue::AddrIndInc  (ref r) => Ok(()), //write!(f,  "({})+", r),
-            CfValue::AddrDisp    (ref a) => Ok(()), //a.fmt(f),
-            CfValue::AddrDispIdx (ref a) => Ok(()), //a.fmt(f),
-            CfValue::PcDisp      (ref a) => Ok(()), //a.fmt(f),
-            CfValue::PcDispIdx   (ref a) => Ok(()), //a.fmt(f),
+            CfValue::AddrInd     (ref r) => r.fmt(f, c),
+            CfValue::AddrIndDec  (ref r) => r.fmt(f, c),
+            CfValue::AddrIndInc  (ref r) => r.fmt(f, c),
+            CfValue::AddrDisp    (ref a) => a.fmt(f, c),
+            CfValue::AddrDispIdx (ref a) => a.fmt(f, c),
+            CfValue::PcDisp      (ref a) => a.fmt(f, c),
+            CfValue::PcDispIdx   (ref a) => a.fmt(f, c),
 
             CfValue::Regs        (ref r) => r.fmt(f, c),
             CfValue::Ctrl        (ref r) => r.fmt(f, c),
@@ -328,50 +328,10 @@ impl<R: Into<RegSet>> BitOr<R> for RegSet {
 impl DisplayWith<CfFlavor> for RegSet {
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         let join =
-        try!(fmt_regs((self.0 & 0xFF) as u8, &DATA_REGS, false, f, c));
-        try!(fmt_regs((self.0 >>   8) as u8, &ADDR_REGS, join,  f, c));
+        try!((c.write_data_regs)((self.0 & 0xFF) as u8, &DATA_REGS, false, f, c));
+        try!((c.write_addr_regs)((self.0 >>   8) as u8, &ADDR_REGS, join,  f, c));
         Ok(())
     }
-}
-
-// TODO: Probably ought to be in the flavor
-fn fmt_regs<R>(bits: u8, regs: &[R; 8], mut join: bool,
-               f: &mut Formatter, c: &CfFlavor)
-              -> Result<bool, fmt::Error>
-              where R: DisplayWith<CfFlavor>
-{
-    let mut n     = 0;      // register number
-    let mut bit   = 1;      // bit for register in bitmask
-    let mut start = None;   // register number starting current range
-
-    loop {
-        let has = n < 8 && (bits & bit) != 0;
-
-        match (has, start) {
-            (true, None) => {
-                start = Some(n)
-            },
-            (false, Some(s)) => {
-                if join {
-                    try!(f.write_char('/'))
-                }
-                try!(regs[s].fmt(f, c));
-                if n > s + 1 {
-                    try!(f.write_char('-'));
-                    try!(regs[n - 1].fmt(f, c));
-                }
-                start = None;
-                join  = true;
-            },
-            _ => { /*nop*/ }
-        }
-
-        if n == 8 { break }
-        n += 1;
-        bit = bit.wrapping_shl(1);
-    }
-
-    Ok(join)
 }
 
 // -----------------------------------------------------------------------------
@@ -419,11 +379,11 @@ pub struct AddrDisp<'a> {
     pub disp: Expr<'a>
 }
 
-//impl<'a> DisplayWith<CfFlavor> for AddrDisp<'a> {
-//    fn fmt(&self, f: &mut Formatter, c: CfFlavor) -> fmt::Result {
-//        write!(f, "({}, {})", &self.base, &self.disp)
-//    }
-//}
+impl<'a> DisplayWith<CfFlavor> for AddrDisp<'a> {
+    fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
+        (c.write_addr_disp)(f, c, self)
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Address Register Base + Displacement + Index
@@ -436,11 +396,11 @@ pub struct AddrDispIdx<'a> {
     pub scale: Expr<'a>
 }
 
-//impl<'a> DisplayWith<CfFlavor> for AddrDispIdx<'a> {
-//    fn fmt(&self, f: &mut Formatter, c: CfFlavor) -> fmt::Result {
-//        write!(f, "({}, {}, {}*{})", &self.base, &self.disp, &self.index, &self.scale)
-//    }
-//}
+impl<'a> DisplayWith<CfFlavor> for AddrDispIdx<'a> {
+    fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
+        (c.write_addr_disp_idx)(f, c, self)
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Program Counter + Displacement
@@ -450,11 +410,11 @@ pub struct PcDisp<'a> {
     pub disp: Expr<'a>
 }
 
-//impl<'a> DisplayWith<CfFlavor> for PcDisp<'a> {
-//    fn fmt(&self, f: &mut Formatter, c: CfFlavor) -> fmt::Result {
-//        write!(f, "(%pc, {})", &self.disp)
-//    }
-//}
+impl<'a> DisplayWith<CfFlavor> for PcDisp<'a> {
+    fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
+        (c.write_pc_disp)(f, c, self)
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Program Counter + Displacement + Index
@@ -466,11 +426,11 @@ pub struct PcDispIdx<'a> {
     pub scale: Expr<'a>
 }
 
-//impl<'a> DisplayWith<CfFlavor> for PcDispIdx<'a> {
-//    fn fmt(&self, f: &mut Formatter, c: CfFlavor) -> fmt::Result {
-//        write!(f, "(%pc, {}, {}*{})", &self.disp, &self.index, &self.scale)
-//    }
-//}
+impl<'a> DisplayWith<CfFlavor> for PcDispIdx<'a> {
+    fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
+        (c.write_pc_disp_idx)(f, c, self)
+    }
+}
 
 // -----------------------------------------------------------------------------
 // Tests
