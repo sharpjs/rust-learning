@@ -149,7 +149,7 @@ impl<'a> CfValue<'a> {
 impl<'a> DisplayWith<CfFlavor> for CfValue<'a> {
     fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
         match *self {
-            CfValue::Imm         (ref e) => (c.base.fmt_imm)(f,    e),
+            CfValue::Imm         (ref e) => (c.base.fmt_imm)(e, f, c.base),
             CfValue::Abs16       (ref e) => (c.fmt_abs_16  )(f, c, e),
             CfValue::Abs32       (ref e) => (c.fmt_abs_32  )(f, c, e),
             CfValue::Data        (ref r) => r.fmt(f, c),

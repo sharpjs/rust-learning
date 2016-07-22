@@ -120,11 +120,12 @@ impl Write for Assembly {
 
 use num::BigInt;
 use aex::ast::Expr;
+use aex::util::With;
 
 pub struct AsmFlavor {
     pub fmt_int: fn(&mut Formatter, &BigInt) -> fmt::Result,
     pub fmt_reg: fn(&mut Formatter, &str   ) -> fmt::Result,
-    pub fmt_imm: fn(&mut Formatter, &Expr  ) -> fmt::Result,
+    pub fmt_imm: fn(&Expr, &mut Formatter, &AsmFlavor) -> fmt::Result,
 }
 
 pub static GAS_FLAVOR: AsmFlavor = AsmFlavor {
@@ -159,8 +160,8 @@ pub fn fmt_int_moto(f: &mut Formatter, n: &BigInt) -> fmt::Result {
     write!(f, "${:X}", n)
 }
 
-pub fn fmt_imm_att(f: &mut Formatter, v: &Expr) -> fmt::Result {
-    write!(f, "#{}", v)
+pub fn fmt_imm_att(v: &Expr, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result {
+    write!(f, "#{}", With(v, a))
 }
 
 // numbers:     0xFF     $FF     0FFh
@@ -172,12 +173,4 @@ pub fn fmt_imm_att(f: &mut Formatter, v: &Expr) -> fmt::Result {
 // absolute:    (v).w    [v]
 // 
 // displaced:   (a0,4)   (4a0)  4(a0)   a0@(4)   [a0+4]
-
-// TODO: Move to ast module
-use aex::util::DisplayWith;
-impl<'a> DisplayWith<AsmFlavor> for Expr<'a> {
-    fn fmt(&self, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result {
-        Ok(())
-    }
-}
 

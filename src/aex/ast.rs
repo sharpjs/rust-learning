@@ -16,18 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use num::{BigInt}; //, ToPrimitive};
+use std::fmt::{self, Formatter};
+use num::BigInt;
 
+use aex::asm::AsmFlavor;
 use aex::pos::Source;
 use aex::types::Type;
-
-// Temporary
-use std::fmt::{self, Display, Formatter};
-impl<'a> Display for Expr<'a> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.write_str("")
-    }
-}
+use aex::util::DisplayWith;
 
 // -----------------------------------------------------------------------------
 // Statements
@@ -164,6 +159,12 @@ pub struct BinaryExpr<'a> {
     pub l:    Box<Expr<'a>>,
     pub r:    Box<Expr<'a>>,
     pub src:  Source<'a>,
+}
+
+impl<'a> DisplayWith<AsmFlavor> for Expr<'a> {
+    fn fmt(&self, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result {
+        Ok(())
+    }
 }
 
 // -----------------------------------------------------------------------------
