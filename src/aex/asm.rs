@@ -119,7 +119,7 @@ impl Write for Assembly {
 // This stuff probably doesn't belong here.
 
 use num::BigInt;
-use aex::ast::Expr;
+use aex::ast::*;
 use aex::util::With;
 
 pub struct AsmFlavor {
@@ -140,13 +140,13 @@ pub static VASM_MOT_FLAVOR: AsmFlavor = AsmFlavor {
     fmt_imm: fmt_imm_att,
 };
 
+// raw
+
 pub fn fmt_raw(f: &mut Formatter, s: &str) -> fmt::Result {
     f.write_str(s)
 }
 
-pub fn fmt_reg_att(f: &mut Formatter, r: &str) -> fmt::Result {
-    write!(f, "%{}", r)
-}
+// integers: 0xFF 0FFh $FF
 
 pub fn fmt_int_c(f: &mut Formatter, n: &BigInt) -> fmt::Result {
     write!(f, "0x{:X}", n)
@@ -160,17 +160,19 @@ pub fn fmt_int_moto(f: &mut Formatter, n: &BigInt) -> fmt::Result {
     write!(f, "${:X}", n)
 }
 
+// registers: %r0 r0
+
+pub fn fmt_reg_att(f: &mut Formatter, r: &str) -> fmt::Result {
+    write!(f, "%{}", r)
+}
+
+// immediate: #v $v
+
 pub fn fmt_imm_att(v: &Expr, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result {
     write!(f, "#{}", With(v, a))
 }
 
-// numbers:     0xFF     $FF     0FFh
-// 
-// immediate:   #v       $v
-// 
-// registers:   %d0      d0
-// 
-// absolute:    (v).w    [v]
-// 
-// displaced:   (a0,4)   (4a0)  4(a0)   a0@(4)   [a0+4]
+pub fn fmt_imm_dollar(v: &Expr, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result {
+    write!(f, "${}", With(v, a))
+}
 
