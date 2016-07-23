@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::borrow::Cow;
+use std::fmt::{self, Debug, Formatter};
 
 use super::Operator;
 use aex::ast::Expr;
@@ -115,6 +116,31 @@ macro_rules! def_arity {
         pub fn $fail<'a>($($arg: Operand<'a>),+, ctx: &mut Context<'a>)
                         -> Result<Operand<'a>, ()> {
             panic!("Operator not supported by target") // TODO
+        }
+
+        // NB: Rust won't derive Clone, PartialEq, or Debug, because of the
+        // higher-rank lifetimes (for<'a>) in this type.  It is a known issue:
+        // (https://github.com/rust-lang/rust/issues/24000).  The workaround
+        // is to implement the desired traits explicitly.
+
+        impl PartialEq for $name {
+            fn eq(&self, other: &Self) -> bool {
+                self.base == other.base
+                && self  .const_op     .map(|f| f as *const ()) ==
+                   other .const_op     .map(|f| f as *const ())
+                && self  .implicit_op  .map(|f| f as *const ()) ==
+                   other .implicit_op  .map(|f| f as *const ())
+                && self  .explicit_ops .iter().map(|&(n, f)| (n, f as *const ())).eq(
+                   other .explicit_ops .iter().map(|&(n, f)| (n, f as *const ()))   )
+            }
+        }
+
+        impl Eq for $name { }
+
+        impl Debug for $name {
+            fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+                write!(f, "{}({:?})", stringify!($name), self.base)
+            }
         }
     }
 }
