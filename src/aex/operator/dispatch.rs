@@ -23,22 +23,6 @@ use aex::ast::Expr;
 use aex::types::Type;
 use aex::value::Value;
 
-//// -----------------------------------------------------------------------------
-
-//pub enum Dispatch {
-//    Unary  ( UnaryDispatch),
-//    Binary (BinaryDispatch),
-//}
-//
-//impl fmt::Debug for Dispatch {
-//    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> {
-//        f.write_str(match *self {
-//            Unary  (..) => "Unary",
-//            Binary (..) => "Binary",
-//        })
-//    }
-//}
-
 // -----------------------------------------------------------------------------
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -135,8 +119,8 @@ macro_rules! def_arity {
     }
 }
 
-def_arity! {  UnaryOperator (a   ) :  UnaryOp, fail_unary  }
-def_arity! { BinaryOperator (a, b) : BinaryOp, fail_binary }
+def_arity! {  UnaryOperator(a   ) :  UnaryOp, fail_unary  }
+def_arity! { BinaryOperator(a, b) : BinaryOp, fail_binary }
 
 // -----------------------------------------------------------------------------
 
