@@ -176,3 +176,9 @@ pub fn fmt_imm_dollar(v: &Expr, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result
     write!(f, "${}", With(v, a))
 }
 
+// plus
+
+pub fn fmt_op_add(e: &BinaryExpr, f: &mut Formatter, a: &AsmFlavor) -> fmt::Result {
+    write!(f, "({} + {})", With(&*e.l, a), With(&*e.r, a))
+}
+
