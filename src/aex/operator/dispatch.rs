@@ -18,6 +18,8 @@
 
 use std::borrow::Cow;
 
+use super::Operator;
+use aex::ast::Expr;
 use aex::types::Type;
 use aex::value::Value;
 
@@ -45,72 +47,99 @@ pub struct Operand<'a> {
     pub ty:  TypePtr<'a>,
 }
 
-pub type TypePtr<'a> = Cow<'a, Type<'a>>;
+impl<'a> Operand<'a> {
+    pub fn is_const(&self) -> bool {
+        match self.val {
+            Some(ref v) => v.is_const(),
+            None        => false,
+        }
+    }
 
-// -----------------------------------------------------------------------------
-
-macro_rules! def_dispatch {
-    { $name:ident ( $($arg:ident),+ ) : $imp:ident, $new:ident, $disp:ident } => {
-//        pub type $imp = for<'a>
-//            fn ($($arg: Operand<'a>),+, ctx: &mut Context<'a>)
-//            -> Result<Operand<'a>, ()>;
-//
-//        pub fn $new<V: Const>(chars:  &'static str,
-//                              prec:   u8,
-//                              assoc:  Assoc,
-//                              fixity: Fixity)
-//                             -> Operator {
-//            Operator::new(
-//                chars, prec, assoc, fixity,
-//                Dispatch::$disp($name::new())
-//            )
-//        }
-//
-//        pub struct $name {
-//            const_op:     Option<$imp>,
-//            implicit_op:  Option<$imp>,
-//            explicit_ops: HashMap<&'static str, $imp>,
-//        }
-//
-//        impl<V: Const> $name {
-//            pub fn new() -> Self {
-//                $name {
-//                    const_op:     None,
-//                    implicit_op:  None,
-//                    explicit_ops: HashMap::new()
-//                }
-//            }
-//
-//            pub fn dispatch<'a>(&self,
-//                                sel: Option<&str>,
-//                                $($arg: Operand<'a>),+,
-//                                ctx: &mut Context<'a>)
-//                               -> Result<Operand<'a>, ()> {
-//                // Get implementation
-//                let op =
-//                    if let Some(s) = sel {
-//                        self.explicit_ops.get(s)
-//                    } else if true $(&& $arg.value.is_const())+ {
-//                        self.const_op.as_ref()
-//                    } else {
-//                        self.implicit_op.as_ref()
-//                    };
-//
-//                // Invoke implementation
-//                match op {
-//                    Some(op) => op($($arg),+, ctx),
-//                    None     => panic!(),
-//                }
-//            }
-//        }
+    fn unwrap_const(self) -> Expr<'a> {
+        match self.val {
+            Some(v) => v.unwrap_const(),
+            None    => panic!(),
+        }
     }
 }
 
-def_dispatch! {  UnaryDispatch (a   ) :  UnaryOp,  unary_op,  Unary }
-def_dispatch! { BinaryDispatch (a, b) : BinaryOp, binary_op, Binary }
+pub type TypePtr<'a> = Cow<'a, Type<'a>>;
 
-//// -----------------------------------------------------------------------------
-//
+// -----------------------------------------------------------------------------
+// Operator evaluation context
+
+pub struct Context<'a> (&'a ());
+
+// -----------------------------------------------------------------------------
+// Arity-specific operator types
+
+macro_rules! def_arity {
+    { $name:ident ( $($arg:ident),+ ) : $imp:ident, $fail:ident } => {
+
+        // Type alias for operation implementation fn
+        // :: operand * N -> context -> operand
+        //
+        pub type $imp = for<'a>
+            fn ($($arg: Operand<'a>),+, ctx: &mut Context<'a>)
+            -> Result<Operand<'a>, ()>;
+
+        // An operator of a particular arity, with implementation fns.
+        //
+        pub struct $name {
+            pub base:         Operator,
+            pub const_op:     Option<$imp>,
+            pub implicit_op:  Option<$imp>,
+            pub explicit_ops: &'static [(&'static str, $imp)],
+            // NB: We expect this list to be small, so linear search is OK.
+            // It might be nice to have a static map here, but the current
+            // solutions are a bit unweildy in stable Rust.
+        }
+
+        impl $name {
+            // Select the appropriate implementation of the operator, and
+            // invoke the implementation with the given operands and context.
+            //
+            pub fn dispatch<'a>(&self, sel: Option<&str>,
+                                $($arg: Operand<'a>),+, ctx: &mut Context<'a>)
+                               -> Result<Operand<'a>, ()> {
+                // Get implementation
+                let op =
+                    if let Some(s) = sel {
+                        self.explicit_op(s)
+                    } else if true $(&& $arg.is_const())+ {
+                        self.const_op
+                    } else {
+                        self.implicit_op
+                    };
+
+                // Invoke implementation
+                op.unwrap_or($fail)($($arg),+, ctx)
+            }
+
+            // Look up an implementation by its explicit selector.
+            //
+            fn explicit_op(&self, sel: &str) -> Option<$imp> {
+                for &(s, f) in self.explicit_ops {
+                    if s == sel { return Some(f) }
+                }
+                None
+            }
+        }
+
+        // Built-in operator implementation that always fails.
+        //
+        pub fn $fail<'a>($($arg: Operand<'a>),+, ctx: &mut Context<'a>)
+                        -> Result<Operand<'a>, ()> {
+            panic!("Operator not supported by target") // TODO
+        }
+    }
+}
+
+def_arity! {  UnaryOperator (a   ) :  UnaryOp, fail_unary  }
+def_arity! { BinaryOperator (a, b) : BinaryOp, fail_binary }
+
+// -----------------------------------------------------------------------------
+
 //macro_rules! op {
 //    { $name:ident ( $($arg:ident),+ )
 //        : $opcodes:expr, $default:expr, $ret:ident
@@ -182,9 +211,19 @@ def_dispatch! { BinaryDispatch (a, b) : BinaryOp, binary_op, Binary }
 //    }
 //    None
 //}
-//
-//// -----------------------------------------------------------------------------
-//
+
+// -----------------------------------------------------------------------------
+
+use aex::operator::Assoc::*;
+use aex::operator::Arity::*;
+
+static ADD: BinaryOperator = BinaryOperator {
+    base:         Operator { chars: "+", prec: 5, assoc: Left, arity: Binary },
+    const_op:     None,
+    implicit_op:  None,
+    explicit_ops: &[]
+};
+
 //op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
 //op! { adda (d, s) : ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
 //
