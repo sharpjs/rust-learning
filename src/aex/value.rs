@@ -45,7 +45,7 @@ impl<'a> Value<'a> {
         }
     }
 
-    fn unwrap_const(self) -> Expr<'a> {
+    pub fn unwrap_const(self) -> Expr<'a> {
         match self {
             Const(e) => e,
             _        => panic!(),
