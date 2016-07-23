@@ -20,9 +20,6 @@ pub mod dispatch;
 
 use std::borrow::Borrow;
 use std::collections::HashMap;
-//use std::fmt::{self, Debug, Formatter};
-
-//use aex::value::Value;
 
 use self::Assoc::*;
 use self::Arity::*;
@@ -97,43 +94,4 @@ pub enum Assoc { Left, Right }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Arity { Unary, Binary }
-
-//// HACK: Rust won't derive Clone, PartialEq, or Debug, because of the
-//// existential lifetime 'a.  I think this might be a compiler bug.
-//// For now, I'll just implement Clone explicitly.
-////
-////#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-//pub enum Arity {
-//    Unary  (for<'a> fn(Context, Value<'a>           ) -> Value<'a>),
-//    Binary (for<'a> fn(Context, Value<'a>, Value<'a>) -> Value<'a>),
-//}
-//
-//impl Clone for Arity {
-//    fn clone(&self) -> Self { *self }
-//
-//    fn clone_from(&mut self, source: &Self) { *self = *source }
-//}
-//
-//impl Copy for Arity { }
-//
-//impl PartialEq for Arity {
-//    fn eq(&self, other: &Self) -> bool {
-//        match (*self, *other) {
-//            (Unary (l), Unary (r)) => l as *const () == r as *const (),
-//            (Binary(l), Binary(r)) => l as *const () == r as *const (),
-//            _ => false,
-//        }
-//    }
-//}
-//
-//impl Eq for Arity { }
-//
-//impl Debug for Arity {
-//    fn fmt(&self, f: &mut Formatter) -> Result<(), fmt::Error> {
-//        match *self {
-//            Unary  (m) => write!(f,  "Unary({:p})", m as *const ()),
-//            Binary (m) => write!(f, "Binary({:p})", m as *const ()),
-//        }
-//    }
-//}
 
