@@ -218,7 +218,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
         // Parse operators and right operands
         loop {
-            // Is token a binary operator?
+            // Is token an infix binary or postfix unary operator?
             let (prec, assoc, fix) = match Self::op_info(&self.token) {
                 Some(i) => i,
                 None    => break
@@ -229,7 +229,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
                 break
             }
 
-            // Consume operator
+            // Consume operator token
             self.advance();
 
             // Construct expression
@@ -262,7 +262,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
     //
     fn parse_expr_primary(&mut self) -> One<Expr<'a>> {
 
-        // Unary operator
+        // Is token a prefix unary operator?
         if let Some((prec, ctor)) = Self::prefix_op_info(&self.token) {
             self.advance();
             let expr = try!(self.parse_expr_prec(prec));
@@ -271,7 +271,7 @@ impl<'p, 'a: 'p, L: 'p + Lex<'a>> Parser<'p, 'a, L> {
 
         let pos = self.span.0;
 
-        // Atom
+        // Is token an atom?
         match self.token {
             // ID
             Token::Id(x) => {
