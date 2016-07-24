@@ -225,10 +225,9 @@ def_arity! { BinaryOperator(a, b) : BinaryOp, fail_binary }
 // -----------------------------------------------------------------------------
 
 use aex::operator::Assoc::*;
-use aex::operator::Arity::*;
 
 static ADD: BinaryOperator = BinaryOperator {
-    base:         Operator { chars: "+", prec: 5, assoc: Left, arity: Binary },
+    base:         Operator { chars: "+", prec: 5, assoc: Left },
     const_op:     None,
     implicit_op:  None,
     explicit_ops: &[]
