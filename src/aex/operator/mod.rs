@@ -22,6 +22,26 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 
 use self::Assoc::*;
+use self::dispatch::{UnaryOperator, BinaryOperator};
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Operator {
+    pub chars: &'static str,    // characters
+    pub prec:  u8,              // precedence level
+    pub assoc: Assoc,           // associativity
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Assoc { Left, Right }
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Arity { Unary, Binary }
 
 // -----------------------------------------------------------------------------
 
@@ -35,54 +55,30 @@ impl OperatorTable {
         OperatorTable { map: HashMap::new() }
     }
 
-    pub fn add<Op: RegisterOperator>(&mut self, op: &'static Op) {
+    pub fn add<O: AnOperator>(&mut self, operator: &'static O) {
         let entry = self.map
-            .entry(op.base().chars)
+            .entry(operator.base().chars)
             .or_insert_with(|| OperatorEntry::new());
 
-        op.register(entry)
+        operator.add_to(entry)
     }
 
     pub fn map(&self) -> &HashMap<&'static str, OperatorEntry> {
         &self.map
     }
 
-    pub fn get<S>(&self, chars: S) -> Option<&OperatorEntry>
-    where S: Borrow<str> {
-        self.map.get(chars.borrow())
+    pub fn get_prefix<S: Borrow<str>>(&self, chars: S)
+                     -> Option<&'static UnaryOperator> {
+        self.map
+            .get(chars.borrow())
+            .and_then(|e| e.prefix)
     }
-}
 
-// -----------------------------------------------------------------------------
-
-pub trait RegisterOperator {
-    fn base(&self) -> &Operator;
-
-    fn arity(&self) -> Arity;
-
-    fn register(&'static self, entry: &mut OperatorEntry);
-}
-
-impl RegisterOperator for UnaryOperator {
-    fn base(&self) -> &Operator { &self.base }
-
-    fn arity(&self) -> Arity { Arity::Unary }
-
-    fn register(&'static self, entry: &mut OperatorEntry) {
-        match self.base.assoc {
-            Right => entry.prefix = Some(self),
-            Left  => entry.suffix = Some(AnyOperator::Unary(self)),
-        }
-    }
-}
-
-impl RegisterOperator for BinaryOperator {
-    fn base(&self) -> &Operator { &self.base }
-
-    fn arity(&self) -> Arity { Arity::Binary }
-
-    fn register(&'static self, entry: &mut OperatorEntry) {
-        entry.suffix = Some(AnyOperator::Binary(self))
+    pub fn get_suffix<S: Borrow<str>>(&self, chars: S)
+                     -> Option<AnyOperator> {
+        self.map
+            .get(chars.borrow())
+            .and_then(|e| e.suffix)
     }
 }
 
@@ -103,29 +99,41 @@ impl OperatorEntry {
 // -----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Operator {
-    pub chars: &'static str,
-    pub prec:  u8,
-    pub assoc: Assoc,
+pub enum AnyOperator {
+    Unary  (&'static UnaryOperator),
+    Binary (&'static BinaryOperator),
 }
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Assoc { Left, Right }
+pub trait AnOperator {
+    fn base(&self) -> &Operator;
 
-// -----------------------------------------------------------------------------
+    fn arity(&self) -> Arity;
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Arity { Unary, Binary }
+    fn add_to(&'static self, entry: &mut OperatorEntry);
+}
 
-// -----------------------------------------------------------------------------
+impl AnOperator for UnaryOperator {
+    fn base(&self) -> &Operator { &self.base }
 
-use self::dispatch::{UnaryOperator, BinaryOperator};
+    fn arity(&self) -> Arity { Arity::Unary }
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum AnyOperator {
-    Unary  (&'static UnaryOperator),
-    Binary (&'static BinaryOperator),
+    fn add_to(&'static self, entry: &mut OperatorEntry) {
+        match self.base.assoc {
+            Right => entry.prefix = Some(self),
+            Left  => entry.suffix = Some(AnyOperator::Unary(self)),
+        }
+    }
+}
+
+impl AnOperator for BinaryOperator {
+    fn base(&self) -> &Operator { &self.base }
+
+    fn arity(&self) -> Arity { Arity::Binary }
+
+    fn add_to(&'static self, entry: &mut OperatorEntry) {
+        entry.suffix = Some(AnyOperator::Binary(self))
+    }
 }
 
