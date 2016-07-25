@@ -150,6 +150,16 @@ def_arity! { BinaryOperator(a, b) : BinaryImpl, fail_binary }
 
 // -----------------------------------------------------------------------------
 
+macro_rules! const_op {
+    { $name:ident } => {
+        pub fn $name<'a>() {
+            // Convert code from old code_gen/ops.rs
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
 //macro_rules! op {
 //    { $name:ident ( $($arg:ident),+ )
 //        : $opcodes:expr, $default:expr, $ret:ident
