@@ -22,7 +22,8 @@ use std::borrow::Borrow;
 use std::collections::HashMap;
 
 use self::Assoc::*;
-use self::dispatch::{UnaryOperator, BinaryOperator};
+
+pub use self::dispatch::{UnaryOperator, BinaryOperator};
 
 // -----------------------------------------------------------------------------
 

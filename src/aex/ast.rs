@@ -23,6 +23,7 @@ use aex::asm::AsmFlavor;
 use aex::pos::Source;
 use aex::types::Type;
 use aex::util::DisplayWith;
+use aex::operator::{BinaryOperator, UnaryOperator};
 
 // -----------------------------------------------------------------------------
 // Statements
@@ -146,7 +147,7 @@ pub struct MemberExpr<'a> {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UnaryExpr<'a> {
-    pub op:   (),
+    pub op:   &'a UnaryOperator,
     pub sel:  Id<'a>,
     pub expr: Box<Expr<'a>>,
     pub src:  Source<'a>,
@@ -154,7 +155,7 @@ pub struct UnaryExpr<'a> {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BinaryExpr<'a> {
-    pub op:   (),
+    pub op:   &'a BinaryOperator,
     pub sel:  Id<'a>,
     pub l:    Box<Expr<'a>>,
     pub r:    Box<Expr<'a>>,
