@@ -50,6 +50,8 @@ impl<'a> Operand<'a> {
 
 pub type TypePtr<'a> = Cow<'a, Type<'a>>;
 
+pub type OpResult<'a> = Result<Operand<'a>, ()>;
+
 // -----------------------------------------------------------------------------
 // Operator evaluation context
 
@@ -150,10 +152,18 @@ def_arity! { BinaryOperator(a, b) : BinaryImpl, fail_binary }
 
 // -----------------------------------------------------------------------------
 
+#[macro_export]
 macro_rules! const_op {
-    { $name:ident } => {
-        pub fn $name<'a>() {
+    { $name:ident($($arg:ident),+)
+        : $check_types:path
+    } => {
+        pub fn $name<'a>($($arg: Operand<'a>),+, ctx: &mut Context<'a>)
+                        -> OpResult<'a> {
+
+            let ty = $check_types($(&$arg.ty),+);
+
             // Convert code from old code_gen/ops.rs
+            Err(())
         }
     }
 }

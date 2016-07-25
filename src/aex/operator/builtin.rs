@@ -16,53 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use aex::ast::*;
-use aex::value::Value;
+//use aex::ast::*;
+//use aex::value::Value;
 
 use super::Operator;
 use super::Assoc::*;
 use super::dispatch::*;
-
-pub fn add<'a>(l: Operand<'a>, r: Operand<'a>, ctx: &mut Context<'a>)
-              -> Result<Operand<'a>, ()> {
-
-//    // Type check (TODO)
-//    if l.ty != r.ty {
-//        return Err(())
-//    }
-//
-//    let ty = l.ty;
-//    let lv = l.val.unwrap().unwrap_const();
-//    let rv = r.val.unwrap().unwrap_const();
-//
-//    // Try reduction to integer value
-//    if let (Expr::Int(IntLit { val: ln, src: ls }),
-//            Expr::Int(IntLit { val: rn, src: rs })) 
-//         = (lv, rv) {
-//        return Ok(Operand {
-//            ty: ty,
-//            val: Some(Value::Const(Expr::Int(IntLit {
-//                val: ln + rn,
-//                src: ls,
-//            })))
-//        });
-//    }
-//
-//    // Yield an expression for the assembler to evaluate
-//    Ok(Operand {
-//        ty: ty,
-//        val: Some(Value::Const(Expr::Binary(BinaryExpr {
-//            op:  ADD, // where to get this?
-//            sel: "",
-//            l:   Box::new(..),
-//            r:   Box::new(..),
-//            src: ...
-//        })))
-//    });
-//
-//    //Ok(Operand { val: , ty: l.ty })
-    Err(())
-}
 
 static ADD: BinaryOperator = BinaryOperator {
     base:         Operator { chars: "+", prec: 5, assoc: Left },
@@ -70,6 +29,13 @@ static ADD: BinaryOperator = BinaryOperator {
     implicit_op:  None,
     explicit_ops: &[]
 };
+
+const_op! { add(l, r) : tc::compat }
+
+// Temporary
+mod tc {
+    pub fn compat<T>(l: T, r: T) -> () { () }
+}
 
 //op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
 //op! { adda (d, s) : ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
