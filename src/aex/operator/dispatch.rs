@@ -40,7 +40,7 @@ impl<'a> Operand<'a> {
         }
     }
 
-    fn unwrap_const(self) -> Expr<'a> {
+    pub fn unwrap_const(self) -> Expr<'a> {
         match self.val {
             Some(v) => v.unwrap_const(),
             None    => panic!(),
@@ -145,8 +145,8 @@ macro_rules! def_arity {
     }
 }
 
-def_arity! {  UnaryOperator(a   ) :  UnaryOp, fail_unary  }
-def_arity! { BinaryOperator(a, b) : BinaryOp, fail_binary }
+def_arity! {  UnaryOperator(a   ) :  UnaryImpl, fail_unary  }
+def_arity! { BinaryOperator(a, b) : BinaryImpl, fail_binary }
 
 // -----------------------------------------------------------------------------
 
