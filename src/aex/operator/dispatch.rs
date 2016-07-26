@@ -160,19 +160,24 @@ macro_rules! const_op {
     { $name:ident($($arg:ident),+)
         : $check_types:path
     } => {
-        pub fn $name<'a>($($arg: Operand<'a>),+, ctx: &mut Context<'a>)
+        pub fn $name<'a>($( $arg: Operand<'a> ),+, ctx: &mut Context<'a>)
                         -> OpResult<'a> {
 
+            // Constness check
+            if $( !$arg.is_const() )|+ {
+                panic!("Constant operation invoked for non-constant operand.")
+            }
+
             // Type check
-            let ty = match $check_types($(&$arg.ty),+) {
+            let ty = match $check_types($( &$arg.ty ),+) {
                 Some(ty) => ty,
                 None     => {
-                    ctx.out.log.err_incompatible_types($($arg.source())|+);
+                    ctx.out.log.err_incompatible_types($( $arg.source() )|+);
                     return Err(());
                 }
             };
 
-            //// Evaluate
+            // Evaluate
             //let expr = match ($($n.expr),+,) {
             //    ($(Expr::Int($n)),+,) => {
             //        // Value computable now
