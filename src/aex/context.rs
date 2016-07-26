@@ -23,7 +23,7 @@ use aex::target::TargetRef;
 
 pub struct Context<'a> {
     pub scope:   Scope<'a>,                 // named values and types
-    pub target:  TargetRef<'a>,             // operators, root scope, evaluator, (compiler options)
+    pub target:  TargetRef<'a>,             // operators, root scope, evaluator, compiler options
     pub strings: &'a StringInterner,        // strings
     pub out:     &'a mut Output<'a>,        // output code, message log
 }

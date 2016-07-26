@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use aex::ast::*;
+use aex::context::Context;
 //use aex::value::Value;
 
 use super::Operator;

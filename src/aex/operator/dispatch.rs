@@ -21,6 +21,7 @@ use std::fmt::{self, Debug, Formatter};
 
 use super::Operator;
 use aex::ast::Expr;
+use aex::context::Context;
 use aex::types::Type;
 use aex::value::Value;
 
@@ -51,11 +52,6 @@ impl<'a> Operand<'a> {
 pub type TypePtr<'a> = Cow<'a, Type<'a>>;
 
 pub type OpResult<'a> = Result<Operand<'a>, ()>;
-
-// -----------------------------------------------------------------------------
-// Operator evaluation context
-
-pub struct Context<'a> (&'a ());
 
 // -----------------------------------------------------------------------------
 // Arity-specific operator types
