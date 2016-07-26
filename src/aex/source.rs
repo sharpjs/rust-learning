@@ -16,9 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::Ordering;
 use std::fmt::{self, Debug, Display, Formatter};
 use std::fs;
 use std::io::{self, Read};
+use std::ops::BitOr;
 
 // -----------------------------------------------------------------------------
 
@@ -32,6 +34,29 @@ pub enum Source<'a> {
         file: &'a File<'a>, // source file
         pos:  Pos,          // position within file
         len:  usize         // length in bytes
+    }
+}
+
+// For Source, "bitwise or" means union of positions.
+//
+impl<'a> BitOr for Source<'a> {
+    type Output = Self;
+
+    fn bitor(self, rhs: Self) -> Self {
+        match (self, rhs) {
+            (Source::File { file: lf, pos: lp, len: ln },
+             Source::File { file: rf, pos: rp, len: rn }) => {
+                if lf != rf {
+                    panic!("Cannot compute union of positions from multiple files.")
+                } else if lp < rp {
+                    Source::File { file: lf, pos: lp, len: rp.byte + rn - lp.byte }
+                } else {
+                    Source::File { file: rf, pos: rp, len: lp.byte + ln - rp.byte }
+                }
+            },
+            (Source::BuiltIn, rhs) => rhs,
+            (lhs,             _  ) => lhs
+        }
     }
 }
 
@@ -163,6 +188,20 @@ impl Pos {
     }
 }
 
+impl PartialOrd for Pos {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Pos {
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.byte.cmp(&other.byte)
+    }
+}
+
 impl<'a> Display for Pos {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "{}:{}", self.line, self.column)
@@ -186,7 +225,7 @@ pub mod tests {
 
     fn with_source<F: Fn(&Source)>(f: F) {
         let file = File { name: "f", data: "abc".into() };
-        let src  = Source::File { file: &file, pos:  Pos::bof(), len: 2 };
+        let src  = Source::File { file: &file, pos: Pos::bof(), len: 2 };
         f(&src);
     }
 
@@ -203,6 +242,34 @@ pub mod tests {
     #[test]
     fn source_fmt_debug() {
         with_source(|s| assert_eq!(format!("{:?}", s), "f(3):1:1[0]+2"));
+    }
+
+    #[test]
+    fn source_union() {
+        let f = File { name: "f", data: "abcdefghijklmnop".into() };
+
+        let     pa = Pos::bof();
+        let mut pb = pa; pb.advance('_'); pb.advance('_'); pb.advance('_');
+
+        let sa = Source::File { file: &f, pos: pa, len: 2 };
+        let sb = Source::File { file: &f, pos: pb, len: 2 };
+        let ex = Source::File { file: &f, pos: pa, len: 5 };
+
+        assert_eq!(sa | sb, ex);
+        assert_eq!(sb | sa, ex);
+    }
+
+    #[test]
+    #[should_panic]
+    fn source_union_multiple_files() {
+        let fa = File { name: "fa", data: "ab".into() };
+        let fb = File { name: "fb", data: "ab".into() };
+        let p  = Pos::bof();
+
+        let sa = Source::File { file: &fa, pos: p, len: 2 };
+        let sb = Source::File { file: &fb, pos: p, len: 2 };
+
+        sa | sb;
     }
 
     // -------------------------------------------------------------------------
@@ -280,6 +347,15 @@ pub mod tests {
         p.advance('\n');
         p.newline();
         assert_eq!(p, Pos { byte: 1, line: 2, column: 1 });
+    }
+
+    #[test]
+    fn pos_compare() {
+        let mut a = Pos::bof(); a.advance('a');
+        let mut b = Pos::bof(); b.advance('b'); b.advance('b');
+        assert!(a  < b);
+        assert!(b  > a);
+        assert!(a == a);
     }
 
     #[test]
