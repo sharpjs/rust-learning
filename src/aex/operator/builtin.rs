@@ -34,7 +34,7 @@ const_op! { add(l, r) : tc::compat }
 
 // Temporary
 mod tc {
-    pub fn compat<T>(l: T, r: T) -> () { () }
+    pub fn compat<T>(l: T, r: T) -> Option<()> { Some(()) }
 }
 
 //op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }

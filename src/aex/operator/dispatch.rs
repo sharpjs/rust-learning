@@ -160,7 +160,40 @@ macro_rules! const_op {
         pub fn $name<'a>($($arg: Operand<'a>),+, ctx: &mut Context<'a>)
                         -> OpResult<'a> {
 
-            let ty = $check_types($(&$arg.ty),+);
+            // Type check
+            //let ty = match $check_types($(&$arg.ty),+) {
+            //    Some(ty) => ty,
+            //    None     => {
+            //        ctx.out.log.err_incompatible_types(pos);
+            //        return Err(());
+            //    }
+            //};
+
+            //// Evaluate
+            //let expr = match ($($n.expr),+,) {
+            //    ($(Expr::Int($n)),+,) => {
+            //        // Value computable now
+            //        // Compute value
+            //        let n = (self.eval_int)($($n),+);
+
+            //        // Value check
+            //        if ty.contains(&n) == Some(false) {
+            //            ctx.out.log.err_value_out_of_range(pos);
+            //            return Err(());
+            //        }
+
+            //        // Yield reduced expression
+            //        Expr::Int(n)
+            //    }
+            //    ($($n),+,) => {
+            //        // Value not computable now
+            //        // Leave computation to assembler/linker
+            //        (self.eval_expr)($($n),+)
+            //    }
+            //};
+
+            //// Cast to checked type
+            //Ok(ConstOperand { expr: expr, ty: ty })
 
             // Convert code from old code_gen/ops.rs
             Err(())
