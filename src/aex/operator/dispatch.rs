@@ -22,6 +22,7 @@ use std::fmt::{self, Debug, Formatter};
 use super::Operator;
 use aex::ast::Expr;
 use aex::context::Context;
+use aex::source::Source;
 use aex::types::Type;
 use aex::value::Value;
 
@@ -46,6 +47,12 @@ impl<'a> Operand<'a> {
             Some(v) => v.unwrap_const(),
             None    => panic!(),
         }
+    }
+
+    pub fn source(&self) -> Source<'a> {
+        Source::BuiltIn // TODO
+        //if let Some(val) = self.val {
+        //}
     }
 }
 
@@ -157,13 +164,13 @@ macro_rules! const_op {
                         -> OpResult<'a> {
 
             // Type check
-            //let ty = match $check_types($(&$arg.ty),+) {
-            //    Some(ty) => ty,
-            //    None     => {
-            //        ctx.out.log.err_incompatible_types(pos);
-            //        return Err(());
-            //    }
-            //};
+            let ty = match $check_types($(&$arg.ty),+) {
+                Some(ty) => ty,
+                None     => {
+                    ctx.out.log.err_incompatible_types($($arg.source())|+);
+                    return Err(());
+                }
+            };
 
             //// Evaluate
             //let expr = match ($($n.expr),+,) {
