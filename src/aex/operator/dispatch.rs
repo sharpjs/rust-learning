@@ -42,10 +42,10 @@ impl<'a> Operand<'a> {
         }
     }
 
-    pub fn unwrap_const(self) -> Expr<'a> {
+    pub fn as_const(&self) -> &Expr<'a> {
         match self.val {
-            Some(v) => v.unwrap_const(),
-            None    => panic!(),
+            Some(ref v) => v.as_const(),
+            None        => panic!("Non-constant operand given where constant is required."),
         }
     }
 

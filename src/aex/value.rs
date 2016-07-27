@@ -45,10 +45,10 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn unwrap_const(self) -> Expr<'a> {
-        match self {
-            Const(e) => e,
-            _        => panic!(),
+    pub fn as_const(&self) -> &Expr<'a> {
+        match *self {
+            Const(ref e) => e,
+            _            => panic!("Non-constant expression given where constant is required."),
         }
     }
 }
