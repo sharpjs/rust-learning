@@ -158,8 +158,10 @@ def_arity! { BinaryOperator(a, b) : BinaryImpl, fail_binary }
 #[macro_export]
 macro_rules! const_op {
     { $name:ident($($arg:ident),+)
-        : $check_types:path
+        : $check_types:path, $int_impl:path
     } => {
+        use aex::ast::Expr;
+
         pub fn $name<'a>($( $arg: Operand<'a> ),+, ctx: &mut Context<'a>)
                         -> OpResult<'a> {
 
@@ -178,27 +180,35 @@ macro_rules! const_op {
             };
 
             // Evaluate
-            //let expr = match ($($n.expr),+,) {
-            //    ($(Expr::Int($n)),+,) => {
-            //        // Value computable now
-            //        // Compute value
-            //        let n = (self.eval_int)($($n),+);
+            let expr = match ($( $arg.as_const() ),+,) {
+                // Integer literals
+                ($( &Expr::Int(ref $arg) ),+,) => {
+                    use num::{BigInt, Zero};
+                    use aex::ast::IntLit;
 
-            //        // Value check
-            //        if ty.contains(&n) == Some(false) {
-            //            ctx.out.log.err_value_out_of_range(pos);
-            //            return Err(());
-            //        }
+                    // Compute value
+                    let mut val = BigInt::zero();
+                    $( val = $int_impl(&val, &$arg.val); )+
 
-            //        // Yield reduced expression
-            //        Expr::Int(n)
-            //    }
+                    // Compute source position
+                    let src = $( $arg.src )|+;
+
+                    //// Value check
+                    //if ty.contains(&n) == Some(false) {
+                    //    ctx.out.log.err_value_out_of_range(pos);
+                    //    return Err(());
+                    //}
+
+                    // Yield reduced expression
+                    Expr::Int(IntLit { val: val, src: src })
+                },
             //    ($($n),+,) => {
             //        // Value not computable now
             //        // Leave computation to assembler/linker
             //        (self.eval_expr)($($n),+)
             //    }
-            //};
+                _ => {panic!()}
+            };
 
             //// Cast to checked type
             //Ok(ConstOperand { expr: expr, ty: ty })

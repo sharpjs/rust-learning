@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::ops::*;
+
 //use aex::ast::*;
 use aex::context::Context;
 //use aex::value::Value;
@@ -31,7 +33,7 @@ static ADD: BinaryOperator = BinaryOperator {
     explicit_ops: &[]
 };
 
-const_op! { add(l, r) : tc::compat }
+const_op! { add(l, r) : tc::compat, Add::add }
 
 // Temporary
 mod tc {
