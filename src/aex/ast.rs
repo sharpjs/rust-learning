@@ -20,7 +20,7 @@ use std::fmt::{self, Formatter};
 use num::BigInt;
 
 use aex::asm::AsmFlavor;
-use aex::pos::Source;
+use aex::source::Source;
 use aex::types::Type;
 use aex::util::DisplayWith;
 use aex::operator::{BinaryOperator, UnaryOperator};
