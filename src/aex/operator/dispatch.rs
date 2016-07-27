@@ -96,7 +96,7 @@ macro_rules! def_arity {
                 let op =
                     if let Some(s) = sel {
                         self.explicit_op(s)
-                    } else if true $(&& $arg.is_const())+ {
+                    } else if true $( && $arg.is_const() )+ {
                         self.const_op
                     } else {
                         self.implicit_op
@@ -158,11 +158,13 @@ def_arity! { BinaryOperator(a, b) : BinaryImpl, fail_binary }
 #[macro_export]
 macro_rules! const_op {
     { $name:ident($($arg:ident),+)
-        : $check_types:path, $int_impl:path
+        : $check_types:path, $int_impl:path, $expr_impl:path
     } => {
-        use aex::ast::Expr;
+        //use aex::ast::Expr;
 
-        pub fn $name<'a>($( $arg: Operand<'a> ),+, ctx: &mut Context<'a>)
+        pub fn $name<'a>($( $arg: Operand<'a> ),+,
+                         orig: &BinaryExpr<'a>,
+                         ctx:  &mut Context<'a>)
                         -> OpResult<'a> {
 
             // Constness check
@@ -190,9 +192,6 @@ macro_rules! const_op {
                     let mut val = BigInt::zero();
                     $( val = $int_impl(&val, &$arg.val); )+
 
-                    // Compute source position
-                    let src = $( $arg.src )|+;
-
                     //// Value check
                     //if ty.contains(&n) == Some(false) {
                     //    ctx.out.log.err_value_out_of_range(pos);
@@ -200,21 +199,19 @@ macro_rules! const_op {
                     //}
 
                     // Yield reduced expression
-                    Expr::Int(IntLit { val: val, src: src })
+                    Expr::Int(IntLit { val: val, src: orig.src })
                 },
-            //    ($($n),+,) => {
-            //        // Value not computable now
-            //        // Leave computation to assembler/linker
-            //        (self.eval_expr)($($n),+)
-            //    }
-                _ => {panic!()}
+
+                // Opaque expressions
+                ($( $arg ),+,) => {
+                    // Must make a new expression object, as evaluation might
+                    // have reduced some child nodes.
+                    $expr_impl($( $arg ),+, orig.src)
+                }
             };
 
-            //// Cast to checked type
-            //Ok(ConstOperand { expr: expr, ty: ty })
-
-            // Convert code from old code_gen/ops.rs
-            Err(())
+            // Cast to checked type
+            Ok(Operand { val: Some(Value::Const(expr)), ty: ty })
         }
     }
 }
