@@ -30,8 +30,9 @@ use aex::value::Value;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Operand<'a> {
-    pub val: Option<Value<'a>>,
-    pub ty:  TypePtr<'a>,
+    pub val:     Option<Value<'a>>,
+    pub ty:      TypePtr<'a>,
+    pub reduced: bool, // if value is the reduction of some other expression
 }
 
 impl<'a> Operand<'a> {
@@ -89,7 +90,9 @@ macro_rules! def_arity {
             // Select the appropriate implementation of the operator, and
             // invoke the implementation with the given operands and context.
             //
-            pub fn dispatch<'a>(&self, sel: Option<&str>,
+            pub fn dispatch<'a>(&self,
+                                //orig: &BinaryExpr<'a>
+                                sel: Option<&str>,
                                 $($arg: Operand<'a>),+, ctx: &mut Context<'a>)
                                -> Result<Operand<'a>, ()> {
                 // Get implementation
@@ -211,7 +214,11 @@ macro_rules! const_op {
             };
 
             // Cast to checked type
-            Ok(Operand { val: Some(Value::Const(expr)), ty: ty })
+            Ok(Operand {
+                val: Some(Value::Const(expr)),
+                ty: ty,
+                reduced: true,
+            })
         }
     }
 }
