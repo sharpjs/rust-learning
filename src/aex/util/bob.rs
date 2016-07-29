@@ -39,14 +39,14 @@ impl<'a, T> Bob<'a, T> {
     /// Returns a `Bob<T>` that borrows this instance's value.
     #[inline(always)]
     pub fn dup(&self) -> Bob<T> {
-        Borrowed(&*self)
+        Borrowed(&**self)
     }
 }
 
 impl<'a, T: ?Sized + 'a> Clone for Bob<'a, T> where T: Clone {
     #[inline]
     fn clone(&self) -> Self {
-        Owned(Box::new((**self).clone()))
+        Owned(Box::new((&**self).clone()))
     }
 }
 
@@ -69,14 +69,14 @@ impl<'a, T: ?Sized + 'a> From<&'a T> for Bob<'a, T> {
 impl<'a, T: ?Sized + 'a> AsRef<T> for Bob<'a, T> {
     #[inline(always)]
     fn as_ref(&self) -> &T {
-        &*self
+        &**self
     }
 }
 
 impl<'a, T: ?Sized + 'a> Borrow<T> for Bob<'a, T> {
     #[inline(always)]
     fn borrow(&self) -> &T {
-        &*self
+        &**self
     }
 }
 
@@ -97,12 +97,12 @@ impl<'a, T: ?Sized + 'a> Deref for Bob<'a, T> {
 impl<'a, T: ?Sized + 'a> PartialEq for Bob<'a, T> where T: PartialEq {
     #[inline(always)]
     fn eq(&self, other: &Self) -> bool {
-        **self == **other
+        &**self == &**other
     }
 
     #[inline(always)]
     fn ne(&self, other: &Self) -> bool {
-        **self != **other
+        &**self != &**other
     }
 }
 
@@ -111,41 +111,41 @@ impl<'a, T: ?Sized + 'a> Eq for Bob<'a, T> where T: Eq {}
 impl<'a, T: ?Sized + 'a> PartialOrd for Bob<'a, T> where T: PartialOrd {
     #[inline(always)]
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        (**self).partial_cmp(&**other)
+        (&**self).partial_cmp(&**other)
     }
 
     #[inline(always)]
     fn lt(&self, other: &Self) -> bool {
-        **self < **other
+        &**self < &**other
     }
 
     #[inline(always)]
     fn le(&self, other: &Self) -> bool {
-        **self <= **other
+        &**self <= &**other
     }
 
     #[inline(always)]
     fn gt(&self, other: &Self) -> bool {
-        **self > **other
+        &**self > &**other
     }
 
     #[inline(always)]
     fn ge(&self, other: &Self) -> bool {
-        **self >= **other
+        &**self >= &**other
     }
 }
 
 impl<'a, T: ?Sized + 'a> Ord for Bob<'a, T> where T: Ord {
     #[inline(always)]
     fn cmp(&self, other: &Self) -> Ordering {
-        (**self).cmp(&**other)
+        (&**self).cmp(&**other)
     }
 }
 
 impl<'a, T: ?Sized + 'a> Hash for Bob<'a, T> where T: Hash {
     #[inline(always)]
     fn hash<H: Hasher>(&self, state: &mut H) {
-        (**self).hash(state);
+        (&**self).hash(state);
     }
 }
 
