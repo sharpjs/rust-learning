@@ -178,6 +178,29 @@ impl<'a, T: ?Sized + 'a> Pointer for Bob<'a, T> {
 
 #[cfg(test)]
 mod tests {
-    // TODO
+    use super::Bob;
+    use super::Bob::*;
+
+    #[test]
+    fn from_t() {
+        let val: i32      = 42;
+        let bob: Bob<i32> = Bob::from(val);
+
+        match bob {
+            Borrowed(b)  => panic!(),
+            Owned(ref o) => assert_eq!(**o, 42),
+        }
+    }
+
+    #[test]
+    fn from_ref_t() {
+        let val: i32      = 42;
+        let bob: Bob<i32> = Bob::from(&val);
+
+        match bob {
+            Borrowed(b)  => assert_eq!(*b, val),
+            Owned(ref o) => panic!()
+        }
+    }
 }
 
