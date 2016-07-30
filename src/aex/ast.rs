@@ -23,7 +23,6 @@ use aex::asm::AsmFlavor;
 use aex::source::Source;
 use aex::types::Type;
 use aex::util::DisplayWith;
-use aex::util::bob::Bob;
 use aex::operator::{BinaryOperator, UnaryOperator};
 
 // -----------------------------------------------------------------------------
@@ -150,7 +149,7 @@ pub struct MemberExpr<'a> {
 pub struct UnaryExpr<'a> {
     pub op:   &'a UnaryOperator,
     pub sel:  Id<'a>,
-    pub expr: Bob<'a, Expr<'a>>,
+    pub expr: Box<Expr<'a>>,
     pub src:  Source<'a>,
 }
 
@@ -158,8 +157,8 @@ pub struct UnaryExpr<'a> {
 pub struct BinaryExpr<'a> {
     pub op:   &'a BinaryOperator,
     pub sel:  Id<'a>,
-    pub l:    Bob<'a, Expr<'a>>,
-    pub r:    Bob<'a, Expr<'a>>,
+    pub l:    Box<Expr<'a>>,
+    pub r:    Box<Expr<'a>>,
     pub src:  Source<'a>,
 }
 
