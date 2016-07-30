@@ -21,6 +21,7 @@ use std::ops::*;
 use aex::ast::*;
 use aex::context::Context;
 use aex::source::Source;
+use aex::util::bob::Bob;
 use aex::value::Value;
 
 use super::Operator;
@@ -34,17 +35,17 @@ static ADD: BinaryOperator = BinaryOperator {
     explicit_ops: &[]
 };
 
-const_op! { add(l, r) : tc::compat, Add::add, expr_add }
-
-fn expr_add<'a>(l: &Expr<'a>, r: &Expr<'a>, src: Source<'a>) -> Expr<'a> {
-    Expr::Binary(BinaryExpr {
-        op: &ADD,
-        sel: Id { name: "", src: Source::BuiltIn },
-        l: Box::new(l.clone()),
-        r: Box::new(r.clone()),
-        src: src
-    })
-}
+//const_op! { add(l, r) : tc::compat, Add::add, expr_add }
+//
+//fn expr_add<'a>(l: &'a Expr<'a>, r: &'a Expr<'a>, src: Source<'a>) -> Expr<'a> {
+//    Expr::Binary(BinaryExpr {
+//        op: &ADD,
+//        sel: Id { name: "", src: Source::BuiltIn },
+//        l: Bob::from(l),
+//        r: Bob::from(r),
+//        src: src
+//    })
+//}
 
 // Temporary
 mod tc {

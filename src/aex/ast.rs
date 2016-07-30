@@ -23,6 +23,7 @@ use aex::asm::AsmFlavor;
 use aex::source::Source;
 use aex::types::Type;
 use aex::util::DisplayWith;
+use aex::util::bob::Bob;
 use aex::operator::{BinaryOperator, UnaryOperator};
 
 // -----------------------------------------------------------------------------
@@ -149,7 +150,7 @@ pub struct MemberExpr<'a> {
 pub struct UnaryExpr<'a> {
     pub op:   &'a UnaryOperator,
     pub sel:  Id<'a>,
-    pub expr: Box<Expr<'a>>,
+    pub expr: Bob<'a, Expr<'a>>,
     pub src:  Source<'a>,
 }
 
@@ -157,8 +158,8 @@ pub struct UnaryExpr<'a> {
 pub struct BinaryExpr<'a> {
     pub op:   &'a BinaryOperator,
     pub sel:  Id<'a>,
-    pub l:    Box<Expr<'a>>,
-    pub r:    Box<Expr<'a>>,
+    pub l:    Bob<'a, Expr<'a>>,
+    pub r:    Bob<'a, Expr<'a>>,
     pub src:  Source<'a>,
 }
 
@@ -187,6 +188,12 @@ pub struct StrLit<'a> {
 pub struct IntLit<'a> {
     pub val: BigInt,
     pub src: Source<'a>,
+}
+
+impl<'a> Default for Id<'a> {
+    fn default() -> Self {
+        Id { name: "", src: Source::BuiltIn }
+    }
 }
 
 // -----------------------------------------------------------------------------
@@ -243,22 +250,32 @@ pub struct IntLit<'a> {
 //        _                => write!(f, "{}",    i),
 //    }
 //}
-//
+
 // -----------------------------------------------------------------------------
-//#[cfg(test)]
-//mod tests {
-//    use super::*;
-//
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use aex::source::Source::BuiltIn;
+
 //    use aex::target::tests::TestTarget;
 //    use aex::pos::tests::BOF;
-//
+
+    #[test]
+    fn id_default() {
+        assert_eq!(
+            Id::default(),
+            Id { name: "", src: BuiltIn }
+        );
+    }
+
 //    #[test]
 //    fn fmt_ident() {
 //        let expr = Expr::Ident::<TestTarget>(BOF, "a");
 //        let text = format!("{}", &expr);
 //        assert_eq!(text, "a");
 //    }
-//
+
 //    #[test]
 //    fn fmt_str() {
 //        let original = "\
@@ -280,21 +297,21 @@ pub struct IntLit<'a> {
 //        let text = format!("{}", &expr);
 //        assert_eq!(text, formatted);
 //    }
-//
+
 //    #[test]
 //    fn fmt_int_small() {
 //        let expr = Expr::Int::<TestTarget>(BOF, 7.into());
 //        let text = format!("{}", &expr);
 //        assert_eq!(text, "7");
 //    }
-//
+
 //    #[test]
 //    fn fmt_int_large() {
 //        let expr = Expr::Int::<TestTarget>(BOF, 42.into());
 //        let text = format!("{}", &expr);
 //        assert_eq!(text, "0x2A");
 //    }
-//
+
 //    //#[test]
 //    //fn fmt_add() {
 //    //    let a    = Box::new(Expr::Ident::<TestTarget>(BOF, "a"));
@@ -303,5 +320,5 @@ pub struct IntLit<'a> {
 //    //    let text = format!("{}", &expr);
 //    //    assert_eq!(text, "(a + b)");
 //    //}
-//}
+}
 
