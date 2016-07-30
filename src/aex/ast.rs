@@ -191,6 +191,7 @@ pub struct IntLit<'a> {
 }
 
 impl<'a> Default for Id<'a> {
+    #[inline]
     fn default() -> Self {
         Id { name: "", src: Source::BuiltIn }
     }
