@@ -19,14 +19,12 @@
 use std::fmt::{self, Debug, Formatter};
 
 use super::Operator;
-use aex::ast::Expr;
+//use aex::ast::Expr;
 use aex::context::Context;
-use aex::source::Source;
-use aex::types::Type;
-use aex::util::bob::Bob;
+//use aex::source::Source;
+//use aex::types::Type;
+//use aex::util::bob::Bob;
 use aex::value::*;
-
-pub type OpResult<'a> = Result<Operand<'a>, ()>;
 
 // -----------------------------------------------------------------------------
 // Arity-specific operator types
@@ -58,7 +56,7 @@ macro_rules! def_arity {
             // invoke the implementation with the given operands and context.
             //
             pub fn dispatch<'a>(&self,
-                                //orig: &BinaryExpr<'a>
+                                //ast: &BinaryExpr<'a>
                                 sel: Option<&str>,
                                 $($arg: Operand<'a>),+, ctx: &mut Context<'a>)
                                -> Result<Operand<'a>, ()> {
@@ -130,16 +128,15 @@ macro_rules! const_op {
     { $name:ident($($arg:ident),+)
         : $check_types:path, $int_impl:path, $expr_impl:path
     } => {
-        pub fn $name<'a>($( $arg: Operand<'a> ),+,
-                         orig: &'a Expr<'a>,
-                         ctx:  &mut Context<'a>)
-                        -> OpResult<'a> {
+        pub fn $name<'a>($( $arg: &    Operand <'a> ),+ ,
+                            ast:  &'a  Expr    <'a>     ,
+                            ctx:  &mut Context <'a>     )
+                        -> Result<Operand<'a>, ()> {
 
-            use ::aex::util::bob::{Bob as _Bob};
-            use std::convert::From;
+            use $crate::aex::util::bob::{Bob as _Bob};
 
             // Constness check
-            if $( !$arg.is_const() )|+ {
+            if $( !$arg.is_const() )||+ {
                 panic!("Constant operation invoked for non-constant operand.")
             }
 
@@ -156,11 +153,11 @@ macro_rules! const_op {
             let expr = match ($( $arg.as_const() ),+,) {
                 // Integer literals
                 ($( &Expr::Int(ref $arg) ),+,) => {
-                    use num::{BigInt, Zero};
-                    use aex::ast::IntLit;
+                    use num::{BigInt as _BigInt, Zero as _Zero};
+                    use $crate::aex::ast::{IntLit as _IntLit};
 
                     // Compute value
-                    let mut val = BigInt::zero();
+                    let mut val = _BigInt::zero();
                     $( val = $int_impl(&val, &$arg.val); )+
 
                     //// Value check
@@ -170,16 +167,16 @@ macro_rules! const_op {
                     //}
 
                     // Yield reduced expression
-                    Expr::Int(IntLit { val: val, src: orig.src() })
+                    Expr::Int(_IntLit { val: val, src: ast.src() })
                 },
 
-                // Opaque expressions, unreduced
+                // Opaque expressions, not reduced
                 _ if $( !$arg.reduced )&&+ => {
                     return Ok(Operand {
-                        val:     Some(Value::Const(_Bob::from(orig))),
+                        val:     Some(Value::Const(_Bob::from(ast))),
                         ty:      ty,
                         reduced: false,
-                    })
+                    });
                 },
 
                 // Opaque expressions, reduced
@@ -187,7 +184,7 @@ macro_rules! const_op {
                     // $arg: &Expr<'a>
                     // Must make a new expression object, as evaluation might
                     // have reduced some child nodes.
-                    $expr_impl($( $arg.clone() ),+, orig.src())
+                    $expr_impl($( $arg.clone() ),+, ast.src())
                 }
             };
 

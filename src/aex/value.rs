@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::borrow::Cow;
-
 use aex::ast::Expr;
 use aex::source::Source;
 use aex::target::*;
@@ -25,6 +23,14 @@ use aex::types::ResolvedType;
 use aex::util::bob::Bob;
 
 use self::Value::*;
+
+// Operand Structure Stack:
+//
+// Operand              + typed, possibly reduced
+// Value<'a>            + other target-specific values
+// Bob<'a, Expr<'a>>    + shared or owned
+// Expr<'a>             + other kinds of expression
+// FooExpr              specific attributes, source
 
 // -----------------------------------------------------------------------------
 
@@ -52,7 +58,7 @@ impl<'a> Value<'a> {
 
     pub fn as_const(&self) -> &Expr<'a> {
         match *self {
-            Const(ref e) => e,
+            Const(ref e) => &**e,
             _            => panic!("Non-constant expression given where constant is required."),
         }
     }
