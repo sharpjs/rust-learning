@@ -132,6 +132,12 @@ pub enum Expr<'a> {
     Binary  (BinaryExpr <'a>),  // x + y
 }
 
+impl<'a> Expr<'a> {
+    pub fn src(&self) -> Source<'a> {
+        Source::BuiltIn // TODO
+    }
+}
+
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DerefExpr<'a> {
     pub expr: Vec<Expr<'a>>,

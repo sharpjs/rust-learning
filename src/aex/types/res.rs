@@ -23,7 +23,6 @@ use std::collections::hash_map::Entry::*;
 use aex::ast::{Ast, Stmt, TypeDef};
 use aex::scope::{ScopeMap, TypeScope};
 use aex::types::*;
-use aex::types::form::{TypeForm, TypeInfo};
 
 // -----------------------------------------------------------------------------
 

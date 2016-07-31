@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::borrow::Cow;
 use std::fmt::{self, Debug, Formatter};
 
 use super::Operator;
@@ -24,40 +23,8 @@ use aex::ast::Expr;
 use aex::context::Context;
 use aex::source::Source;
 use aex::types::Type;
-use aex::value::Value;
-
-// -----------------------------------------------------------------------------
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Operand<'a> {
-    pub val:     Option<Value<'a>>,
-    pub ty:      TypePtr<'a>,
-    pub reduced: bool, // if value is the reduction of some other expression
-}
-
-impl<'a> Operand<'a> {
-    pub fn is_const(&self) -> bool {
-        match self.val {
-            Some(ref v) => v.is_const(),
-            None        => false,
-        }
-    }
-
-    pub fn as_const(&self) -> &Expr<'a> {
-        match self.val {
-            Some(ref v) => v.as_const(),
-            None        => panic!("Non-constant operand given where constant is required."),
-        }
-    }
-
-    pub fn source(&self) -> Source<'a> {
-        Source::BuiltIn // TODO
-        //if let Some(val) = self.val {
-        //}
-    }
-}
-
-pub type TypePtr<'a> = Cow<'a, Type<'a>>;
+use aex::util::bob::Bob;
+use aex::value::*;
 
 pub type OpResult<'a> = Result<Operand<'a>, ()>;
 
@@ -163,12 +130,13 @@ macro_rules! const_op {
     { $name:ident($($arg:ident),+)
         : $check_types:path, $int_impl:path, $expr_impl:path
     } => {
-        //use aex::ast::Expr;
-
         pub fn $name<'a>($( $arg: Operand<'a> ),+,
-                         orig: &BinaryExpr<'a>,
+                         orig: &'a Expr<'a>,
                          ctx:  &mut Context<'a>)
                         -> OpResult<'a> {
+
+            use ::aex::util::bob::{Bob as _Bob};
+            use std::convert::From;
 
             // Constness check
             if $( !$arg.is_const() )|+ {
@@ -202,21 +170,31 @@ macro_rules! const_op {
                     //}
 
                     // Yield reduced expression
-                    Expr::Int(IntLit { val: val, src: orig.src })
+                    Expr::Int(IntLit { val: val, src: orig.src() })
                 },
 
-                // Opaque expressions
+                // Opaque expressions, unreduced
+                _ if $( !$arg.reduced )&&+ => {
+                    return Ok(Operand {
+                        val:     Some(Value::Const(_Bob::from(orig))),
+                        ty:      ty,
+                        reduced: false,
+                    })
+                },
+
+                // Opaque expressions, reduced
                 ($( $arg ),+,) => {
+                    // $arg: &Expr<'a>
                     // Must make a new expression object, as evaluation might
                     // have reduced some child nodes.
-                    $expr_impl($( $arg ),+, orig.src)
+                    $expr_impl($( $arg.clone() ),+, orig.src())
                 }
             };
 
             // Cast to checked type
             Ok(Operand {
-                val: Some(Value::Const(expr)),
-                ty: ty,
+                val:     Some(Value::Const(_Bob::from(expr))),
+                ty:      ty,
                 reduced: true,
             })
         }

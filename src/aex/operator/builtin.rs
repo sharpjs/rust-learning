@@ -21,7 +21,7 @@ use std::ops::*;
 use aex::ast::*;
 use aex::context::Context;
 use aex::source::Source;
-use aex::value::Value;
+use aex::value::*;
 
 use super::Operator;
 use super::Assoc::*;
@@ -36,23 +36,23 @@ static ADD: BinaryOperator = BinaryOperator {
 
 const_op! { add(l, r) : tc::compat, Add::add, expr_add }
 
-fn expr_add<'a>(l:   &Expr<'a>,
-                r:   &Expr<'a>,
+fn expr_add<'a>(l:   Expr<'a>,
+                r:   Expr<'a>,
                 src: Source<'a>)
                -> Expr<'a> {
     Expr::Binary(BinaryExpr {
         op:  &ADD,
         sel: Id::default(),
-        l:   Box::new(l.clone()),
-        r:   Box::new(r.clone()),
+        l:   Box::new(l),
+        r:   Box::new(r),
         src: src
     })
 }
 
 // Temporary
 mod tc {
-    use super::super::dispatch::*;
-    pub fn compat<'a, T>(l: T, r: T) -> Option<TypePtr<'a>> { None }
+    use aex::types::ResolvedType;
+    pub fn compat<'a, T>(l: T, r: T) -> Option<ResolvedType<'a>> { None }
 }
 
 //op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }

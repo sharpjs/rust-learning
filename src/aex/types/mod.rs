@@ -29,9 +29,12 @@ use aex::ast::Id;
 use aex::pos::Source;
 //use aex::types::contains::Contains;
 use aex::types::float::FloatSpec;
-//use aex::types::form::TypeForm;
 use aex::types::int::IntSpec;
 //use aex::util::ref_eq;
+
+pub use self::form::TypeForm;
+pub use self::form::TypeInfo;
+pub use self::res::ResolvedType;
 
 // -----------------------------------------------------------------------------
 

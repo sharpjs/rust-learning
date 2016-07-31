@@ -16,8 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::borrow::Cow;
+
 use aex::ast::Expr;
+use aex::source::Source;
 use aex::target::*;
+use aex::types::ResolvedType;
+use aex::util::bob::Bob;
 
 use self::Value::*;
 
@@ -28,13 +33,13 @@ use self::Value::*;
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Value<'a> {
     /// Assembler constant
-    Const(Expr<'a>),
+    Const(Bob<'a, Expr<'a>>),
 
     /// ColdFire value
-    Cf(CfValue<'a>),
+    Cf(Bob<'a, CfValue<'a>>),
 
     /// Test value
-    Test(TestValue),
+    Test(Bob<'a, TestValue>),
 }
 
 impl<'a> Value<'a> {
@@ -50,6 +55,37 @@ impl<'a> Value<'a> {
             Const(ref e) => e,
             _            => panic!("Non-constant expression given where constant is required."),
         }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Operand<'a> {
+    pub val:     Option<Value<'a>>,
+    pub ty:      ResolvedType<'a>,
+    pub reduced: bool, // if value is the reduction of some other expression
+}
+
+impl<'a> Operand<'a> {
+    pub fn is_const(&self) -> bool {
+        match self.val {
+            Some(ref v) => v.is_const(),
+            None        => false,
+        }
+    }
+
+    pub fn as_const(&self) -> &Expr<'a> {
+        match self.val {
+            Some(ref v) => v.as_const(),
+            None        => panic!("Non-constant operand given where constant is required."),
+        }
+    }
+
+    pub fn source(&self) -> Source<'a> {
+        Source::BuiltIn // TODO
+        //if let Some(val) = self.val {
+        //}
     }
 }
 
