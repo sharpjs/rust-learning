@@ -130,22 +130,22 @@ macro_rules! const_op {
     { $name:ident($($arg:ident),+)
         : $check_types:path, $int_impl:path, $expr_impl:path
     } => {
-        pub fn $name<'a>($( $arg: &    Operand <'a> ),+ ,
-                            ast:  &'a  Expr    <'a>     ,
-                            ctx:  &mut Context <'a>     )
-                        -> Result<Operand<'a>, ()> {
+        pub fn $name<'a>($( $arg: &    Operand <'a> ),+   ,
+                            ast:  &'a  Expr    <'a>       ,
+                            ctx:  &mut Context <'a>       )
+                            ->    Result<Operand<'a>, ()> {
 
             use $crate::aex::util::bob::{Bob as _Bob};
 
             // Constness check
             if $( !$arg.is_const() )||+ {
-                panic!("Constant operation invoked for non-constant operand.")
+                panic!("Constant operation invoked for non-constant operand(s).");
             }
 
             // Type check
             let ty = match $check_types($( &$arg.ty ),+) {
                 Some(ty) => ty,
-                None     => {
+                None => {
                     ctx.out.log.err_incompatible_types($( $arg.source() )|+);
                     return Err(());
                 }
@@ -155,6 +155,8 @@ macro_rules! const_op {
             let expr = match ($( $arg.as_const() ),+,) {
                 // Integer literals
                 ($( &Expr::Int(ref $arg) ),+,) => {
+                    // Reduce by performing the operation.
+
                     use num::{BigInt as _BigInt, Zero as _Zero};
                     use $crate::aex::ast::{IntLit as _IntLit};
 
@@ -168,12 +170,13 @@ macro_rules! const_op {
                     //    return Err(());
                     //}
 
-                    // Yield reduced expression
+                    // Yield reduced value
                     Expr::Int(_IntLit { val: val, src: ast.src() })
                 },
 
-                // Opaque expressions, not reduced
+                // Other expressions, not reduced
                 _ if $( !$arg.reduced )&&+ => {
+                    // Just reuse the input expression.
                     return Ok(Operand {
                         val:     Some(Value::Const(_Bob::from(ast))),
                         ty:      ty,
@@ -181,11 +184,10 @@ macro_rules! const_op {
                     });
                 },
 
-                // Opaque expressions, reduced
+                // Other expressions, reduced
                 ($( $arg ),+,) => {
-                    // $arg: &Expr<'a>
-                    // Must make a new expression object, as evaluation might
-                    // have reduced some child nodes.
+                    // Must make a new expression node
+                    // to reference the reduced child node(s).
                     $expr_impl($( $arg.clone() ),+, ast.src())
                 }
             };
