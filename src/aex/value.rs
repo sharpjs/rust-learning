@@ -63,9 +63,9 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn unwrap_const(self) -> Bob<'a, Expr<'a>> {
+    pub fn to_const(self) -> Box<Expr<'a>> {
         match self {
-            Const(e) => e,
+            Const(e) => e.into_box(),
             _        => err_not_const(),
         }
     }
@@ -95,9 +95,9 @@ impl<'a> Operand<'a> {
         }
     }
 
-    pub fn unwrap_const(self) -> Bob<'a, Expr<'a>> {
+    pub fn to_const(self) -> Box<Expr<'a>> {
         match self.val {
-            Some(v) => v.unwrap_const(),
+            Some(v) => v.to_const(),
             None    => err_not_const(),
         }
     }

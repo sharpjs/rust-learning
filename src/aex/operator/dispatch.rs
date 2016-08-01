@@ -200,7 +200,7 @@ macro_rules! const_op {
             // Other expressions, reduced
             // Must make a new expression node
             // to reference the reduced child node(s).
-            let expr = $expr_impl($( $arg.val.unwrap().unwrap_const().into_box() ),+, ast.src());
+            let expr = $expr_impl($( $arg.to_const() ),+, ast.src());
             Ok(Operand {
                 val:     Some(Value::Const(_Bob::from(expr))),
                 ty:      ty,
