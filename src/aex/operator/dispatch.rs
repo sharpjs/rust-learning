@@ -130,7 +130,7 @@ macro_rules! const_op {
     { $name:ident($($arg:ident),+)
         : $check_types:path, $int_impl:path, $expr_impl:path
     } => {
-        pub fn $name<'a>($( $arg: &    Operand <'a> ),+   ,
+        pub fn $name<'a>($( $arg:      Operand <'a> ),+   ,
                             ast:  &'a  Expr    <'a>       ,
                             ctx:  &mut Context <'a>       )
                             ->    Result<Operand<'a>, ()> {
@@ -152,47 +152,55 @@ macro_rules! const_op {
             };
 
             // Evaluate
-            let expr = match ($( $arg.as_const() ),+,) {
-                // Integer literals
-                ($( &Expr::Int(ref $arg) ),+,) => {
-                    // Reduce by performing the operation.
+            {
+                let expr = match ($( $arg.as_const() ),+,) {
+                    // Integer literals
+                    ($( &Expr::Int(ref $arg) ),+,) => {
+                        // Reduce by performing the operation.
 
-                    use num::{BigInt as _BigInt, Zero as _Zero};
-                    use $crate::aex::ast::{IntLit as _IntLit};
+                        use num::{BigInt as _BigInt, Zero as _Zero};
+                        use $crate::aex::ast::{IntLit as _IntLit};
 
-                    // Compute value
-                    let mut val = _BigInt::zero();
-                    $( val = $int_impl(&val, &$arg.val); )+
+                        // Compute value
+                        let mut val = _BigInt::zero();
+                        $( val = $int_impl(&val, &$arg.val); )+
 
-                    //// Value check
-                    //if ty.contains(&n) == Some(false) {
-                    //    ctx.out.log.err_value_out_of_range(pos);
-                    //    return Err(());
-                    //}
+                        //// Value check
+                        //if ty.contains(&n) == Some(false) {
+                        //    ctx.out.log.err_value_out_of_range(pos);
+                        //    return Err(());
+                        //}
 
-                    // Yield reduced value
-                    Expr::Int(_IntLit { val: val, src: ast.src() })
-                },
+                        // Yield reduced value
+                        Some(Expr::Int(_IntLit { val: val, src: ast.src() }))
+                    },
+                    _ => None
+                };
 
-                // Other expressions, not reduced
-                _ if $( !$arg.reduced )&&+ => {
-                    // Just reuse the input expression.
+                if let Some(expr) = expr {
+                    // Cast to checked type
                     return Ok(Operand {
-                        val:     Some(Value::Const(_Bob::from(ast))),
+                        val:     Some(Value::Const(_Bob::from(expr))),
                         ty:      ty,
-                        reduced: false,
+                        reduced: true,
                     });
-                },
-
-                // Other expressions, reduced
-                ($( $arg ),+,) => {
-                    // Must make a new expression node
-                    // to reference the reduced child node(s).
-                    $expr_impl($( $arg.clone() ),+, ast.src())
                 }
-            };
+            }
 
-            // Cast to checked type
+            // Other expressions, not reduced
+            if $( !$arg.reduced )&&+ {
+                // Just reuse the input expression.
+                return Ok(Operand {
+                    val:     Some(Value::Const(_Bob::from(ast))),
+                    ty:      ty,
+                    reduced: false,
+                });
+            }
+
+            // Other expressions, reduced
+            // Must make a new expression node
+            // to reference the reduced child node(s).
+            let expr = $expr_impl($( $arg.val.unwrap().unwrap_const().into_box() ),+, ast.src());
             Ok(Operand {
                 val:     Some(Value::Const(_Bob::from(expr))),
                 ty:      ty,

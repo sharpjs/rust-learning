@@ -38,15 +38,15 @@ static ADD: BinaryOperator = BinaryOperator {
 
 const_op! { add(l, r) : tc::compat, Add::add, expr_add }
 
-fn expr_add<'a>(l:   Expr<'a>,
-                r:   Expr<'a>,
+fn expr_add<'a>(l:   Box<Expr<'a>>,
+                r:   Box<Expr<'a>>,
                 src: Source<'a>)
                -> Expr<'a> {
     Expr::Binary(BinaryExpr {
         op:  &ADD,
         sel: Id::default(),
-        l:   Box::new(l),
-        r:   Box::new(r),
+        l:   l,
+        r:   r,
         src: src
     })
 }
