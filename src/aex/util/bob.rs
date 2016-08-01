@@ -66,6 +66,15 @@ impl<'a, T: ?Sized + 'a> From<&'a T> for Bob<'a, T> {
 
 // Pointer ---------------------------------------------------------------------
 
+impl<'a, T> Bob<'a, T> where T: Clone {
+    pub fn into_box(self) -> Box<T> {
+        match self {
+            Borrowed(b) => Box::new(b.clone()),
+            Owned(o)    => o,
+        }
+    }
+}
+
 impl<'a, T: ?Sized + 'a> AsRef<T> for Bob<'a, T> {
     #[inline(always)]
     fn as_ref(&self) -> &T {
