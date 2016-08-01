@@ -19,7 +19,8 @@
 use std::fmt::{self, Debug, Formatter};
 
 use super::Operator;
-//use aex::ast::Expr;
+
+use aex::ast::Expr;
 use aex::context::Context;
 //use aex::source::Source;
 //use aex::types::Type;
@@ -56,9 +57,10 @@ macro_rules! def_arity {
             // invoke the implementation with the given operands and context.
             //
             pub fn dispatch<'a>(&self,
-                                //ast: &BinaryExpr<'a>
                                 sel: Option<&str>,
-                                $($arg: Operand<'a>),+, ctx: &mut Context<'a>)
+                                $($arg: Operand<'a>),+,
+                                ast: &Expr<'a>,
+                                ctx: &mut Context<'a>)
                                -> Result<Operand<'a>, ()> {
                 // Get implementation
                 let op =

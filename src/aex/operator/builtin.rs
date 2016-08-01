@@ -16,6 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+#![allow(unconditional_recursion)]
+
 use std::ops::*;
 
 use aex::ast::*;
@@ -53,6 +55,20 @@ fn expr_add<'a>(l:   Expr<'a>,
 mod tc {
     use aex::types::ResolvedType;
     pub fn compat<'a, T>(l: T, r: T) -> Option<ResolvedType<'a>> { None }
+}
+
+// Does eval typecheck?
+pub fn stub_eval<'a>(ast: &Expr<'a>,
+                     ctx: &mut Context<'a>)
+                     ->   Result<Operand<'a>, ()> {
+    match *ast {
+        Expr::Binary(ref b) => {
+            let l = try!(stub_eval(&b.l, ctx));
+            let r = try!(stub_eval(&b.r, ctx));
+            ADD.dispatch(None, l, r, ast, ctx)
+        }
+        _ => { Err(()) }
+    }
 }
 
 //op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
