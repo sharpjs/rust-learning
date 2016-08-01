@@ -59,7 +59,14 @@ impl<'a> Value<'a> {
     pub fn as_const(&self) -> &Expr<'a> {
         match *self {
             Const(ref e) => &**e,
-            _            => panic!("Non-constant expression given where constant is required."),
+            _            => err_not_const(),
+        }
+    }
+
+    pub fn unwrap_const(self) -> Bob<'a, Expr<'a>> {
+        match self {
+            Const(e) => e,
+            _        => err_not_const(),
         }
     }
 }
@@ -84,7 +91,14 @@ impl<'a> Operand<'a> {
     pub fn as_const(&self) -> &Expr<'a> {
         match self.val {
             Some(ref v) => v.as_const(),
-            None        => panic!("Non-constant operand given where constant is required."),
+            None        => err_not_const(),
+        }
+    }
+
+    pub fn unwrap_const(self) -> Bob<'a, Expr<'a>> {
+        match self.val {
+            Some(v) => v.unwrap_const(),
+            None    => err_not_const(),
         }
     }
 
@@ -93,5 +107,9 @@ impl<'a> Operand<'a> {
         //if let Some(val) = self.val {
         //}
     }
+}
+
+fn err_not_const() -> ! {
+    panic!("Non-constant value given where constant is required.")
 }
 
