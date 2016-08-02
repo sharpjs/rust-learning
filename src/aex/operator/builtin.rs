@@ -71,9 +71,16 @@ pub fn stub_eval<'a>(ast: &Expr<'a>,
     }
 }
 
-//op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
-//op! { adda (d, s) : ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
-//
+mod tgt {
+    use aex::ast::Expr;
+    use aex::context::Context;
+    use aex::value::Operand;
+
+    target_op! { add  (d, s) : 0,    0,  d : 0,              0,             0             }
+  //target_op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
+  //target_op! { adda (d, s) : ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
+}
+
 //static ADD: OpcodeTable = &[
 //    (32, "add.l"),
 //];

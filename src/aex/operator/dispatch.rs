@@ -127,7 +127,7 @@ def_arity! { BinaryOperator(a, b) : BinaryImpl, fail_binary }
 
 #[macro_export]
 macro_rules! const_op {
-    { $name:ident($($arg:ident),+)
+    { $name:ident ( $($arg:ident),+ )
         : $check_types:path, $int_impl:path, $expr_impl:path
     } => {
         pub fn $name<'a>($( $arg:      Operand <'a> ),+   ,
@@ -217,13 +217,17 @@ macro_rules! const_op {
 
 // -----------------------------------------------------------------------------
 
-//macro_rules! op {
-//    { $name:ident ( $($arg:ident),+ )
-//        : $opcodes:expr, $default:expr, $ret:ident
-//        : $mode_ck:expr, $type_ck:expr, $form_ck:expr
-//    } => {
-//        pub fn $name<'a>($($arg: Operand<'a>),+, ctx: Context<'a>)
-//                           -> Result<Operand<'a>, ()> {
+#[macro_export]
+macro_rules! target_op {
+    { $name:ident ( $( $arg:ident ),+ )
+        : $opcodes:expr, $default:expr, $ret:ident
+        : $mode_ck:expr, $type_ck:expr, $form_ck:expr
+    } => {
+        pub fn $name<'a>($( $arg:      Operand <'a> ),+   ,
+                            ast:  &'a  Expr    <'a>       ,
+                            ctx:  &mut Context <'a>       )
+                            ->    Result<Operand<'a>, ()> {
+
 //            // Value/mode check
 //            // - Does the target op support these values / addressing modes?
 //            if !$mode_ck($(&$arg.value),+) {
@@ -276,16 +280,19 @@ macro_rules! const_op {
 //
 //            // Cast result to checked type
 //            Ok(ret)
-//        }
-//    }
-//}
-//
-//pub type OpcodeTable = &'static [(u8, &'static str)];
-//
-//fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
-//    for &(op_width, op) in ops {
-//        if op_width == ty_width { return Some(op) }
-//    }
-//    None
-//}
+
+            // Temporary
+            Err(())
+        }
+    }
+}
+
+pub type OpcodeTable = &'static [(u8, &'static str)];
+
+fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
+    for &(op_width, op) in ops {
+        if op_width == ty_width { return Some(op) }
+    }
+    None
+}
 
