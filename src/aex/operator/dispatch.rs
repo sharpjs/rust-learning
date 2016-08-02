@@ -151,13 +151,12 @@ macro_rules! const_op {
                 }
             };
 
-            // Evaluate
-            {
-                let expr = match ($( $arg.as_const() ),+,) {
+            // Try to reduce the operation
+            let expr = {
+                match ($( $arg.as_const() ),+,) {
+
                     // Integer literals
                     ($( &Expr::Int(ref $arg) ),+,) => {
-                        // Reduce by performing the operation.
-
                         use num::{BigInt as _BigInt, Zero as _Zero};
                         use $crate::aex::ast::{IntLit as _IntLit};
 
@@ -174,37 +173,43 @@ macro_rules! const_op {
                         // Yield reduced value
                         Some(Expr::Int(_IntLit { val: val, src: ast.src() }))
                     },
-                    _ => None
-                };
 
-                if let Some(expr) = expr {
-                    // Cast to checked type
-                    return Ok(Operand {
-                        val:     Some(Value::Const(_Bob::from(expr))),
-                        ty:      ty,
-                        reduced: true,
-                    });
+                    // Not reducible
+                    _ => { None }
                 }
-            }
+            };
 
-            // Other expressions, not reduced
-            if $( !$arg.reduced )&&+ {
-                // Just reuse the input expression.
-                return Ok(Operand {
-                    val:     Some(Value::Const(_Bob::from(ast))),
-                    ty:      ty,
-                    reduced: false,
-                });
-            }
+            // Choose or build the result expression
+            let (reduced, expr) = {
+                if let Some(expr) = expr {
 
-            // Other expressions, reduced
-            // Must make a new expression node
-            // to reference the reduced child node(s).
-            let expr = $expr_impl($( $arg.to_const() ),+, ast.src());
+                    // Reducible operation
+                    //   => use expression produced above
+                    //
+                    (true, _Bob::from(expr))
+
+                } else if $( $arg.reduced )||+ {
+
+                    // Irreducible operation on reduced operand(s)
+                    //   => need new expression node to reference them
+                    //
+                    let expr = $expr_impl($( $arg.to_const() ),+, ast.src());
+                    (true, _Bob::from(expr))
+
+                } else {
+
+                    // Irreducible operation on non-reduced operand(s)
+                    //   => reuse expression from AST
+                    //
+                    (false, _Bob::from(ast))
+                }
+            };
+
+            // Lift to operand
             Ok(Operand {
-                val:     Some(Value::Const(_Bob::from(expr))),
+                val:     Some(Value::Const(expr)),
                 ty:      ty,
-                reduced: true,
+                reduced: reduced,
             })
         }
     }
