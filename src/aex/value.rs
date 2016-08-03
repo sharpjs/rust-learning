@@ -34,7 +34,47 @@ use self::Value::*;
 
 // -----------------------------------------------------------------------------
 
-/// A typed value -- the result of evaluating an expression.
+/// A typed value, the result of evaluating an expression.
+///
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Operand<'a> {
+    pub val:     Option<Value<'a>>,
+    pub ty:      ResolvedType<'a>,
+    pub reduced: bool, // if value is the reduction of some other expression
+}
+
+impl<'a> Operand<'a> {
+    pub fn is_const(&self) -> bool {
+        match self.val {
+            Some(ref v) => v.is_const(),
+            None        => false,
+        }
+    }
+
+    pub fn as_const(&self) -> &Expr<'a> {
+        match self.val {
+            Some(ref v) => v.as_const(),
+            None        => err_not_const(),
+        }
+    }
+
+    pub fn to_const(self) -> Box<Expr<'a>> {
+        match self.val {
+            Some(v) => v.to_const(),
+            None    => err_not_const(),
+        }
+    }
+
+    pub fn source(&self) -> Source<'a> {
+        Source::BuiltIn // TODO
+        //if let Some(val) = self.val {
+        //}
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+/// Sum type of all constant and target-specific value types.
 ///
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Value<'a> {
@@ -72,42 +112,6 @@ impl<'a> Value<'a> {
 }
 
 // -----------------------------------------------------------------------------
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Operand<'a> {
-    pub val:     Option<Value<'a>>,
-    pub ty:      ResolvedType<'a>,
-    pub reduced: bool, // if value is the reduction of some other expression
-}
-
-impl<'a> Operand<'a> {
-    pub fn is_const(&self) -> bool {
-        match self.val {
-            Some(ref v) => v.is_const(),
-            None        => false,
-        }
-    }
-
-    pub fn as_const(&self) -> &Expr<'a> {
-        match self.val {
-            Some(ref v) => v.as_const(),
-            None        => err_not_const(),
-        }
-    }
-
-    pub fn to_const(self) -> Box<Expr<'a>> {
-        match self.val {
-            Some(v) => v.to_const(),
-            None    => err_not_const(),
-        }
-    }
-
-    pub fn source(&self) -> Source<'a> {
-        Source::BuiltIn // TODO
-        //if let Some(val) = self.val {
-        //}
-    }
-}
 
 fn err_not_const() -> ! {
     panic!("Non-constant value given where constant is required.")
