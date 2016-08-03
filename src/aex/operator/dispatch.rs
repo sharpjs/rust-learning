@@ -228,13 +228,13 @@ macro_rules! target_op {
                             ctx:  &mut Context <'a>       )
                             ->    Result<Operand<'a>, ()> {
 
-//            // Value/mode check
-//            // - Does the target op support these values / addressing modes?
-//            if !$mode_ck($(&$arg.value),+) {
-//                ctx.out.log.err_no_op_for_addr_modes(Pos::bof("a"));
-//                return Err(())
-//            }
-//
+            // Value/mode check
+            //   - Does the op support these values / addressing modes?
+            if !$mode_ck($( &$arg.val.as_ref().unwrap() ),+) {
+                ctx.out.log.err_no_op_for_addr_modes(ast.src());
+                return Err(())
+            }
+
 //            // Get forms before we lose ownership of types
 //            let forms = ($($arg.ty.form()),+,);
 //

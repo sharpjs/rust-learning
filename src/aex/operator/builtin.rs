@@ -74,37 +74,37 @@ pub fn stub_eval<'a>(ast: &Expr<'a>,
 mod tgt {
     use aex::ast::Expr;
     use aex::context::Context;
-    use aex::value::Operand;
+    use aex::value::{Operand, Value};
 
-    target_op! { add  (d, s) : 0,    0,  d : 0,              0,             0             }
-  //target_op! { add  (d, s) : ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
-  //target_op! { adda (d, s) : ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
+    target_op! { add  (d, s) : CF_ADD,   0, d : check_values_2, 0,             0             }
+  //target_op! { add  (d, s) : CF_ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
+  //target_op! { adda (d, s) : CF_ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
+
+    //static CF_ADD: OpcodeTable = &[
+    //    (32, "add.l"),
+    //];
+
+    //static CF_ADDA: OpcodeTable = &[
+    //    (16, "adda.w"),
+    //    (32, "adda.l"),
+    //];
+
+    fn check_values_2(a: &Value, b: &Value) -> bool {
+        panic!()
+    }
+
+    //fn check_types_2<'a>(a: TypePtr<'a>, b: TypePtr<'a>) -> Option<TypePtr<'a>> {
+    //    panic!()
+    //}
+    //
+    //fn check_forms_2(a: TypeForm, b: TypeForm,
+    //                 ret: TypeForm,
+    //                 default: u8)
+    //                -> Option<u8> {
+    //    Some(default)
+    //}
 }
 
-//static ADD: OpcodeTable = &[
-//    (32, "add.l"),
-//];
-//
-//static ADDA: OpcodeTable = &[
-//    (16, "adda.w"),
-//    (32, "adda.l"),
-//];
-//
-//fn check_values_2(a: &V, b: &V) -> bool {
-//    panic!()
-//}
-//
-//fn check_types_2<'a>(a: TypePtr<'a>, b: TypePtr<'a>) -> Option<TypePtr<'a>> {
-//    panic!()
-//}
-//
-//fn check_forms_2(a: TypeForm, b: TypeForm,
-//                 ret: TypeForm,
-//                 default: u8)
-//                -> Option<u8> {
-//    Some(default)
-//}
-//
 //// -----------------------------------------------------------------------------
 //
 //pub fn def_builtin_operators<V: Const>(table: &mut OperatorTable) {
