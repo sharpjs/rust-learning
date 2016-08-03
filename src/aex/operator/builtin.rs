@@ -22,6 +22,7 @@ use std::ops::*;
 
 use aex::ast::*;
 use aex::context::Context;
+use aex::message::Messages;
 use aex::source::Source;
 use aex::value::*;
 
@@ -36,7 +37,24 @@ static ADD: BinaryOperator = BinaryOperator {
     explicit_ops: &[]
 };
 
-const_op! { add(l, r) : tc::compat, Add::add, expr_add }
+const_op! { add(l, r) : ck_const_binary, tc::compat, Add::add, expr_add }
+
+/// Checks that two operands are constant.
+///
+pub fn ck_const_binary<'a>(l:   &Operand<'a>,
+                           r:   &Operand<'a>,
+                           log: &mut Messages<'a>)
+                           ->   bool {
+    if !l.is_const() {
+        log.err_incompatible_types(l.source());
+        return false;
+    }
+    if !r.is_const() {
+        log.err_incompatible_types(r.source());
+        return false;
+    }
+    true
+}
 
 fn expr_add<'a>(l:   Box<Expr<'a>>,
                 r:   Box<Expr<'a>>,

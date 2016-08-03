@@ -127,8 +127,11 @@ def_arity! { BinaryOperator(a, b) : BinaryImpl, fail_binary }
 
 #[macro_export]
 macro_rules! const_op {
-    { $name:ident ( $($arg:ident),+ )
-        : $check_types:path, $int_impl:path, $expr_impl:path
+    { $name: ident ( $( $arg: ident ),+ )
+        : $check_const: path
+        , $check_types: path
+        , $int_impl:    path
+        , $expr_impl:   path
     } => {
         pub fn $name<'a>($( $arg:      Operand <'a> ),+   ,
                             ast:  &'a  Expr    <'a>       ,
@@ -138,8 +141,8 @@ macro_rules! const_op {
             use $crate::aex::util::bob::{Bob as _Bob};
 
             // Constness check
-            if $( !$arg.is_const() )||+ {
-                panic!("Constant operation invoked for non-constant operand(s).");
+            if !$check_const($( &$arg ),+, &mut ctx.out.log) {
+                return Err(());
             }
 
             // Type check
