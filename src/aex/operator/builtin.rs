@@ -45,7 +45,7 @@ pub fn ck_const_unary<'x>(x:   &Operand<'x>,
                           log: &mut Messages<'x>)
                           ->   bool {
     if !x.is_const() {
-        log.err_incompatible_types(x.source()); // TODO
+        log.err_not_const(x.source());
         return false;
     }
     true
@@ -58,11 +58,11 @@ pub fn ck_const_binary<'a>(l:   &Operand<'a>,
                            log: &mut Messages<'a>)
                            ->   bool {
     if !l.is_const() {
-        log.err_incompatible_types(l.source()); // TODO
+        log.err_not_const(l.source());
         return false;
     }
     if !r.is_const() {
-        log.err_incompatible_types(r.source()); // TODO
+        log.err_not_const(r.source());
         return false;
     }
     true
@@ -75,11 +75,11 @@ pub fn ck_const_cast<'a>(l:   &Operand<'a>,
                          log: &mut Messages<'a>)
                          ->   bool {
     if !l.is_const() {
-        log.err_incompatible_types(l.source()); // TODO
+        log.err_not_const(l.source());
         return false;
     }
     if !r.is_type() {
-        log.err_incompatible_types(r.source()); // TODO
+        log.err_not_type(r.source());
         return false;
     }
     true

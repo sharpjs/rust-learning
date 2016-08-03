@@ -69,6 +69,8 @@ pub enum MessageId {
     SymRedefined,
 
     // Semantic Analysis Messages
+    NotConst,
+    NotType,
     IncompatibleTypes,
     ValueOutOfRange,
     NoOpForExpression,
@@ -182,6 +184,18 @@ impl<'a> Messages<'a> {
         self.add(s, Error, SymRedefined, format!(
             "Symbol already defined: {}", name
         ));
+    }
+
+    pub fn err_not_const(&mut self, s: Source<'a>) {
+        self.add(s, Error, NotConst,
+            "Non-constant operand where a constant was expected."
+        );
+    }
+
+    pub fn err_not_type(&mut self, s: Source<'a>) {
+        self.add(s, Error, NotType,
+            "Non-type operand where a type was expected."
+        );
     }
 
     pub fn err_incompatible_types(&mut self, s: Source<'a>) {
