@@ -51,6 +51,10 @@ impl<'a> Operand<'a> {
         }
     }
 
+    pub fn is_type(&self) -> bool {
+        self.val.is_none()
+    }
+
     pub fn as_const(&self) -> &Expr<'a> {
         match self.val {
             Some(ref v) => v.as_const(),

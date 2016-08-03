@@ -39,18 +39,47 @@ static ADD: BinaryOperator = BinaryOperator {
 
 const_op! { add(l, r) : ck_const_binary, tc::compat, Add::add, expr_add }
 
-/// Checks that two operands are constant.
+/// Constness check for a binary operation on const operands.
+///
+pub fn ck_const_unary<'x>(x:   &Operand<'x>,
+                          log: &mut Messages<'x>)
+                          ->   bool {
+    if !x.is_const() {
+        log.err_incompatible_types(x.source()); // TODO
+        return false;
+    }
+    true
+}
+
+/// Constness check for a binary operation on const operands.
 ///
 pub fn ck_const_binary<'a>(l:   &Operand<'a>,
                            r:   &Operand<'a>,
                            log: &mut Messages<'a>)
                            ->   bool {
     if !l.is_const() {
-        log.err_incompatible_types(l.source());
+        log.err_incompatible_types(l.source()); // TODO
         return false;
     }
     if !r.is_const() {
-        log.err_incompatible_types(r.source());
+        log.err_incompatible_types(r.source()); // TODO
+        return false;
+    }
+    true
+}
+
+/// Constness check for a cast operation.
+///
+pub fn ck_const_cast<'a>(l:   &Operand<'a>,
+                         r:   &Operand<'a>,
+                         log: &mut Messages<'a>)
+                         ->   bool {
+    if !l.is_const() {
+        log.err_incompatible_types(l.source()); // TODO
+        return false;
+    }
+    if !r.is_type() {
+        log.err_incompatible_types(r.source()); // TODO
         return false;
     }
     true
