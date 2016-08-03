@@ -38,7 +38,7 @@ use self::Value::*;
 ///
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Operand<'a> {
-    pub val:     Option<Value<'a>>,
+    pub val:     Option<Value<'a>>, // None for a type-as-value
     pub ty:      ResolvedType<'a>,
     pub reduced: bool, // if value is the reduction of some other expression
 }
