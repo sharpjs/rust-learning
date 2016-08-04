@@ -121,7 +121,8 @@ pub fn stub_eval<'a>(ast: &Expr<'a>,
 mod tgt {
     use aex::ast::Expr;
     use aex::context::Context;
-    use aex::value::{Operand, Value};
+    use aex::message::Messages;
+    use aex::value::{Operand /*, Value*/};
 
     target_op! { add  (d, s) : CF_ADD,   0, d : check_values_2, 0,             0             }
   //target_op! { add  (d, s) : CF_ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
@@ -136,7 +137,10 @@ mod tgt {
     //    (32, "adda.l"),
     //];
 
-    fn check_values_2(a: &Value, b: &Value) -> bool {
+    fn check_values_2<'a>(l:   &Operand<'a>,
+                          r:   &Operand<'a>,
+                          log: &mut Messages<'a>)
+                         -> bool {
         panic!()
     }
 

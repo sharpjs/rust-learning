@@ -233,7 +233,7 @@ macro_rules! target_op {
 
             // Value/mode check
             //   - Does the op support these values / addressing modes?
-            if !$mode_ck($( &$arg.val.as_ref().unwrap() ),+) {
+            if !$mode_ck($( &$arg ),+, &mut ctx.out.log) {
                 ctx.out.log.err_no_op_for_addr_modes(ast.src());
                 return Err(())
             }
