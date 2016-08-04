@@ -38,35 +38,30 @@ use self::Value::*;
 ///
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Operand<'a> {
-    pub val:     Option<Value<'a>>, // None for a type-as-value
+    pub value:   Value<'a>,
     pub ty:      ResolvedType<'a>,
-    pub reduced: bool, // if value is the reduction of some other expression
+    pub reduced: bool,              // if obtained via reduction 
 }
 
 impl<'a> Operand<'a> {
+    #[inline]
     pub fn is_const(&self) -> bool {
-        match self.val {
-            Some(ref v) => v.is_const(),
-            None        => false,
-        }
+        self.value.is_const()
     }
 
+    #[inline]
     pub fn is_type(&self) -> bool {
-        self.val.is_none()
+        self.value.is_type()
     }
 
+    #[inline]
     pub fn as_const(&self) -> &Expr<'a> {
-        match self.val {
-            Some(ref v) => v.as_const(),
-            None        => err_not_const(),
-        }
+        self.value.as_const()
     }
 
+    #[inline]
     pub fn to_const(self) -> Box<Expr<'a>> {
-        match self.val {
-            Some(v) => v.to_const(),
-            None    => err_not_const(),
-        }
+        self.value.to_const()
     }
 
     pub fn source(&self) -> Source<'a> {
@@ -82,6 +77,9 @@ impl<'a> Operand<'a> {
 ///
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Value<'a> {
+    /// Type constant
+    Type, // actual type stored in containing Operand
+
     /// Assembler constant
     Const(Bob<'a, Expr<'a>>),
 
@@ -93,6 +91,12 @@ pub enum Value<'a> {
 }
 
 impl<'a> Value<'a> {
+    #[inline]
+    pub fn is_type(&self) -> bool {
+        *self == Value::Type
+    }
+
+    #[inline]
     pub fn is_const(&self) -> bool {
         match *self {
             Const(_) => true,
@@ -100,6 +104,7 @@ impl<'a> Value<'a> {
         }
     }
 
+    #[inline]
     pub fn as_const(&self) -> &Expr<'a> {
         match *self {
             Const(ref e) => &**e,
@@ -107,6 +112,7 @@ impl<'a> Value<'a> {
         }
     }
 
+    #[inline]
     pub fn to_const(self) -> Box<Expr<'a>> {
         match self {
             Const(e) => e.into_box(),

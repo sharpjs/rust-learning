@@ -210,7 +210,7 @@ macro_rules! const_op {
 
             // Lift to operand
             Ok(Operand {
-                val:     Some(Value::Const(expr)),
+                value:   Value::Const(expr),
                 ty:      ty,
                 reduced: reduced,
             })
