@@ -233,66 +233,67 @@ macro_rules! target_op {
 
             // Value/mode check
             //   - Does the op support these values / addressing modes?
-            if !$mode_ck($( &$arg ),+, &mut ctx.out.log) {
+            if !$mode_ck($( &$arg ),+) {
                 ctx.out.log.err_no_op_for_addr_modes(ast.src());
                 return Err(())
             }
 
-//            // Get forms before we lose ownership of types
-//            let forms = ($($arg.ty.form()),+,);
-//
-//            // Type check
-//            // - Does the target op take operands of these types?
-//            // - What type should the result be?
-//            let ty = match $type_ck($($arg.ty),+) {
-//                Some(ty) => ty,
-//                None => {
-//                    ctx.out.log.err_incompatible_types(Pos::bof("a"));
-//                    return Err(())
-//                }
-//            };
-//
-//            // Pre-assemble result
-//            let ret = Operand { value: $ret.value, ty: ty, source: $ret.source };
-//
-//            // Unpack forms saved earlier
-//            let ($($arg),+,) = forms;
-//
-//            // Form check
-//            // - Does the target op take operands of these storage widths?
-//            // - What is the width of the opcode that should be used?
-//            let width = match $form_ck($($arg),+, ret.ty.form(), $default) {
-//                Some(w) => w,
-//                None => {
-//                    ctx.out.log.err_no_op_for_operand_types(Pos::bof("a"));
-//                    return Err(())
-//                }
-//            };
-//
-//            // Opcode lookup
-//            let op = match select_opcode(width, $opcodes) {
-//                Some(op) => op,
-//                None     => {
-//                    ctx.out.log.err_no_op_for_operand_sizes(Pos::bof("a"));
-//                    return Err(())
-//                }
-//            };
-//
-//            //// Emit
-//            //ctx.out.asm.$write(op, $(&$n),+);
-//
-//            // Cast result to checked type
-//            Ok(ret)
+            // Get type infos before we lose ownership of types
+            let forms = ($( $arg.ty.info.form ),+,);
 
-            // Temporary
-            Err(())
+            // Type check
+            // - Does the target op take operands of these types?
+            // - What type should the result be?
+            let ty = match $type_ck($( $arg.ty ),+) {
+                Some(ty) => ty,
+                None => {
+                    ctx.out.log.err_incompatible_types(ast.src());
+                    return Err(())
+                }
+            };
+
+            // Pre-assemble result
+            let ret = Operand {
+                value:   $ret.value,
+                ty:      ty,
+                reduced: $ret.reduced,
+            };
+
+            // Unpack forms saved earlier
+            let ($( $arg ),+,) = forms;
+
+            // Form check
+            // - Does the target op take operands of these storage widths?
+            // - What is the width of the opcode that should be used?
+            let width = match $form_ck($($arg),+, ret.ty.info.form, $default) {
+                Some(w) => w,
+                None => {
+                    ctx.out.log.err_no_op_for_operand_types(ast.src());
+                    return Err(())
+                }
+            };
+
+            // Opcode lookup
+            let op = match $crate::aex::operator::dispatch::select_opcode(width, $opcodes) {
+                Some(op) => op,
+                None     => {
+                    ctx.out.log.err_no_op_for_operand_sizes(ast.src());
+                    return Err(())
+                }
+            };
+
+            //// Emit
+            //ctx.out.asm.$write(op, $(&$n),+);
+
+            // Cast result to checked type
+            Ok(ret)
         }
     }
 }
 
 pub type OpcodeTable = &'static [(u8, &'static str)];
 
-fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
+pub fn select_opcode(ty_width: u8, ops: OpcodeTable) -> Option<&'static str> {
     for &(op_width, op) in ops {
         if op_width == ty_width { return Some(op) }
     }
