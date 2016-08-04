@@ -127,8 +127,7 @@ mod tgt {
     use aex::value::Operand;
 
     target_op! { add  (d, s) : CF_ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
-  //target_op! { add  (d, s) : CF_ADD,  32, d : check_values_2, check_types_2, check_forms_2 }
-  //target_op! { adda (d, s) : CF_ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
+    target_op! { adda (d, s) : CF_ADDA, 32, d : check_values_2, check_types_2, check_forms_2 }
 
     static CF_ADD: OpcodeTable = &[
         (32, "add.l"),
