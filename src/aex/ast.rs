@@ -119,17 +119,17 @@ pub struct Cond<'a> {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expr<'a> {
     // Atomic
-    Id      (Id         <'a>),  // x
-    Str     (StrLit     <'a>),  // "hello"
-    Int     (IntLit     <'a>),  // 42
+    Id      (Id         <'a>),  // identifier
+    Str     (StrLit     <'a>),  // string literal
+    Int     (IntLit     <'a>),  // number literal
 
     // Atomic-ish?
     Deref   (DerefExpr  <'a>),  // [a0, 8, d0*4]
     Member  (MemberExpr <'a>),  // x.y
 
     // Composite
-    Unary   (UnaryExpr  <'a>),  // ~x
-    Binary  (BinaryExpr <'a>),  // x + y
+    Unary   (UnaryExpr  <'a>),  // 1-ary operation
+    Binary  (BinaryExpr <'a>),  // 2-ary operation
 }
 
 impl<'a> Expr<'a> {
