@@ -97,9 +97,9 @@ mod tests {
     use super::*;
 
     // Prefixes guarantee that rustc will emit two separate "Hello" strings.
-    static A: str = *"A Hello";
-    static B: str = *"B Hello";
-    static C: str = *"C olleH";
+    const A: &'static str = &"A Hello";
+    const B: &'static str = &"B Hello";
+    const C: &'static str = &"C olleH";
 
     #[test]
     fn intern() {

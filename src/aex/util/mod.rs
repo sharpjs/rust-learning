@@ -92,13 +92,13 @@ macro_rules! hash_map {
 mod tests {
     use super::*;
 
-    static X: str = *"xax";
-    static Y: str = *"yay";
+    const X: &'static str = "xax";
+    const Y: &'static str = "yay";
 
     #[test]
     fn ref_eq_true() {
-        let x = &X;
-        let y =  x;
+        let x = X;
+        let y = x;
         assert_eq!(ref_eq(x, y), true);
     }
 
