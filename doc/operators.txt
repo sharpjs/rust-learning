@@ -57,7 +57,7 @@ a.b         <-  dereference structure member
 +           <-  add
 -           <-  subtract
 ----------  --  ----------------------------------------
-<<          <-  shift left
+<<          <-  shift  left
 >>          <-  shift  right
 <<|         <-  rotate left
 |>>         <-  rotate right
