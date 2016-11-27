@@ -35,7 +35,6 @@ Operator    As  Description
 ----------  --  ----------------------------------------
 a++         <-  post-increment
 a--         <-  post-decrement
-a?          <-  test
 a(b, c)     <-  invoke function
 a[b]        <-  dereference array element
 a.b         <-  dereference structure member
@@ -69,7 +68,8 @@ a.b         <-  dereference structure member
 ----------  --  ----------------------------------------
 |           <-  bitwise or
 ----------  --  ----------------------------------------
-<>              compare
+<>          <-  compare
+a?          <-  test
 ----------  --  ----------------------------------------
 =>              yields
 ==              is equal to
