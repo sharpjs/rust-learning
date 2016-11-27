@@ -23,7 +23,6 @@ use aex::asm::AsmFlavor;
 use aex::source::Source;
 use aex::types::Type;
 use aex::util::DisplayWith;
-use aex::operator::{BinaryOperator, UnaryOperator};
 
 // -----------------------------------------------------------------------------
 // Statements
@@ -118,16 +117,62 @@ pub struct Cond<'a> {
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Expr<'a> {
-    // Atomic
+    // CORE OPERATORS
+    // 12: Atomic
     Id      (Id         <'a>),  // identifier
     Str     (StrLit     <'a>),  // string literal
     Int     (IntLit     <'a>),  // number literal
+    // 11: Postfix
+    PostInc (UnaryExpr  <'a>),  // v++      post-increment
+    PostDec (UnaryExpr  <'a>),  // v--      post-decrement
+    Call    ,
+    Elem    (BinaryExpr <'a>),  // x[y]
+    Member  (BinaryExpr <'a>),  // x.y
+    // 10: Prefix
+    PreInc  (UnaryExpr  <'a>),
+    PreDec  (UnaryExpr  <'a>),
+    Ref     (UnaryExpr  <'a>),  // &v
+    Deref   (UnaryExpr  <'a>),  // *v
+    Clr     (UnaryExpr  <'a>),  // !v
+    Not     (UnaryExpr  <'a>),  // ~v
+    Neg     (UnaryExpr  <'a>),  // -v
+    // 9: Cast/Convert
+    Cast    (CastExpr   <'a>),  // v :  t
+    Conv    (CastExpr   <'a>),  // v :> t
+    // 8: Multiplicative
+    Mul     (BinaryExpr <'a>),  // v * v
+    Div     (BinaryExpr <'a>),  // v / v
+    Mod     (BinaryExpr <'a>),  // v % v
+    // 7: Additive
+    Add     (BinaryExpr <'a>),  // v + v
+    Sub     (BinaryExpr <'a>),  // v - v
+    // 6: Shift/Rotate
+    Shl     (BinaryExpr <'a>),  // v << v   shift left
+    Shr     (BinaryExpr <'a>),  // v >> v   shift right
+    Rol     (BinaryExpr <'a>),  // v <<| v  rotate left
+    Ror     (BinaryExpr <'a>),  // v |>> v  rotate right
+    Rcl     (BinaryExpr <'a>),  // v <<+ v  rotate left through carry
+    Rcr     (BinaryExpr <'a>),  // v +>> v  rotate right through carry
+    // 5: And
+    And     (BinaryExpr <'a>),  // v & v    bitwise and
+    // 4: Xor
+    Xor     (BinaryExpr <'a>),  // v ^ v    bitwise xor
+    // 3: And
+    Or      (BinaryExpr <'a>),  // v | v    bitwise or
+    // 2: Compare
+    Cmp     (BinaryExpr <'a>),  // v <> v   compare
+    Test    (UnaryExpr  <'a>),  // v?       test
+    // 1: Conditional
+    Eq      (BinaryExpr <'a>),  // v == v   equal
+    Ne      (BinaryExpr <'a>),  // v != v   not equal
+    Lt      (BinaryExpr <'a>),  // v <  v   less than
+    Le      (BinaryExpr <'a>),  // v <= v   less than or equal
+    Gt      (BinaryExpr <'a>),  // v >  v   greater than
+    Ge      (BinaryExpr <'a>),  // v >= v   greater than or equal
+    // 0: Assignment
+    Assign  (BinaryExpr <'a>),  // v = v    assign
 
-    // Atomic-ish?
-    Deref   (DerefExpr  <'a>),  // [a0, 8, d0*4]
-    Member  (MemberExpr <'a>),  // x.y
-
-    // Composite
+    // Other
     Unary   (UnaryExpr  <'a>),  // 1-ary operation
     Binary  (BinaryExpr <'a>),  // 2-ary operation
 }
@@ -139,33 +184,32 @@ impl<'a> Expr<'a> {
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
-pub struct DerefExpr<'a> {
-    pub expr: Vec<Expr<'a>>,
-    pub src:  Source<'a>,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct MemberExpr<'a> {
-    pub expr: Box<Expr<'a>>,
-    pub id:   Id<'a>,
-    pub src:  Source<'a>,
-}
-
-#[derive(Clone, PartialEq, Eq, Debug)]
 pub struct UnaryExpr<'a> {
-    pub op:   &'a UnaryOperator,
-    pub sel:  Id<'a>,
-    pub expr: Box<Expr<'a>>,
-    pub src:  Source<'a>,
+    pub expr: Box<Expr<'a>>,    // value
+    pub sel:  Id<'a>,           // operation selector
+    pub src:  Source<'a>,       // source location
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct BinaryExpr<'a> {
-    pub op:   &'a BinaryOperator,
-    pub sel:  Id<'a>,
-    pub l:    Box<Expr<'a>>,
-    pub r:    Box<Expr<'a>>,
-    pub src:  Source<'a>,
+    pub lhs:  Box<Expr<'a>>,    // left value
+    pub rhs:  Box<Expr<'a>>,    // right value
+    pub sel:  Id<'a>,           // operation selector
+    pub src:  Source<'a>,       // source location
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct CastExpr<'a> {
+    pub expr: Box<Expr<'a>>,    // value
+    pub ty:   Type<'a>,         // type
+    pub src:  Source<'a>,       // source location
+}
+
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct CallExpr<'a> {
+    pub func: Box<Expr<'a>>,    // function
+    pub args: Vec<Expr<'a>>,    // arguments
+    pub src:  Source<'a>,       // source location
 }
 
 impl<'a> DisplayWith<AsmFlavor> for Expr<'a> {

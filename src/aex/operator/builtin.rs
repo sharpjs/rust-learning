@@ -85,15 +85,15 @@ pub fn ck_const_cast<'a>(l:   &Operand<'a>,
     true
 }
 
-fn expr_add<'a>(l:   Box<Expr<'a>>,
-                r:   Box<Expr<'a>>,
+fn expr_add<'a>(lhs: Box<Expr<'a>>,
+                rhs: Box<Expr<'a>>,
                 src: Source<'a>)
                -> Expr<'a> {
     Expr::Binary(BinaryExpr {
-        op:  &ADD,
+      //op:  &ADD,
         sel: Id::default(),
-        l:   l,
-        r:   r,
+        lhs: lhs,
+        rhs: rhs,
         src: src
     })
 }
@@ -110,8 +110,8 @@ pub fn stub_eval<'a>(ast: &Expr<'a>,
                      ->   Result<Operand<'a>, ()> {
     match *ast {
         Expr::Binary(ref b) => {
-            let l = try!(stub_eval(&b.l, ctx));
-            let r = try!(stub_eval(&b.r, ctx));
+            let l = try!(stub_eval(&b.lhs, ctx));
+            let r = try!(stub_eval(&b.rhs, ctx));
             ADD.dispatch(None, l, r, ast, ctx)
         }
         _ => { Err(()) }
