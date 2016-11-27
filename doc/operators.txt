@@ -58,9 +58,11 @@ a.b         <-  dereference structure member
 -           <-  subtract
 ----------  --  ----------------------------------------
 <<          <-  shift left
->>          <-  shift ->
-<<%         <-  rotate left
-%>>         <-  rotate ->
+>>          <-  shift  right
+<<|         <-  rotate left
+|>>         <-  rotate right
+<<+         <-  rotate left  through carry 
++>>         <-  rotate right through carry 
 ----------  --  ----------------------------------------
 &           <-  bitwise and
 ----------  --  ----------------------------------------
