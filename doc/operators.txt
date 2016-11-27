@@ -36,7 +36,6 @@ Operator    As  Description
 a++         <-  post-increment
 a--         <-  post-decrement
 a?          <-  test
-a: t        <-  cast
 a(b, c)     <-  invoke function
 a[b]        <-  dereference array element
 a.b         <-  dereference structure member
@@ -48,6 +47,9 @@ a.b         <-  dereference structure member
 !a          ->  clear
 ~a          ->  bitwise    negate (1's complement)
 -a          ->  arithmetic negate (2's complement)
+----------  --  ----------------------------------------
+:           <-  cast
+:>          <-  convert
 ----------  --  ----------------------------------------
 *           <-  multiply
 /           <-  divide
