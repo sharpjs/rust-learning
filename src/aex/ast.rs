@@ -119,68 +119,63 @@ pub struct Cond<'a> {
 pub enum Expr<'a> {
     // CORE OPERATORS
     // 12: Atomic
-    Id      (Id         <'a>),  // identifier
-    Str     (StrLit     <'a>),  // string literal
-    Int     (IntLit     <'a>),  // number literal
+    Id          (Id         <'a>),  // identifier
+    Str         (StrLit     <'a>),  // string literal
+    Int         (IntLit     <'a>),  // number literal
     // 11: Postfix
-    PostInc (UnaryExpr  <'a>),  // v++      post-increment
-    PostDec (UnaryExpr  <'a>),  // v--      post-decrement
-    Call    ,
-    Elem    (BinaryExpr <'a>),  // x[y]
-    Member  (BinaryExpr <'a>),  // x.y
+    PostInc     (UnaryExpr  <'a>),  // x++      post-increment
+    PostDec     (UnaryExpr  <'a>),  // x--      post-decrement
+    Call        (CallExpr   <'a>),  // f(x,y)   function call
+    Element     (BinaryExpr <'a>),  // x[y]     element (offset?)
+    Member      (BinaryExpr <'a>),  // x.y      member  (offset?)
     // 10: Prefix
-    PreInc  (UnaryExpr  <'a>),
-    PreDec  (UnaryExpr  <'a>),
-    Ref     (UnaryExpr  <'a>),  // &v
-    Deref   (UnaryExpr  <'a>),  // *v
-    Clr     (UnaryExpr  <'a>),  // !v
-    Not     (UnaryExpr  <'a>),  // ~v
-    Neg     (UnaryExpr  <'a>),  // -v
-    // 9: Cast/Convert
-    Cast    (CastExpr   <'a>),  // v :  t
-    Conv    (CastExpr   <'a>),  // v :> t
+    PreInc      (UnaryExpr  <'a>),  // ++x      pre-increment
+    PreDec      (UnaryExpr  <'a>),  // --x      pre-decrement
+    Ref         (UnaryExpr  <'a>),  // &x       address-of
+    Deref       (UnaryExpr  <'a>),  // *x       dereference
+    Clear       (UnaryExpr  <'a>),  // !x       clear
+    Not         (UnaryExpr  <'a>),  // ~x       bitwise not
+    Negate      (UnaryExpr  <'a>),  // -x       arithmetic negate
+    // 9: Type-Changing
+    Cast        (CastExpr   <'a>),  // x:  t    type cast
+    Convert     (CastExpr   <'a>),  // x:> t    type conversion
     // 8: Multiplicative
-    Mul     (BinaryExpr <'a>),  // v * v
-    Div     (BinaryExpr <'a>),  // v / v
-    Mod     (BinaryExpr <'a>),  // v % v
+    Multiply    (BinaryExpr <'a>),  // x * y    multiply
+    Divide      (BinaryExpr <'a>),  // x / y    divide
+    Modulo      (BinaryExpr <'a>),  // x % y    modulo
     // 7: Additive
-    Add     (BinaryExpr <'a>),  // v + v
-    Sub     (BinaryExpr <'a>),  // v - v
-    // 6: Shift/Rotate
-    Shl     (BinaryExpr <'a>),  // v << v   shift left
-    Shr     (BinaryExpr <'a>),  // v >> v   shift right
-    Rol     (BinaryExpr <'a>),  // v <<| v  rotate left
-    Ror     (BinaryExpr <'a>),  // v |>> v  rotate right
-    Rcl     (BinaryExpr <'a>),  // v <<+ v  rotate left through carry
-    Rcr     (BinaryExpr <'a>),  // v +>> v  rotate right through carry
+    Add         (BinaryExpr <'a>),  // x + y    add
+    Subtract    (BinaryExpr <'a>),  // x - y    subtract
+    // 6: Shift
+    ShiftL      (BinaryExpr <'a>),  // x <<  y  shift  left
+    ShiftR      (BinaryExpr <'a>),  // x >>  y  shift  right
+    RotateL     (BinaryExpr <'a>),  // x <<| y  rotate left
+    RotateR     (BinaryExpr <'a>),  // x |>> y  rotate right
+    RotateCL    (BinaryExpr <'a>),  // x <<+ y  rotate left  through carry
+    RotateCR    (BinaryExpr <'a>),  // x +>> y  rotate right through carry
     // 5: And
-    And     (BinaryExpr <'a>),  // v & v    bitwise and
+    And         (BinaryExpr <'a>),  // x & y    bitwise and
     // 4: Xor
-    Xor     (BinaryExpr <'a>),  // v ^ v    bitwise xor
-    // 3: And
-    Or      (BinaryExpr <'a>),  // v | v    bitwise or
-    // 2: Compare
-    Cmp     (BinaryExpr <'a>),  // v <> v   compare
-    Test    (UnaryExpr  <'a>),  // v?       test
+    Xor         (BinaryExpr <'a>),  // x ^ y    bitwise xor
+    // 3: Or
+    Or          (BinaryExpr <'a>),  // x | y    bitwise or
+    // 2: Comparison
+    Compare     (BinaryExpr <'a>),  // x <> y   compare
+    Test        (UnaryExpr  <'a>),  // x?       test (compare with zero)
     // 1: Conditional
-    Eq      (BinaryExpr <'a>),  // v == v   equal
-    Ne      (BinaryExpr <'a>),  // v != v   not equal
-    Lt      (BinaryExpr <'a>),  // v <  v   less than
-    Le      (BinaryExpr <'a>),  // v <= v   less than or equal
-    Gt      (BinaryExpr <'a>),  // v >  v   greater than
-    Ge      (BinaryExpr <'a>),  // v >= v   greater than or equal
+    Equal       (BinaryExpr <'a>),  // x == y   equal
+    NotEqual    (BinaryExpr <'a>),  // x != y   not equal
+    Less        (BinaryExpr <'a>),  // x <  y   less than
+    LessEqual   (BinaryExpr <'a>),  // x <= y   less than or equal
+    More        (BinaryExpr <'a>),  // x >  y   more than
+    MoreEqual   (BinaryExpr <'a>),  // x >= y   more than or equal
+  //Yields      (YieldsExpr <'a>),  // x => c   yields-condition
     // 0: Assignment
-    Assign  (BinaryExpr <'a>),  // v = v    assign
+    Assign      (BinaryExpr <'a>),  // x = y    assignment
 
-    // Other
-    Unary   (UnaryExpr  <'a>),  // 1-ary operation
-    Binary  (BinaryExpr <'a>),  // 2-ary operation
-}
-
-impl<'a> Expr<'a> {
-    pub fn src(&self) -> Source<'a> {
-        Source::BuiltIn // TODO
-    }
+    // Obsolete
+    Unary       (UnaryExpr  <'a>),  // GET RID OF THIS
+    Binary      (BinaryExpr <'a>),  // GET RID OF THIS
 }
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -203,7 +198,7 @@ pub struct CastExpr<'a> {
     pub expr: Box<Expr<'a>>,    // value
     pub ty:   Type<'a>,         // type
     pub src:  Source<'a>,       // source location
-}
+} 
 
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct CallExpr<'a> {
@@ -247,6 +242,12 @@ impl<'a> Default for Id<'a> {
 }
 
 // -----------------------------------------------------------------------------
+
+impl<'a> Expr<'a> {
+    pub fn src(&self) -> Source<'a> {
+        Source::BuiltIn // TODO
+    }
+}
 
 //impl<T: Target> Display for Expr<T> {
 //    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
