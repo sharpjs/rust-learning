@@ -21,12 +21,12 @@
 
 extern crate num;
 
-mod aex;
+pub mod aex;
 
 //use std::io::{self, Read};
 //use aex::Compiler;
 
-fn main() {
+pub fn main() {
 //    let mut input = String::new();
 //
 //    match io::stdin().read_to_string(&mut input) {
