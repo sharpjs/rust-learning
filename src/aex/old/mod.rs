@@ -1,4 +1,4 @@
-// AEx Root Module
+// Aex Root Module
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,30 +16,30 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//#[macro_use]
-//mod util;
+#[macro_use]
+mod util;
 
 //mod analyze;  // probably obsolete
-//mod asm;
-//mod ast;
-//mod compiler;
-//mod context;
-//mod cg;
-//mod lexer;
-//mod mem;
-//mod message;
-//mod operator;
-//mod output;
-//mod pos;
+mod asm;
+mod ast;
+mod compiler;
+mod context;
+mod cg;
+mod lexer;
+mod mem;
+mod message;
+mod operator;
+mod output;
+mod pos;
 //mod parser;   // TODO
-//mod scope;
-//mod source;
-//mod symbol;
-//mod target;
-//mod token;
-//mod types;
-//mod value;
+mod scope;
+mod source;
+mod symbol;
+mod target;
+mod token;
+mod types;
+mod value;
 
-//pub use aex::compiler::Compiler;
-//pub use aex::target::*;
+pub use aex::compiler::Compiler;
+pub use aex::target::*;
 
