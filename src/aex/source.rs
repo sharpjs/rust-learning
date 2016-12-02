@@ -175,6 +175,7 @@ fn fail_read(name: &str, error: io::Error) -> ! {
 }
 
 // -----------------------------------------------------------------------------
+// Pos
 
 /// Represents a textual position within a source file.
 ///
@@ -239,6 +240,7 @@ impl<'a> Debug for Pos {
 }
 
 // -----------------------------------------------------------------------------
+// Tests
 
 #[cfg(test)]
 pub mod tests {
@@ -246,6 +248,7 @@ pub mod tests {
     use std::io::Cursor;
 
     // -------------------------------------------------------------------------
+    // Source
 
     fn with_source<F: Fn(&Source)>(f: F) {
         let file = File { name: "f", data: "abc".into() };
@@ -297,6 +300,7 @@ pub mod tests {
     }
 
     // -------------------------------------------------------------------------
+    // File
 
     fn with_file<F: Fn(&File)>(f: F) {
         let file = File { name: "f", data: "abc".into() };
@@ -349,6 +353,7 @@ pub mod tests {
     }
 
     // -------------------------------------------------------------------------
+    // Pos
 
     #[test]
     fn pos_bof() {
