@@ -22,8 +22,9 @@ use num::{BigInt, Zero, One};
 
 #[derive(Clone, Copy, Hash, Eq, PartialEq, Debug)]
 pub struct IntSpec {
-    pub value_width: u8,    // count of value bits
-    pub store_width: u8,    // count of value + padding bits
+    pub store_width: u8,    // count of stored bits (== valued + ignored)
+    pub value_width: u8,    // count of valued bits (<= stored)
+    pub value_shift: u8,    // left shift of valued bits within stored bits
     pub signed:      bool,  // whether signed or unsigned
 }
 
@@ -65,11 +66,11 @@ mod tests {
     use super::IntSpec;
 
     static U8: IntSpec = IntSpec {
-        value_width: 8, store_width: 16, signed: false
+        store_width: 16, value_width: 8, value_shift: 0, signed: false
     };
 
     static I8: IntSpec = IntSpec {
-        value_width: 8, store_width: 16, signed: true
+        store_width: 16, value_width: 8, value_shift: 0, signed: true
     };
 
     #[test]
