@@ -14,7 +14,7 @@
 // the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with AEx.  If not, see <http://www.gnu.org/licenses/>.
+// along with AEx.  If not, see <http://www.gnu.org/licenses/>.  
 
 use num::{BigInt, Zero, One};
 
@@ -24,7 +24,7 @@ use num::{BigInt, Zero, One};
 pub struct IntSpec {
     pub store_width: u8,    // count of stored bits (== valued + ignored)
     pub value_width: u8,    // count of valued bits (<= stored)
-    pub value_shift: u8,    // left shift of valued bits within stored bits
+    pub value_scale: u8,    // distance of value lsb from storage lsb
     pub signed:      bool,  // whether signed or unsigned
 }
 
@@ -43,6 +43,26 @@ impl IntSpec {
         } else {
             bit(self.value_width    ) - BigInt::one()
         }
+    }
+
+    pub fn encode(self, value: &BigInt) -> Result<u64, ()> {
+        use num::ToPrimitive;
+
+        if self.contains(value) != Some(true) { return Err(()) }
+
+        let mut v;
+        if self.signed {
+            v = value.to_i64().unwrap() as u64;
+            v &= 1u64
+                .checked_shl(self.value_width as u32).unwrap_or(0)
+                .wrapping_sub(1);
+        } else {
+            v = value.to_u64().unwrap();
+        }
+
+        v = v.checked_shl(self.value_scale as u32).unwrap_or(0);
+
+        Ok(v)
     }
 }
 
@@ -66,12 +86,12 @@ mod tests {
     use super::IntSpec;
 
     static U8: IntSpec = IntSpec {
-        store_width: 16, value_width: 8, value_shift: 0, signed: false
+        store_width: 16, value_width: 8, value_scale: 3, signed: false
     };
 
     static I8: IntSpec = IntSpec {
-        store_width: 16, value_width: 8, value_shift: 0, signed: true
-    };
+        store_width: 16, value_width: 8, value_scale: 3, signed: true
+    }; 
 
     #[test]
     fn min_value() {
@@ -90,6 +110,21 @@ mod tests {
         assert_eq!( super::bit(0), BigInt::from(1 << 0) );
         assert_eq!( super::bit(1), BigInt::from(1 << 1) );
         assert_eq!( super::bit(7), BigInt::from(1 << 7) );
+    }
+
+    #[test]
+    fn encode() {
+        let v = BigInt::from(0x93);
+        assert_eq!( U8.encode(&v), Ok(0x498) );
+        // 0b_0000_0000_1001_0011 = 0x0093 input
+        // 0b_0000_0100_1001_1000 = 0x0498 shifted by value scale
+
+        let v = BigInt::from(-7);
+        assert_eq!( I8.encode(&v), Ok(0x7C8) );
+        // 0b_0000_0000_0000_0111 =     -7 input
+        // 0b_1111_1111_1111_1001 = 0xFFF9 coerced to unsigned
+        // 0b_0000_0000_1111_1001 = 0x00F9 masked  by value width
+        // 0b_0000_0111_1100_1000 = 0x07C0 shifted by value scale
     }
 }
 
