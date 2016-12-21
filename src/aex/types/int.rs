@@ -114,11 +114,16 @@ mod tests {
 
     #[test]
     fn encode() {
+    #[test]
+    fn encode_unsigned() {
         let v = BigInt::from(0x93);
         assert_eq!( U8.encode(&v), Ok(0x498) );
         // 0b_0000_0000_1001_0011 = 0x0093 input
         // 0b_0000_0100_1001_1000 = 0x0498 shifted by value scale
+    }
 
+    #[test]
+    fn encode_signed() {
         let v = BigInt::from(-7);
         assert_eq!( I8.encode(&v), Ok(0x7C8) );
         // 0b_0000_0000_0000_0111 =     -7 input
