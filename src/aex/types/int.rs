@@ -133,7 +133,7 @@ mod tests {
         // 0b_0000_0000_0000_0111 =     -7 input
         // 0b_1111_1111_1111_1001 = 0xFFF9 coerced to unsigned
         // 0b_0000_0000_1111_1001 = 0x00F9 masked  by value width
-        // 0b_0000_0111_1100_1000 = 0x07C0 shifted by value scale
+        // 0b_0000_0111_1100_1000 = 0x07C8 shifted by value scale
     }
 }
 
