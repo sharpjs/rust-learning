@@ -113,7 +113,11 @@ mod tests {
     }
 
     #[test]
-    fn encode() {
+    fn encode_overflow() {
+        let v = BigInt::from(0x100);
+        assert_eq!( U8.encode(&v), Err(()) );
+    }
+
     #[test]
     fn encode_unsigned() {
         let v = BigInt::from(0x93);
