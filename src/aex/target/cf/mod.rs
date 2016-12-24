@@ -18,6 +18,7 @@
 
 mod addr_reg;
 mod data_reg;
+mod value;
 
 pub use self::addr_reg::*;
 pub use self::data_reg::*;
