@@ -60,8 +60,6 @@ impl<'a> Display for Asm<'a, DataReg> {
     }
 }
 
-//derive_display!(DataReg);
-
 #[cfg(test)]
 mod tests {
     use super::*;
