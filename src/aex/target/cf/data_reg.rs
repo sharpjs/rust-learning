@@ -16,6 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt::{self, Display, Formatter};
+use aex::asm::Asm;
+
 pub use self::DataReg::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -49,16 +52,20 @@ impl DataReg {
     }
 }
 
-//impl DisplayWith<CfFlavor> for DataReg {
-//    #[inline]
-//    fn fmt(&self, f: &mut Formatter, c: &CfFlavor) -> fmt::Result {
-//        (c.base.fmt_reg)(f, self.name())
-//    }
-//}
+impl<'a> Display for Asm<'a, DataReg> {
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        f.write_str(self.1.reg_prefix)?;
+        f.write_str(self.0.name())
+    }
+}
+
+//derive_display!(DataReg);
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aex::asm::*;
 
     #[test]
     fn with_num() {
@@ -73,6 +80,11 @@ mod tests {
     #[test]
     fn name() {
         assert_eq!( D5.name(), "d5" );
+    }
+
+    #[test]
+    fn display() {
+        assert_eq!( format!("{0}", Asm(D3, &GAS_STYLE)), "%d3" );
     }
 }
 
