@@ -1,4 +1,4 @@
-// Root Module
+// Assembly Style
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,11 +16,21 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//#[macro_use]
-//mod util;
+pub struct Asm<'a, T> (pub T, pub &'a AsmStyle);
 
-pub mod asm;
-pub mod source;
-pub mod target;
-pub mod types;
+#[derive(Clone)]
+pub struct AsmStyle {
+    pub reg_prefix: &'static str,
+    pub imm_prefix: &'static str,
+}
+
+pub static MY_STYLE: AsmStyle = AsmStyle {
+    reg_prefix: "",
+    imm_prefix: "",
+};
+
+pub static GAS_STYLE: AsmStyle = AsmStyle {
+    reg_prefix: "%",
+    imm_prefix: "#",
+};
 
