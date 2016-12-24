@@ -37,17 +37,17 @@ static DATA_REG_NAMES: [&'static str; 8] = [
 
 impl DataReg {
     #[inline]
-    fn with_num(n: u8) -> Self {
+    pub fn with_num(n: u8) -> Self {
         DATA_REGS[n as usize]
     }
 
     #[inline]
-    fn num(self) -> u8 {
+    pub fn num(self) -> u8 {
         self as u8
     }
 
     #[inline]
-    fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         DATA_REG_NAMES[self as usize]
     }
 }

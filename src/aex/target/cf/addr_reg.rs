@@ -40,17 +40,17 @@ pub const A7: AddrReg = SP;
 
 impl AddrReg {
     #[inline]
-    fn with_num(n: u8) -> Self {
+    pub fn with_num(n: u8) -> Self {
         ADDR_REGS[n as usize]
     }
 
     #[inline]
-    fn num(self) -> u8 {
+    pub fn num(self) -> u8 {
         self as u8
     }
 
     #[inline]
-    fn name(self) -> &'static str {
+    pub fn name(self) -> &'static str {
         ADDR_REG_NAMES[self as usize]
     }
 }
