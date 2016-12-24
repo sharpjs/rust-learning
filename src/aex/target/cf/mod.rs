@@ -1,4 +1,4 @@
-// Root Module
+// ColdFire Target
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,10 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//#[macro_use]
-//mod util;
+mod data_reg;
 
-pub mod source;
-pub mod target;
-pub mod types;
+pub use self::data_reg::*;
 
