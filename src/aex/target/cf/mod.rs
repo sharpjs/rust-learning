@@ -16,7 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+mod addr_reg;
 mod data_reg;
 
+pub use self::addr_reg::*;
 pub use self::data_reg::*;
 
