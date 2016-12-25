@@ -16,21 +16,83 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt::{self, Display, Formatter};
+
 pub struct Asm<'a, T> (pub T, pub &'a AsmStyle);
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AsmStyle {
-    pub reg_prefix: &'static str,
-    pub imm_prefix: &'static str,
+    pub arg_spaces:     bool,
+    pub reg_prefix:     &'static str,
+    pub imm_prefix:     &'static str,
+
+    pub ind_style:      IndStyle,
+    pub ind_open:       &'static str,
+    pub ind_close:      &'static str,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum IndStyle {
+    Math,   // [base + index*scale + disp]
+    Comma,  // (disp, base, index.size*scale)
+    Moto,   // disp(base, index.size*scale)
+    Mit,    // base@(disp, index:size:scale)
 }
 
 pub static MY_STYLE: AsmStyle = AsmStyle {
-    reg_prefix: "",
-    imm_prefix: "",
+    arg_spaces:     true,
+    reg_prefix:     "",
+    imm_prefix:     "",
+    ind_style:      IndStyle::Math,
+    ind_open:       "[",
+    ind_close:      "]",
 };
 
 pub static GAS_STYLE: AsmStyle = AsmStyle {
-    reg_prefix: "%",
-    imm_prefix: "#",
+    arg_spaces:     true,
+    reg_prefix:     "%",
+    imm_prefix:     "#",
+    ind_style:      IndStyle::Moto,
+    ind_open:       "(",
+    ind_close:      ")",
 };
+
+impl AsmStyle {
+    pub fn write_base_disp<B: Display, D: Display>
+                          (&self, f: &mut Formatter, b: &B, d: &D)
+                          -> fmt::Result {
+        match self.ind_style {
+            IndStyle::Math => write!(
+                f, "{open}{base}{sp}+{sp}{disp}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                sp    = if self.arg_spaces {" "} else {""},
+                base  = b,
+                disp  = d
+            ),
+            IndStyle::Comma => write!(
+                f, "{open}{base},{sp}{disp}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                sp    = if self.arg_spaces {" "} else {""},
+                base  = b,
+                disp  = d
+            ),
+            IndStyle::Moto => write!(
+                f, "{disp}{open}{base}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                base  = b,
+                disp  = d
+            ),
+            IndStyle::Mit => write!(
+                f, "{base}@{open}{disp}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                base  = b,
+                disp  = d
+            ),
+        }
+    }
+}
 
