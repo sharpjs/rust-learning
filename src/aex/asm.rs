@@ -96,3 +96,10 @@ impl AsmStyle {
     }
 }
 
+#[cfg(test)]
+pub fn assert_display<'a, T>(v: T, s: &'a AsmStyle, a: &str)
+    where Asm<'a, T>: Display {
+
+    assert_eq!(format!("{0}", Asm(v, s)), a);
+}
+

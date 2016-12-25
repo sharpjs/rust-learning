@@ -109,9 +109,5 @@ mod tests {
         let value = Value::AddrIndInc(FP);
         assert_display(value, &GAS_STYLE, "(%fp)+");
     }
-
-    fn assert_display(v: Value, s: &AsmStyle, a: &str) {
-        assert_eq!(format!("{0}", Asm(v, s)), a);
-    }
 }
 

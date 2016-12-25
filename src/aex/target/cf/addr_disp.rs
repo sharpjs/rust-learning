@@ -47,7 +47,7 @@ mod tests {
     fn display() {
         let d = 42; // TODO
         let x = AddrDisp { base: A5, disp: Expr(&d) };
-        assert_eq!( format!("{0}", Asm(&x, &GAS_STYLE)), "42(%a5)" );
+        assert_display(&x, &GAS_STYLE, "42(%a5)");
     }
 }
 
