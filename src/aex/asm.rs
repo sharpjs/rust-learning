@@ -112,7 +112,7 @@ impl AsmStyle {
         }
     }
 
-    pub fn write_base_disp<B: AsmDisplay, D: Display>
+    pub fn write_base_disp<B: AsmDisplay, D: AsmDisplay>
                           (&self, f: &mut Formatter, base: &B, disp: &D)
                           -> fmt::Result {
         match self.ind_style {
@@ -122,7 +122,7 @@ impl AsmStyle {
                 close = self.ind_close,
                 sp    = if self.arg_spaces {" "} else {""},
                 base  = Asm(base, self),
-                disp  = disp
+                disp  = Asm(disp, self)
             ),
             IndirectStyle::Comma => write!(
                 f, "{open}{base},{sp}{disp}{close}",
@@ -130,21 +130,21 @@ impl AsmStyle {
                 close = self.ind_close,
                 sp    = if self.arg_spaces {" "} else {""},
                 base  = Asm(base, self),
-                disp  = disp
+                disp  = Asm(disp, self)
             ),
             IndirectStyle::Moto => write!(
                 f, "{disp}{open}{base}{close}",
                 open  = self.ind_open,
                 close = self.ind_close,
                 base  = Asm(base, self),
-                disp  = disp
+                disp  = Asm(disp, self)
             ),
             IndirectStyle::Mit => write!(
                 f, "{base}@{open}{disp}{close}",
                 open  = self.ind_open,
                 close = self.ind_close,
                 base  = Asm(base, self),
-                disp  = disp
+                disp  = Asm(disp, self)
             ),
         }
     }
