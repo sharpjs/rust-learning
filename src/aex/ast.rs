@@ -16,6 +16,17 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::fmt::{self, Formatter};
+use aex::asm::{AsmDisplay, AsmStyle};
+
+// Just a stub for now.
+
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Expr<'a> (pub &'a u32);
+
+impl<'a> AsmDisplay for Expr<'a> {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
