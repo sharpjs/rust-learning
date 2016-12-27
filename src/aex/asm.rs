@@ -30,7 +30,8 @@ impl<'a, T> Display for Asm<'a, T> where T: AsmDisplay {
     }
 }
 
-pub struct Asm<'a, T> (pub T, pub &'a AsmStyle);
+#[derive(Clone, Copy, Debug)]
+pub struct Asm<'a, T: 'a> (pub &'a T, pub &'a AsmStyle);
 
 #[derive(Clone, Debug)]
 pub struct AsmStyle {
@@ -115,8 +116,8 @@ impl AsmStyle {
 }
 
 #[cfg(test)]
-pub fn assert_display<'a, T>(v: T, s: &'a AsmStyle, a: &str)
-    where Asm<'a, T>: Display {
+pub fn assert_display<T>(v: &T, s: &AsmStyle, a: &str)
+    where T: AsmDisplay {
 
     assert_eq!(format!("{0}", Asm(v, s)), a);
 }

@@ -84,7 +84,7 @@ mod tests {
 
     #[test]
     fn display() {
-        assert_eq!( format!("{0}", Asm(A3, &GAS_STYLE)), "%a3" );
+        assert_eq!( format!("{0}", Asm(&A3, &GAS_STYLE)), "%a3" );
     }
 }
 

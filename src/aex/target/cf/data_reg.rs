@@ -81,7 +81,7 @@ mod tests {
 
     #[test]
     fn display() {
-        assert_eq!( format!("{0}", Asm(D3, &GAS_STYLE)), "%d3" );
+        assert_eq!( format!("{0}", Asm(&D3, &GAS_STYLE)), "%d3" );
     }
 }
 

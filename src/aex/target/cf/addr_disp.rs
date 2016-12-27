@@ -27,10 +27,10 @@ pub struct AddrDisp<'a> {
     pub disp: Expr<'a>
 }
 
-impl<'a> AsmDisplay for &'a AddrDisp<'a> {
+impl<'a> AsmDisplay for AddrDisp<'a> {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
-        let base = Asm(self.base, s);
-        let disp =    *self.disp.0;   //Asm(&me.disp, s); // TODO
+        let base = Asm(&self.base, s);
+        let disp = *self.disp.0;          // TODO: Asm(&self.disp, s);
         s.write_base_disp(f, &base, &disp)
     }
 }

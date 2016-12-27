@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 
-use aex::asm::Asm;
+use aex::asm::{Asm, AsmDisplay, AsmStyle};
 
 use super::addr_reg::AddrReg;
 use super::data_reg::DataReg;
@@ -39,15 +39,14 @@ pub enum Value /*<'a>*/ {
   //Imm         (Expr<'a>),         // Immediate
 }
 
-impl<'a> Display for Asm<'a, Value> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Asm(ref v, s) = *self;
-        match *v {
-            Value::Data        (    r) => Asm(r, s).fmt(f),
-            Value::Addr        (    r) => Asm(r, s).fmt(f),
-            Value::AddrInd     (    r) => fmt_ind     (Asm(r, s), f),
-            Value::AddrIndDec  (    r) => fmt_ind_dec (Asm(r, s), f),
-            Value::AddrIndInc  (    r) => fmt_ind_inc (Asm(r, s), f),
+impl AsmDisplay for Value {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+        match *self {
+            Value::Data        (ref r) => Asm(r, s).fmt(f),
+            Value::Addr        (ref r) => Asm(r, s).fmt(f),
+            Value::AddrInd     (ref r) => fmt_ind     (Asm(r, s), f),
+            Value::AddrIndDec  (ref r) => fmt_ind_dec (Asm(r, s), f),
+            Value::AddrIndInc  (ref r) => fmt_ind_inc (Asm(r, s), f),
           //Value::AddrDisp    (ref x) => Asm(r, s).fmt(f),
           //Value::AddrDispIdx (ref x) => Asm(r, s).fmt(f),
           //Value::PcDisp      (ref x) => Asm(r, s).fmt(f),
@@ -83,31 +82,31 @@ mod tests {
     #[test]
     fn display_data_reg() {
         let value  = Value::Data(D3);
-        assert_display(value, &GAS_STYLE, "%d3");
+        assert_display(&value, &GAS_STYLE, "%d3");
     }
 
     #[test]
     fn display_addr_reg() {
         let value  = Value::Addr(FP);
-        assert_display(value, &GAS_STYLE, "%fp");
+        assert_display(&value, &GAS_STYLE, "%fp");
     }
 
     #[test]
     fn display_addr_reg_ind() {
         let value = Value::AddrInd(FP);
-        assert_display(value, &GAS_STYLE, "(%fp)");
+        assert_display(&value, &GAS_STYLE, "(%fp)");
     }
 
     #[test]
     fn display_addr_reg_ind_dec() {
         let value = Value::AddrIndDec(FP);
-        assert_display(value, &GAS_STYLE, "-(%fp)");
+        assert_display(&value, &GAS_STYLE, "-(%fp)");
     }
 
     #[test]
     fn display_addr_reg_ind_inc() {
         let value = Value::AddrIndInc(FP);
-        assert_display(value, &GAS_STYLE, "(%fp)+");
+        assert_display(&value, &GAS_STYLE, "(%fp)+");
     }
 }
 
