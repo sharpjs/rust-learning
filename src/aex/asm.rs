@@ -49,7 +49,7 @@ pub struct AsmStyle {
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum IndirectStyle {
-    Math,   // [base + index*scale + disp]
+    Intel,  // [base + index*scale + disp]
     Comma,  // (disp, base, index.size*scale)
     Moto,   // disp(base, index.size*scale)
     Mit,    // base@(disp, index:size:scale)
@@ -59,7 +59,7 @@ pub static MY_STYLE: AsmStyle = AsmStyle {
     arg_spaces:     true,
     reg_prefix:     "",
     imm_prefix:     "",
-    ind_style:      IndirectStyle::Math,
+    ind_style:      IndirectStyle::Intel,
     ind_open:       "[",
     ind_close:      "]",
 };
@@ -83,7 +83,7 @@ impl AsmStyle {
                     (&self, f: &mut Formatter, reg: &R)
                     -> fmt::Result {
         match self.ind_style {
-            IndirectStyle::Math  => write!(f, "[{}]", Asm(reg, self)),
+            IndirectStyle::Intel => write!(f, "[{}]", Asm(reg, self)),
             IndirectStyle::Comma => write!(f, "({})", Asm(reg, self)),
             IndirectStyle::Moto  => write!(f, "({})", Asm(reg, self)),
             IndirectStyle::Mit   => write!(f, "{}@",  Asm(reg, self)),
@@ -94,7 +94,7 @@ impl AsmStyle {
                             (&self, f: &mut Formatter, reg: &R)
                             -> fmt::Result {
         match self.ind_style {
-            IndirectStyle::Math  => write!(f, "[{}++]", Asm(reg, self)),
+            IndirectStyle::Intel => write!(f, "[{}++]", Asm(reg, self)),
             IndirectStyle::Comma => write!(f, "({})+",  Asm(reg, self)),
             IndirectStyle::Moto  => write!(f, "({})+",  Asm(reg, self)),
             IndirectStyle::Mit   => write!(f, "{}@+",   Asm(reg, self)),
@@ -105,7 +105,7 @@ impl AsmStyle {
                            (&self, f: &mut Formatter, reg: &R)
                            -> fmt::Result {
         match self.ind_style {
-            IndirectStyle::Math  => write!(f, "[--{}]", Asm(reg, self)),
+            IndirectStyle::Intel => write!(f, "[--{}]", Asm(reg, self)),
             IndirectStyle::Comma => write!(f, "-({})",  Asm(reg, self)),
             IndirectStyle::Moto  => write!(f, "-({})",  Asm(reg, self)),
             IndirectStyle::Mit   => write!(f, "{}@-",   Asm(reg, self)),
@@ -116,7 +116,7 @@ impl AsmStyle {
                           (&self, f: &mut Formatter, base: &B, disp: &D)
                           -> fmt::Result {
         match self.ind_style {
-            IndirectStyle::Math => write!(
+            IndirectStyle::Intel => write!(
                 f, "{open}{base}{sp}+{sp}{disp}{close}",
                 open  = self.ind_open,
                 close = self.ind_close,
