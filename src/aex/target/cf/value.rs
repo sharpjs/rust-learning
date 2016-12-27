@@ -16,10 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Formatter};
-
-use aex::asm::{Asm, AsmDisplay, AsmStyle};
-
+use std::fmt::{self, Formatter};
+use aex::asm::{AsmDisplay, AsmStyle};
 use super::addr_reg::AddrReg;
 use super::data_reg::DataReg;
 
@@ -42,11 +40,11 @@ pub enum Value /*<'a>*/ {
 impl AsmDisplay for Value {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         match *self {
-            Value::Data        (ref r) => Asm(r, s).fmt(f),
-            Value::Addr        (ref r) => Asm(r, s).fmt(f),
-            Value::AddrInd     (ref r) => fmt_ind     (Asm(r, s), f),
-            Value::AddrIndDec  (ref r) => fmt_ind_dec (Asm(r, s), f),
-            Value::AddrIndInc  (ref r) => fmt_ind_inc (Asm(r, s), f),
+            Value::Data        (ref r) => r.fmt(f, s),
+            Value::Addr        (ref r) => r.fmt(f, s),
+            Value::AddrInd     (ref r) => s.write_ind(f, r),
+            Value::AddrIndDec  (ref r) => s.write_ind_predec(f, r),
+            Value::AddrIndInc  (ref r) => s.write_ind_postinc(f, r),
           //Value::AddrDisp    (ref x) => Asm(r, s).fmt(f),
           //Value::AddrDispIdx (ref x) => Asm(r, s).fmt(f),
           //Value::PcDisp      (ref x) => Asm(r, s).fmt(f),
@@ -56,21 +54,6 @@ impl AsmDisplay for Value {
           //Value::Imm         (ref e) => Asm(r, s).fmt(f),
         }
     }
-}
-
-#[inline]
-fn fmt_ind(r: Asm<AddrReg>, f: &mut Formatter) -> fmt::Result {
-    write!(f, "({})", r)
-}
-
-#[inline]
-fn fmt_ind_dec(r: Asm<AddrReg>, f: &mut Formatter) -> fmt::Result {
-    write!(f, "-({})", r)
-}
-
-#[inline]
-fn fmt_ind_inc(r: Asm<AddrReg>, f: &mut Formatter) -> fmt::Result {
-    write!(f, "({})+", r)
 }
 
 #[cfg(test)]

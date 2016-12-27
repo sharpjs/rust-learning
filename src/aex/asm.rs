@@ -23,15 +23,18 @@ pub trait AsmDisplay {
 }
 
 impl<'a, T> Display for Asm<'a, T> where T: AsmDisplay {
-    #[inline(always)]
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Asm(ref value, style) = *self;
+        let Asm(value, style) = *self;
         value.fmt(f, style)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct Asm<'a, T: 'a> (pub &'a T, pub &'a AsmStyle);
+pub struct Asm<'a, T: 'a>(
+    pub &'a T,
+    pub &'a AsmStyle
+);
 
 #[derive(Clone, Debug)]
 pub struct AsmStyle {
@@ -39,13 +42,13 @@ pub struct AsmStyle {
     pub reg_prefix:     &'static str,
     pub imm_prefix:     &'static str,
 
-    pub ind_style:      IndStyle,
+    pub ind_style:      IndirectStyle,
     pub ind_open:       &'static str,
     pub ind_close:      &'static str,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum IndStyle {
+pub enum IndirectStyle {
     Math,   // [base + index*scale + disp]
     Comma,  // (disp, base, index.size*scale)
     Moto,   // disp(base, index.size*scale)
@@ -56,7 +59,7 @@ pub static MY_STYLE: AsmStyle = AsmStyle {
     arg_spaces:     true,
     reg_prefix:     "",
     imm_prefix:     "",
-    ind_style:      IndStyle::Math,
+    ind_style:      IndirectStyle::Math,
     ind_open:       "[",
     ind_close:      "]",
 };
@@ -65,60 +68,90 @@ pub static GAS_STYLE: AsmStyle = AsmStyle {
     arg_spaces:     true,
     reg_prefix:     "%",
     imm_prefix:     "#",
-    ind_style:      IndStyle::Moto,
+    ind_style:      IndirectStyle::Moto,
     ind_open:       "(",
     ind_close:      ")",
 };
 
 impl AsmStyle {
-    pub fn write_reg(&self, f: &mut Formatter, r: &str)
-                    -> fmt::Result {
+    pub fn write_reg(&self, f: &mut Formatter, reg: &str) -> fmt::Result {
         f.write_str(self.reg_prefix)?;
-        f.write_str(r)
+        f.write_str(reg)
     }
 
-    pub fn write_base_disp<B: Display, D: Display>
-                          (&self, f: &mut Formatter, b: &B, d: &D)
+    pub fn write_ind<R: AsmDisplay>
+                    (&self, f: &mut Formatter, reg: &R)
+                    -> fmt::Result {
+        match self.ind_style {
+            IndirectStyle::Math  => write!(f, "[{}]", Asm(reg, self)),
+            IndirectStyle::Comma => write!(f, "({})", Asm(reg, self)),
+            IndirectStyle::Moto  => write!(f, "({})", Asm(reg, self)),
+            IndirectStyle::Mit   => write!(f, "{}@",  Asm(reg, self)),
+        }
+    }
+
+    pub fn write_ind_postinc<R: AsmDisplay>
+                            (&self, f: &mut Formatter, reg: &R)
+                            -> fmt::Result {
+        match self.ind_style {
+            IndirectStyle::Math  => write!(f, "[{}++]", Asm(reg, self)),
+            IndirectStyle::Comma => write!(f, "({})+",  Asm(reg, self)),
+            IndirectStyle::Moto  => write!(f, "({})+",  Asm(reg, self)),
+            IndirectStyle::Mit   => write!(f, "{}@+",   Asm(reg, self)),
+        }
+    }
+
+    pub fn write_ind_predec<R: AsmDisplay>
+                           (&self, f: &mut Formatter, reg: &R)
+                           -> fmt::Result {
+        match self.ind_style {
+            IndirectStyle::Math  => write!(f, "[--{}]", Asm(reg, self)),
+            IndirectStyle::Comma => write!(f, "-({})",  Asm(reg, self)),
+            IndirectStyle::Moto  => write!(f, "-({})",  Asm(reg, self)),
+            IndirectStyle::Mit   => write!(f, "{}@-",   Asm(reg, self)),
+        }
+    }
+
+    pub fn write_base_disp<B: AsmDisplay, D: Display>
+                          (&self, f: &mut Formatter, base: &B, disp: &D)
                           -> fmt::Result {
         match self.ind_style {
-            IndStyle::Math => write!(
+            IndirectStyle::Math => write!(
                 f, "{open}{base}{sp}+{sp}{disp}{close}",
                 open  = self.ind_open,
                 close = self.ind_close,
                 sp    = if self.arg_spaces {" "} else {""},
-                base  = b,
-                disp  = d
+                base  = Asm(base, self),
+                disp  = disp
             ),
-            IndStyle::Comma => write!(
+            IndirectStyle::Comma => write!(
                 f, "{open}{base},{sp}{disp}{close}",
                 open  = self.ind_open,
                 close = self.ind_close,
                 sp    = if self.arg_spaces {" "} else {""},
-                base  = b,
-                disp  = d
+                base  = Asm(base, self),
+                disp  = disp
             ),
-            IndStyle::Moto => write!(
+            IndirectStyle::Moto => write!(
                 f, "{disp}{open}{base}{close}",
                 open  = self.ind_open,
                 close = self.ind_close,
-                base  = b,
-                disp  = d
+                base  = Asm(base, self),
+                disp  = disp
             ),
-            IndStyle::Mit => write!(
+            IndirectStyle::Mit => write!(
                 f, "{base}@{open}{disp}{close}",
                 open  = self.ind_open,
                 close = self.ind_close,
-                base  = b,
-                disp  = d
+                base  = Asm(base, self),
+                disp  = disp
             ),
         }
     }
 }
 
 #[cfg(test)]
-pub fn assert_display<T>(v: &T, s: &AsmStyle, a: &str)
-    where T: AsmDisplay {
-
-    assert_eq!(format!("{0}", Asm(v, s)), a);
+pub fn assert_display<T: AsmDisplay>(v: &T, s: &AsmStyle, asm: &str) {
+    assert_eq!(format!("{0}", Asm(v, s)), asm);
 }
 
