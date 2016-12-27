@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Formatter};
-use aex::asm::Asm;
+use std::fmt::{self, Formatter};
+use aex::asm::{AsmDisplay, AsmStyle};
 
 pub use self::DataReg::*;
 
@@ -52,11 +52,10 @@ impl DataReg {
     }
 }
 
-impl<'a> Display for Asm<'a, DataReg> {
+impl AsmDisplay for DataReg {
     #[inline]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.write_str(self.1.reg_prefix)?;
-        f.write_str(self.0.name())
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+        s.write_reg(f, self.name())
     }
 }
 

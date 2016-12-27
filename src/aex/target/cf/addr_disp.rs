@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Formatter};
-use aex::asm::Asm;
+use std::fmt::{self, Formatter};
+use aex::asm::{Asm, AsmDisplay, AsmStyle};
 use aex::ast::Expr;
 use super::AddrReg;
 
@@ -27,11 +27,10 @@ pub struct AddrDisp<'a> {
     pub disp: Expr<'a>
 }
 
-impl<'a> Display for Asm<'a, &'a AddrDisp<'a>> {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Asm(ref me, s) = *self;
-        let base = Asm(me.base, s);
-        let disp =    *me.disp.0;   //Asm(&me.disp, s); // TODO
+impl<'a> AsmDisplay for &'a AddrDisp<'a> {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+        let base = Asm(self.base, s);
+        let disp =    *self.disp.0;   //Asm(&me.disp, s); // TODO
         s.write_base_disp(f, &base, &disp)
     }
 }

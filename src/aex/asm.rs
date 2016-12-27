@@ -18,6 +18,18 @@
 
 use std::fmt::{self, Display, Formatter};
 
+pub trait AsmDisplay {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result;
+}
+
+impl<'a, T> Display for Asm<'a, T> where T: AsmDisplay {
+    #[inline(always)]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let Asm(ref value, style) = *self;
+        value.fmt(f, style)
+    }
+}
+
 pub struct Asm<'a, T> (pub T, pub &'a AsmStyle);
 
 #[derive(Clone, Debug)]
@@ -58,6 +70,12 @@ pub static GAS_STYLE: AsmStyle = AsmStyle {
 };
 
 impl AsmStyle {
+    pub fn write_reg(&self, f: &mut Formatter, r: &str)
+                    -> fmt::Result {
+        f.write_str(self.reg_prefix)?;
+        f.write_str(r)
+    }
+
     pub fn write_base_disp<B: Display, D: Display>
                           (&self, f: &mut Formatter, b: &B, d: &D)
                           -> fmt::Result {
