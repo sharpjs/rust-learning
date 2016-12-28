@@ -56,6 +56,24 @@ impl AsmDisplay for Value {
     }
 }
 
+impl Value {
+    pub fn decode(word: u16, pos: u8) -> Option<Self> {
+        use super::*;
+
+        let reg  = (word >> pos     & 7) as u8;
+        let mode = (word >> pos + 3 & 7) as u8;
+
+        match mode {
+            0 => Some(Value::Data       (DataReg::with_num(reg))),
+            1 => Some(Value::Addr       (AddrReg::with_num(reg))),
+            2 => Some(Value::AddrInd    (AddrReg::with_num(reg))),
+            3 => Some(Value::AddrIndInc (AddrReg::with_num(reg))),
+            4 => Some(Value::AddrIndDec (AddrReg::with_num(reg))),
+            _ => None
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -90,6 +108,36 @@ mod tests {
     fn display_addr_reg_ind_inc() {
         let value = Value::AddrIndInc(FP);
         assert_display(&value, &GAS_STYLE, "(%fp)+");
+    }
+
+    #[test]
+    fn decode_data() {
+        let value = Value::decode(0b0000_0000_0110_0000, 5);
+        assert_eq!(value, Some(Value::Data(D3)));
+    }
+
+    #[test]
+    fn decode_addr() {
+        let value = Value::decode(0b0000_0001_1100_0000, 5);
+        assert_eq!(value, Some(Value::Addr(FP)));
+    }
+
+    #[test]
+    fn decode_addr_ind() {
+        let value = Value::decode(0b0000_0010_1100_0000, 5);
+        assert_eq!(value, Some(Value::AddrInd(FP)));
+    }
+
+    #[test]
+    fn decode_addr_ind_inc() {
+        let value = Value::decode(0b0000_0011_1100_0000, 5);
+        assert_eq!(value, Some(Value::AddrIndInc(FP)));
+    }
+
+    #[test]
+    fn decode_addr_ind_dec() {
+        let value = Value::decode(0b0000_0100_1100_0000, 5);
+        assert_eq!(value, Some(Value::AddrIndDec(FP)));
     }
 }
 
