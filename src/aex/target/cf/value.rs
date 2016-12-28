@@ -43,8 +43,8 @@ impl AsmDisplay for Value {
             Value::Data        (ref r) => r.fmt(f, s),
             Value::Addr        (ref r) => r.fmt(f, s),
             Value::AddrInd     (ref r) => s.write_ind(f, r),
-            Value::AddrIndDec  (ref r) => s.write_ind_predec(f, r),
             Value::AddrIndInc  (ref r) => s.write_ind_postinc(f, r),
+            Value::AddrIndDec  (ref r) => s.write_ind_predec(f, r),
           //Value::AddrDisp    (ref x) => Asm(r, s).fmt(f),
           //Value::AddrDispIdx (ref x) => Asm(r, s).fmt(f),
           //Value::PcDisp      (ref x) => Asm(r, s).fmt(f),
@@ -58,8 +58,6 @@ impl AsmDisplay for Value {
 
 impl Value {
     pub fn decode(word: u16, pos: u8) -> Option<Self> {
-        use super::*;
-
         let reg  = (word >> pos     & 7) as u8;
         let mode = (word >> pos + 3 & 7) as u8;
 
@@ -69,7 +67,8 @@ impl Value {
             2 => Some(Value::AddrInd    (AddrReg::with_num(reg))),
             3 => Some(Value::AddrIndInc (AddrReg::with_num(reg))),
             4 => Some(Value::AddrIndDec (AddrReg::with_num(reg))),
-            _ => None
+            _ => None,
+        }
         }
     }
 }
