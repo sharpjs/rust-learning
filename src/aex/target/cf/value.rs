@@ -23,7 +23,7 @@ use super::data_reg::DataReg;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value /*<'a>*/ {
-    Data        (DataReg),          // Data register
+    Data        (DataReg),          // Data    register
     Addr        (AddrReg),          // Address register
     AddrInd     (AddrReg),          // Address register indirect
     AddrIndDec  (AddrReg),          // Address register indirect, pre-decrement
@@ -32,9 +32,9 @@ pub enum Value /*<'a>*/ {
   //AddrDispIdx (AddrDispIdx<'a>),  // Address register indirect, displaced, indexed
   //PcDisp      (PcDisp     <'a>),  // PC-relative, displaced
   //PcDispIdx   (PcDispIdx  <'a>),  // PC-relative, displaced, indexed
-  //Abs16       (Expr<'a>),         // Absolute 16-bit value
-  //Abs32       (Expr<'a>),         // Absolute 32-bit value
-  //Imm         (Expr<'a>),         // Immediate
+  //Abs16       (Expr<'a>),         // Absolute, signed   16-bit address
+  //Abs32       (Expr<'a>),         // Absolute, unsigned 32-bit address
+  //Imm         (Expr<'a>),         // Immediate (variable bit width)
 }
 
 impl AsmDisplay for Value {
