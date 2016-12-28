@@ -69,7 +69,20 @@ impl Value {
             4 => Some(Value::AddrIndDec (AddrReg::with_num(reg))),
             _ => None,
         }
-        }
+    }
+
+    pub fn encode(&self, word: &mut u16, pos: u8) {
+        const MASK: u16 = 0x3F;
+
+        let bits: u16 = match *self {
+            Value::Data        (ref r) => (0 << 3) | r.num() as u16,
+            Value::Addr        (ref r) => (1 << 3) | r.num() as u16,
+            Value::AddrInd     (ref r) => (2 << 3) | r.num() as u16,
+            Value::AddrIndInc  (ref r) => (3 << 3) | r.num() as u16,
+            Value::AddrIndDec  (ref r) => (4 << 3) | r.num() as u16,
+        };
+
+        *word = *word & (MASK << pos) | (bits << pos);
     }
 }
 
@@ -137,6 +150,41 @@ mod tests {
     fn decode_addr_ind_dec() {
         let value = Value::decode(0b0000_0100_1100_0000, 5);
         assert_eq!(value, Some(Value::AddrIndDec(FP)));
+    }
+
+    #[test]
+    fn encode_data() {
+        let mut word: u16 = 0;
+        Value::Data(D3).encode(&mut word, 5);
+        assert_eq!(word, 0b0000_0000_0110_0000);
+    }
+
+    #[test]
+    fn encode_addr() {
+        let mut word: u16 = 0;
+        Value::Addr(FP).encode(&mut word, 5);
+        assert_eq!(word, 0b0000_0001_1100_0000);
+    }
+
+    #[test]
+    fn encode_addr_ind() {
+        let mut word: u16 = 0;
+        Value::AddrInd(FP).encode(&mut word, 5);
+        assert_eq!(word, 0b0000_0010_1100_0000);
+    }
+
+    #[test]
+    fn encode_addr_ind_inc() {
+        let mut word: u16 = 0;
+        Value::AddrIndInc(FP).encode(&mut word, 5);
+        assert_eq!(word, 0b0000_0011_1100_0000);
+    }
+
+    #[test]
+    fn encode_addr_ind_dec() {
+        let mut word: u16 = 0;
+        Value::AddrIndDec(FP).encode(&mut word, 5);
+        assert_eq!(word, 0b0000_0100_1100_0000);
     }
 }
 
