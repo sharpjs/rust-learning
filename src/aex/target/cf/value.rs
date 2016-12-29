@@ -18,7 +18,8 @@
 
 use std::fmt::{self, Formatter};
 use std::io::Read;
-use byteorder::{BigEndian as BE, ReadBytesExt};
+use byteorder::{BigEndian as BE, ReadBytesExt, WriteBytesExt};
+
 use aex::asm::{AsmDisplay, AsmStyle};
 use aex::ast::Expr;
 use super::{AddrDisp, AddrReg, DataReg};
@@ -81,7 +82,7 @@ impl<'a> Value<'a> {
         }
     }
 
-    pub fn encode(&self, word: &mut u16, pos: u8) {
+    pub fn encode(&self, word: &mut u16, pos: u8, more: &mut Vec<u8>) {
         const MASK: u16 = 0x3F;
 
         let bits: u16 = match *self {
@@ -90,7 +91,14 @@ impl<'a> Value<'a> {
             Value::AddrInd     (ref r) => (2 << 3) | r.num() as u16,
             Value::AddrIndInc  (ref r) => (3 << 3) | r.num() as u16,
             Value::AddrIndDec  (ref r) => (4 << 3) | r.num() as u16,
-            Value::AddrDisp    (ref r) => (5 << 3),
+            Value::AddrDisp    (ref x) => {
+                let disp = match x.disp {
+                    Expr::Int(n) => n as u16,
+                    _ => panic!("Non-integer displacement."),
+                };
+                more.write_u16::<BE>(disp).unwrap();
+                (5 << 3) | x.base.num() as u16
+            },
         };
 
         *word = *word & (MASK << pos) | (bits << pos);
@@ -182,37 +190,60 @@ mod tests {
 
     #[test]
     fn encode_data() {
-        let mut word: u16 = 0;
-        Value::Data(D3).encode(&mut word, 5);
+        let mut word = 0;
+        let mut more = vec![];
+        Value::Data(D3).encode(&mut word, 5, &mut more);
         assert_eq!(word, 0b0000_0000_0110_0000);
+        assert_eq!(more, vec![]);
     }
 
     #[test]
     fn encode_addr() {
-        let mut word: u16 = 0;
-        Value::Addr(FP).encode(&mut word, 5);
+        let mut word = 0;
+        let mut more = vec![];
+        Value::Addr(FP).encode(&mut word, 5, &mut more);
         assert_eq!(word, 0b0000_0001_1100_0000);
+        assert_eq!(more, vec![]);
     }
 
     #[test]
     fn encode_addr_ind() {
-        let mut word: u16 = 0;
-        Value::AddrInd(FP).encode(&mut word, 5);
+        let mut word = 0;
+        let mut more = vec![];
+        Value::AddrInd(FP).encode(&mut word, 5, &mut more);
         assert_eq!(word, 0b0000_0010_1100_0000);
+        assert_eq!(more, vec![]);
     }
 
     #[test]
     fn encode_addr_ind_inc() {
-        let mut word: u16 = 0;
-        Value::AddrIndInc(FP).encode(&mut word, 5);
+        let mut word = 0;
+        let mut more = vec![];
+        Value::AddrIndInc(FP).encode(&mut word, 5, &mut more);
         assert_eq!(word, 0b0000_0011_1100_0000);
+        assert_eq!(more, vec![]);
     }
 
     #[test]
     fn encode_addr_ind_dec() {
-        let mut word: u16 = 0;
-        Value::AddrIndDec(FP).encode(&mut word, 5);
+        let mut word = 0;
+        let mut more = vec![];
+        Value::AddrIndDec(FP).encode(&mut word, 5, &mut more);
         assert_eq!(word, 0b0000_0100_1100_0000);
+        assert_eq!(more, vec![]);
+    }
+
+    #[test]
+    fn encode_addr_disp() {
+        let mut word = 0;
+        let mut more = vec![];
+        let value = Value::AddrDisp(AddrDisp {
+            base: FP,
+            disp: Expr::Int(0x0123),
+        });
+        value.encode(&mut word, 5, &mut more);
+        assert_eq!(word, 0b0000_0101_1100_0000);
+        assert_eq!(more, vec![0x01, 0x23]);
     }
 }
 
