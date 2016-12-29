@@ -17,18 +17,20 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Formatter};
+use std::io::Read;
+use byteorder::{BigEndian as BE, ReadBytesExt};
 use aex::asm::{AsmDisplay, AsmStyle};
-use super::addr_reg::AddrReg;
-use super::data_reg::DataReg;
+use aex::ast::Expr;
+use super::{AddrDisp, AddrReg, DataReg};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Value /*<'a>*/ {
+pub enum Value<'a> {
     Data        (DataReg),          // Data    register
     Addr        (AddrReg),          // Address register
     AddrInd     (AddrReg),          // Address register indirect
     AddrIndDec  (AddrReg),          // Address register indirect, pre-decrement
     AddrIndInc  (AddrReg),          // Address register indirect, post-increment
-  //AddrDisp    (AddrDisp   <'a>),  // Address register indirect, displaced
+    AddrDisp    (AddrDisp   <'a>),  // Address register indirect, displaced
   //AddrDispIdx (AddrDispIdx<'a>),  // Address register indirect, displaced, indexed
   //PcDisp      (PcDisp     <'a>),  // PC-relative, displaced
   //PcDispIdx   (PcDispIdx  <'a>),  // PC-relative, displaced, indexed
@@ -37,7 +39,7 @@ pub enum Value /*<'a>*/ {
   //Imm         (Expr<'a>),         // Immediate (variable bit width)
 }
 
-impl AsmDisplay for Value {
+impl<'a> AsmDisplay for Value<'a> {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         match *self {
             Value::Data        (ref r) => r.fmt(f, s),
@@ -45,7 +47,7 @@ impl AsmDisplay for Value {
             Value::AddrInd     (ref r) => s.write_ind(f, r),
             Value::AddrIndInc  (ref r) => s.write_ind_postinc(f, r),
             Value::AddrIndDec  (ref r) => s.write_ind_predec(f, r),
-          //Value::AddrDisp    (ref x) => Asm(r, s).fmt(f),
+            Value::AddrDisp    (ref x) => x.fmt(f, s)
           //Value::AddrDispIdx (ref x) => Asm(r, s).fmt(f),
           //Value::PcDisp      (ref x) => Asm(r, s).fmt(f),
           //Value::PcDispIdx   (ref x) => Asm(r, s).fmt(f),
@@ -56,8 +58,8 @@ impl AsmDisplay for Value {
     }
 }
 
-impl Value {
-    pub fn decode(word: u16, pos: u8) -> Option<Self> {
+impl<'a> Value<'a> {
+    pub fn decode<M: Read>(word: u16, pos: u8, more: &mut M) -> Option<Self> {
         let reg  = (word >> pos     & 7) as u8;
         let mode = (word >> pos + 3 & 7) as u8;
 
@@ -67,6 +69,14 @@ impl Value {
             2 => Some(Value::AddrInd    (AddrReg::with_num(reg))),
             3 => Some(Value::AddrIndInc (AddrReg::with_num(reg))),
             4 => Some(Value::AddrIndDec (AddrReg::with_num(reg))),
+            5 => {
+                let base = AddrReg::with_num(reg);
+                let disp = match more.read_u16::<BE>() {
+                    Ok(d)  => Expr::Int(d as u32),
+                    Err(_) => return None,
+                };
+                Some(Value::AddrDisp(AddrDisp { base:base, disp:disp }))
+            }
             _ => None,
         }
     }
@@ -80,6 +90,7 @@ impl Value {
             Value::AddrInd     (ref r) => (2 << 3) | r.num() as u16,
             Value::AddrIndInc  (ref r) => (3 << 3) | r.num() as u16,
             Value::AddrIndDec  (ref r) => (4 << 3) | r.num() as u16,
+            Value::AddrDisp    (ref r) => (5 << 3),
         };
 
         *word = *word & (MASK << pos) | (bits << pos);
@@ -88,9 +99,11 @@ impl Value {
 
 #[cfg(test)]
 mod tests {
+    use std::io::Cursor;
     use super::*;
-    use super::super::{D3, FP};
+    use super::super::*;
     use aex::asm::*;
+    use aex::ast::Expr;
 
     #[test]
     fn display_data_reg() {
@@ -124,32 +137,47 @@ mod tests {
 
     #[test]
     fn decode_data() {
-        let value = Value::decode(0b0000_0000_0110_0000, 5);
+        let mut more = Cursor::new(vec![]);
+        let value = Value::decode(0b0000_0000_0110_0000, 5, &mut more);
         assert_eq!(value, Some(Value::Data(D3)));
     }
 
     #[test]
     fn decode_addr() {
-        let value = Value::decode(0b0000_0001_1100_0000, 5);
+        let mut more = Cursor::new(vec![]);
+        let value = Value::decode(0b0000_0001_1100_0000, 5, &mut more);
         assert_eq!(value, Some(Value::Addr(FP)));
     }
 
     #[test]
     fn decode_addr_ind() {
-        let value = Value::decode(0b0000_0010_1100_0000, 5);
+        let mut more = Cursor::new(vec![]);
+        let value = Value::decode(0b0000_0010_1100_0000, 5, &mut more);
         assert_eq!(value, Some(Value::AddrInd(FP)));
     }
 
     #[test]
     fn decode_addr_ind_inc() {
-        let value = Value::decode(0b0000_0011_1100_0000, 5);
+        let mut more = Cursor::new(vec![]);
+        let value = Value::decode(0b0000_0011_1100_0000, 5, &mut more);
         assert_eq!(value, Some(Value::AddrIndInc(FP)));
     }
 
     #[test]
     fn decode_addr_ind_dec() {
-        let value = Value::decode(0b0000_0100_1100_0000, 5);
+        let mut more = Cursor::new(vec![]);
+        let value = Value::decode(0b0000_0100_1100_0000, 5, &mut more);
         assert_eq!(value, Some(Value::AddrIndDec(FP)));
+    }
+
+    #[test]
+    fn decode_addr_disp() {
+        let mut more = Cursor::new(vec![0x01, 0x23]);
+        let value = Value::decode(0b0000_0101_1100_0000, 5, &mut more);
+        assert_eq!(value, Some(Value::AddrDisp(AddrDisp {
+            base: FP,
+            disp: Expr::Int(0x0123)
+        })));
     }
 
     #[test]

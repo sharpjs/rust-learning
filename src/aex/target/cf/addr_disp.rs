@@ -42,8 +42,7 @@ mod tests {
 
     #[test]
     fn display() {
-        let d = 42; // TODO
-        let x = AddrDisp { base: A5, disp: Expr(&d) };
+        let x = AddrDisp { base: A5, disp: Expr::Int(42) };
         assert_display(&x, &GAS_STYLE, "42(%a5)");
     }
 }
