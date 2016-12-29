@@ -148,6 +148,50 @@ impl AsmStyle {
             ),
         }
     }
+
+    pub fn write_base_disp_idx<B: AsmDisplay, I: AsmDisplay, D: AsmDisplay>
+                              (&self, f: &mut Formatter,
+                               base: &B, idx: &I, disp: &D)
+                              -> fmt::Result {
+        match self.ind_style {
+            IndirectStyle::Intel => write!(
+                f, "{open}{base}{sp}+{sp}{idx}{sp}+{sp}{disp}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                sp    = if self.arg_spaces {" "} else {""},
+                base  = Asm(base, self),
+                idx   = Asm(idx,  self),
+                disp  = Asm(disp, self)
+            ),
+            IndirectStyle::Comma => write!(
+                f, "{open}{disp},{sp}{base},{sp}{idx}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                sp    = if self.arg_spaces {" "} else {""},
+                base  = Asm(base, self),
+                idx   = Asm(idx,  self),
+                disp  = Asm(disp, self)
+            ),
+            IndirectStyle::Moto => write!(
+                f, "{disp}{open}{base},{sp}{idx}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                sp    = if self.arg_spaces {" "} else {""},
+                base  = Asm(base, self),
+                idx   = Asm(idx,  self),
+                disp  = Asm(disp, self)
+            ),
+            IndirectStyle::Mit => write!(
+                f, "{base}@{open}{disp},{sp}{idx}{close}",
+                open  = self.ind_open,
+                close = self.ind_close,
+                sp    = if self.arg_spaces {" "} else {""},
+                base  = Asm(base, self),
+                idx   = Asm(idx,  self),
+                disp  = Asm(disp, self)
+            ),
+        }
+    }
 }
 
 #[cfg(test)]

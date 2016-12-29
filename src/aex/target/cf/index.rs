@@ -1,4 +1,4 @@
-// ColdFire Target
+// ColdFire Index Registers
 //
 // This file is part of AEx.
 // Copyright (C) 2016 Jeffrey Sharp
@@ -16,15 +16,23 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod data_reg;
-mod addr_reg;
-mod addr_disp;
-mod addr_disp_idx;
-mod index;
-mod value;
+use std::fmt::{self, Formatter};
 
-pub use self::data_reg::*;
-pub use self::addr_reg::*;
-pub use self::addr_disp::*;
-pub use self::index::*;
+use aex::asm::{AsmDisplay, AsmStyle};
+use super::{AddrReg, DataReg};
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Index {
+    Data(DataReg),
+    Addr(AddrReg),
+}
+
+impl AsmDisplay for Index {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+        match *self {
+            Index::Data(ref r) => r.fmt(f, s),
+            Index::Addr(ref r) => r.fmt(f, s),
+        }
+    }
+}
 
