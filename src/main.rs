@@ -19,6 +19,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
+extern crate byteorder;
 extern crate num;
 
 pub mod aex;
