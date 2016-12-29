@@ -36,3 +36,17 @@ impl AsmDisplay for Index {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+#[repr(u8)]
+pub enum Scale {
+    Byte = 1,
+    Word = 2,
+    Long = 4,
+}
+
+impl AsmDisplay for Scale {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+        write!(f, "{}", *self as u8)
+    }
+}
+
