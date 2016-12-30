@@ -46,7 +46,7 @@ pub enum Scale {
 
 impl AsmDisplay for Scale {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
-        write!(f, "{}", *self as u8)
+        s.write_scale(f, *self as u8)
     }
 }
 

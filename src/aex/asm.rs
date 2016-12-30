@@ -199,6 +199,11 @@ impl AsmStyle {
             ),
         }
     }
+
+    pub fn write_scale(&self, f: &mut Formatter, scale: u8)
+                      -> fmt::Result {
+        write!(f, "{}", scale)
+    }
 }
 
 #[cfg(test)]
