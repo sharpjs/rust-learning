@@ -21,7 +21,7 @@ use std::fmt::{self, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
 use super::{AddrReg, DataReg};
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Index {
     Data(DataReg),
     Addr(AddrReg),
