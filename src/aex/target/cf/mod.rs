@@ -26,5 +26,6 @@ mod value;
 pub use self::data_reg::*;
 pub use self::addr_reg::*;
 pub use self::addr_disp::*;
+pub use self::addr_disp_idx::*;
 pub use self::index::*;
 

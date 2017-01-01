@@ -27,6 +27,18 @@ pub enum Index {
     Addr(AddrReg),
 }
 
+impl Index {
+    pub fn decode(word: u16, pos: u8) -> Self {
+        let reg = (word >> pos     & 0b111) as u8;
+        let da  = (word >> pos + 3 & 0b__1) as u8;
+
+        match da {
+            0 => Index::Data(DataReg::with_num(reg)),
+            _ => Index::Addr(AddrReg::with_num(reg)),
+        }
+    }
+}
+
 impl AsmDisplay for Index {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         match *self {
@@ -42,6 +54,18 @@ pub enum Scale {
     Byte = 1,
     Word = 2,
     Long = 4,
+}
+
+impl Scale {
+    pub fn decode(word: u16, pos: u8) -> Option<Self> {
+        let scale = word >> pos & 0b11;
+        match scale {
+            0 => Some(Scale::Byte),
+            1 => Some(Scale::Word),
+            2 => Some(Scale::Long),
+            _ => None,
+        }
+    }
 }
 
 impl AsmDisplay for Scale {
