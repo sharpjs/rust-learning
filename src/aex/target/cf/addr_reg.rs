@@ -1,7 +1,7 @@
 // ColdFire Address Registers
 //
 // This file is part of AEx.
-// Copyright (C) 2016 Jeffrey Sharp
+// Copyright (C) 2017 Jeffrey Sharp
 //
 // AEx is free software: you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published
