@@ -99,6 +99,7 @@ impl<'a> Value<'a> {
             Value::AddrInd     (ref r) => (2 << 3) | r.num() as u16,
             Value::AddrIndInc  (ref r) => (3 << 3) | r.num() as u16,
             Value::AddrIndDec  (ref r) => (4 << 3) | r.num() as u16,
+
             Value::AddrDisp(ref x) => {
                 let disp = match x.disp {
                     Expr::Int(n) => n as u16,
