@@ -57,6 +57,15 @@ pub enum Scale {
 }
 
 impl Scale {
+    pub fn with_size(size: usize) -> Option<Self> {
+        match size {
+            1 => Some(Scale::Byte),
+            2 => Some(Scale::Word),
+            4 => Some(Scale::Long),
+            _ => None,
+        }
+    }
+
     pub fn decode(word: u16, pos: u8) -> Option<Self> {
         let scale = word >> pos & 0b11;
         match scale {
@@ -71,6 +80,27 @@ impl Scale {
 impl AsmDisplay for Scale {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         s.write_scale(f, *self as u8)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn with_size() {
+        assert_eq!(Scale::with_size(0), None);
+        assert_eq!(Scale::with_size(1), Some(Scale::Byte));
+        assert_eq!(Scale::with_size(2), Some(Scale::Word));
+        assert_eq!(Scale::with_size(4), Some(Scale::Long));
+    }
+
+    #[test]
+    fn decode() {
+        assert_eq!(Scale::decode(0b0000, 2), Some(Scale::Byte));
+        assert_eq!(Scale::decode(0b0100, 2), Some(Scale::Word));
+        assert_eq!(Scale::decode(0b1000, 2), Some(Scale::Long));
+        assert_eq!(Scale::decode(0b1100, 2), None);
     }
 }
 
