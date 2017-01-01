@@ -48,3 +48,21 @@ impl AsmDisplay for Index {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use super::super::{A3, D5};
+
+    #[test]
+    fn decode_data() {
+        let index = Index::decode(0b_0_101_00000, 5);
+        assert_eq!(index, Index::Data(D5));
+    }
+
+    #[test]
+    fn decode_addr() {
+        let index = Index::decode(0b_1_011_00000, 5);
+        assert_eq!(index, Index::Addr(A3));
+    }
+}
+
