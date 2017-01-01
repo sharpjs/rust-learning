@@ -21,6 +21,7 @@ mod addr_reg;
 mod addr_disp;
 mod addr_disp_idx;
 mod index;
+mod scale;
 mod value;
 
 pub use self::data_reg::*;
@@ -28,4 +29,5 @@ pub use self::addr_reg::*;
 pub use self::addr_disp::*;
 pub use self::addr_disp_idx::*;
 pub use self::index::*;
+pub use self::scale::*;
 
