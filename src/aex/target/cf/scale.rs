@@ -17,8 +17,10 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Formatter};
+use std::io;
 
 use aex::asm::{AsmDisplay, AsmStyle};
+use aex::util::invalid;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
@@ -43,13 +45,13 @@ impl Scale {
         self as u8
     }
 
-    pub fn decode(word: u16, pos: u8) -> Option<Self> {
+    pub fn decode(word: u16, pos: u8) -> io::Result<Self> {
         let scale = word >> pos & 0b11;
         match scale {
-            0 => Some(Scale::Byte),
-            1 => Some(Scale::Word),
-            2 => Some(Scale::Long),
-            _ => None,
+            0 => Ok(Scale::Byte),
+            1 => Ok(Scale::Word),
+            2 => Ok(Scale::Long),
+            _ => invalid(),
         }
     }
 }
@@ -81,10 +83,10 @@ mod tests {
 
     #[test]
     fn decode() {
-        assert_eq!(Scale::decode(0b0000, 2), Some(Scale::Byte));
-        assert_eq!(Scale::decode(0b0100, 2), Some(Scale::Word));
-        assert_eq!(Scale::decode(0b1000, 2), Some(Scale::Long));
-        assert_eq!(Scale::decode(0b1100, 2), None);
+        assert_eq!(Scale::decode(0b0000, 2).unwrap(), Scale::Byte);
+        assert_eq!(Scale::decode(0b0100, 2).unwrap(), Scale::Word);
+        assert_eq!(Scale::decode(0b1000, 2).unwrap(), Scale::Long);
+        assert_eq!(Scale::decode(0b1100, 2).is_err(), true);
     }
 }
 
