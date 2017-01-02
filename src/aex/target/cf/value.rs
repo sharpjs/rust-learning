@@ -167,42 +167,42 @@ mod tests {
     #[test]
     fn decode_data() {
         let mut more = Cursor::new(vec![]);
-        let value = Value::decode(0b0000_0000_0110_0000, 5, &mut more).unwrap();
+        let value = Value::decode(0b_000_011_00000, 5, &mut more).unwrap();
         assert_eq!(value, Value::Data(D3));
     }
 
     #[test]
     fn decode_addr() {
         let mut more = Cursor::new(vec![]);
-        let value = Value::decode(0b0000_0001_1100_0000, 5, &mut more).unwrap();
+        let value = Value::decode(0b_001_110_00000, 5, &mut more).unwrap();
         assert_eq!(value, Value::Addr(FP));
     }
 
     #[test]
     fn decode_addr_ind() {
         let mut more = Cursor::new(vec![]);
-        let value = Value::decode(0b0000_0010_1100_0000, 5, &mut more).unwrap();
+        let value = Value::decode(0b_010_110_00000, 5, &mut more).unwrap();
         assert_eq!(value, Value::AddrInd(FP));
     }
 
     #[test]
     fn decode_addr_ind_inc() {
         let mut more = Cursor::new(vec![]);
-        let value = Value::decode(0b0000_0011_1100_0000, 5, &mut more).unwrap();
+        let value = Value::decode(0b_011_110_00000, 5, &mut more).unwrap();
         assert_eq!(value, Value::AddrIndInc(FP));
     }
 
     #[test]
     fn decode_addr_ind_dec() {
         let mut more = Cursor::new(vec![]);
-        let value = Value::decode(0b0000_0100_1100_0000, 5, &mut more).unwrap();
+        let value = Value::decode(0b_100_110_00000, 5, &mut more).unwrap();
         assert_eq!(value, Value::AddrIndDec(FP));
     }
 
     #[test]
     fn decode_addr_disp() {
         let mut more = Cursor::new(vec![0x01, 0x23]);
-        let value = Value::decode(0b0000_0101_1100_0000, 5, &mut more).unwrap();
+        let value = Value::decode(0b_101_110_00000, 5, &mut more).unwrap();
         assert_eq!(value, Value::AddrDisp(AddrDisp {
             base: FP,
             disp: Expr::Int(0x0123)
@@ -212,7 +212,7 @@ mod tests {
     #[test]
     fn decode_addr_disp_idx() {
         let mut more = Cursor::new(vec![0b0011_1100, 0x12]);
-        let value = Value::decode(0b0000_0110_1100_0000, 5, &mut more).unwrap();
+        let value = Value::decode(0b_110_110_00000, 5, &mut more).unwrap();
         assert_eq!(value, Value::AddrDispIdx(AddrDispIdx {
             base:  FP,
             disp:  Expr::Int(0x12),
@@ -226,7 +226,7 @@ mod tests {
         let mut word = 0;
         let mut more = vec![];
         Value::Data(D3).encode(&mut word, 5, &mut more);
-        assert_eq!(word, 0b0000_0000_0110_0000);
+        assert_eq!(word, 0b_000_011_00000);
         assert_eq!(more, vec![]);
     }
 
@@ -235,7 +235,7 @@ mod tests {
         let mut word = 0;
         let mut more = vec![];
         Value::Addr(FP).encode(&mut word, 5, &mut more);
-        assert_eq!(word, 0b0000_0001_1100_0000);
+        assert_eq!(word, 0b_001_110_00000);
         assert_eq!(more, vec![]);
     }
 
@@ -244,7 +244,7 @@ mod tests {
         let mut word = 0;
         let mut more = vec![];
         Value::AddrInd(FP).encode(&mut word, 5, &mut more);
-        assert_eq!(word, 0b0000_0010_1100_0000);
+        assert_eq!(word, 0b_010_110_00000);
         assert_eq!(more, vec![]);
     }
 
@@ -253,7 +253,7 @@ mod tests {
         let mut word = 0;
         let mut more = vec![];
         Value::AddrIndInc(FP).encode(&mut word, 5, &mut more);
-        assert_eq!(word, 0b0000_0011_1100_0000);
+        assert_eq!(word, 0b_011_110_00000);
         assert_eq!(more, vec![]);
     }
 
@@ -262,7 +262,7 @@ mod tests {
         let mut word = 0;
         let mut more = vec![];
         Value::AddrIndDec(FP).encode(&mut word, 5, &mut more);
-        assert_eq!(word, 0b0000_0100_1100_0000);
+        assert_eq!(word, 0b_100_110_00000);
         assert_eq!(more, vec![]);
     }
 
@@ -275,7 +275,7 @@ mod tests {
             disp: Expr::Int(0x0123),
         });
         value.encode(&mut word, 5, &mut more);
-        assert_eq!(word, 0b0000_0101_1100_0000);
+        assert_eq!(word, 0b_101_110_00000);
         assert_eq!(more, vec![0x01, 0x23]);
     }
 }
