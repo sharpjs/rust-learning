@@ -17,14 +17,29 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Formatter};
+use std::io::{self, Read};
+use byteorder::{BigEndian as BE, ReadBytesExt};
+
 use aex::asm::{AsmDisplay, AsmStyle};
 use aex::ast::Expr;
+
 use super::AddrReg;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct AddrDisp<'a> {
     pub base: AddrReg,
     pub disp: Expr<'a>
+}
+
+impl<'a> AddrDisp<'a> {
+    pub fn decode<R: Read>(reg: u8, more: &mut R) -> io::Result<Self> {
+        let ext = more.read_u16::<BE>()?;
+
+        Ok(AddrDisp {
+            base: AddrReg::with_num(reg),
+            disp: Expr::Int(ext as u32),
+        })
+    }
 }
 
 impl<'a> AsmDisplay for AddrDisp<'a> {

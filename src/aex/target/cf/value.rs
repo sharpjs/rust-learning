@@ -18,13 +18,13 @@
 
 use std::fmt::{self, Formatter};
 use std::io::{self, Read};
-use byteorder::{BigEndian as BE, ReadBytesExt, WriteBytesExt};
+use byteorder::{BigEndian as BE, WriteBytesExt};
 
 use aex::asm::{AsmDisplay, AsmStyle};
 use aex::ast::Expr;
 use aex::util::invalid;
 
-use super::{AddrDisp, AddrDispIdx, AddrReg, DataReg, Index, Scale};
+use super::{AddrDisp, AddrDispIdx, AddrReg, DataReg};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value<'a> {
@@ -67,33 +67,13 @@ impl<'a> Value<'a> {
         let mode = (word >> pos + 3 & 7) as u8;
 
         match mode {
-            0 => Ok(Value::Data(       DataReg::with_num(reg) )),
-            1 => Ok(Value::Addr(       AddrReg::with_num(reg) )),
-            2 => Ok(Value::AddrInd(    AddrReg::with_num(reg) )),
-            3 => Ok(Value::AddrIndInc( AddrReg::with_num(reg) )),
-            4 => Ok(Value::AddrIndDec( AddrReg::with_num(reg) )),
-            5 => {
-                let ext = more.read_u16::<BE>()?;
-
-                Ok(Value::AddrDisp(
-                    AddrDisp {
-                        base: AddrReg::with_num(reg),
-                        disp: Expr::Int(ext as u32)
-                    }
-                ))
-            },
-            6 => {
-                let ext = more.read_u16::<BE>()?;
-
-                Ok(Value::AddrDispIdx(
-                    AddrDispIdx {
-                        base:  AddrReg::with_num(reg),
-                        disp:  Expr::Int(ext as u8 as u32),
-                        index: Index::decode(ext, 12),
-                        scale: Scale::decode(ext, 9)?,
-                    }
-                ))
-            },
+            0 => Ok(Value::Data(        DataReg::with_num(reg)          )),
+            1 => Ok(Value::Addr(        AddrReg::with_num(reg)          )),
+            2 => Ok(Value::AddrInd(     AddrReg::with_num(reg)          )),
+            3 => Ok(Value::AddrIndInc(  AddrReg::with_num(reg)          )),
+            4 => Ok(Value::AddrIndDec(  AddrReg::with_num(reg)          )),
+            5 => Ok(Value::AddrDisp(    AddrDisp::decode(reg, more)?    )),
+            6 => Ok(Value::AddrDispIdx( AddrDispIdx::decode(reg, more)? )),
             _ => invalid(),
         }
     }
