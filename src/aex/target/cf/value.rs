@@ -74,7 +74,15 @@ impl<'a> Value<'a> {
             4 => Ok(Value::AddrIndDec(  AddrReg::with_num(reg)          )),
             5 => Ok(Value::AddrDisp(    AddrDisp::decode(reg, more)?    )),
             6 => Ok(Value::AddrDispIdx( AddrDispIdx::decode(reg, more)? )),
-            _ => invalid(),
+            7 => match reg {
+                0 => invalid(), // abs short
+                1 => invalid(), // abs long
+                2 => invalid(), // pc disp
+                3 => invalid(), // pc disp idx
+                4 => invalid(), // immediate
+                _ => invalid(), // invalid
+            },
+            _ => invalid(), // Should not be possible
         }
     }
 
