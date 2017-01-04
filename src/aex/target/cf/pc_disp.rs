@@ -31,7 +31,7 @@ pub struct PcDisp<'a> {
 }
 
 impl<'a> PcDisp<'a> {
-    pub fn decode<R: Read>(reg: u8, more: &mut R) -> io::Result<Self> {
+    pub fn decode<R: Read>(more: &mut R) -> io::Result<Self> {
         let ext = more.read_u16::<BE>()?;
 
         Ok(PcDisp { disp: Expr::Int(ext as u32) })
