@@ -18,13 +18,13 @@
 
 use std::fmt::{self, Formatter};
 use std::io::{self, Read};
-use byteorder::{BigEndian as BE, WriteBytesExt};
+use byteorder::{BigEndian as BE, ReadBytesExt, WriteBytesExt};
 
 use aex::asm::{AsmDisplay, AsmStyle};
 use aex::ast::Expr;
 use aex::util::invalid;
 
-use super::{AddrDisp, AddrDispIdx, AddrReg, DataReg};
+use super::{AddrDisp, AddrDispIdx, AddrReg, DataReg, PcDisp, PcDispIdx};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Value<'a> {
@@ -35,11 +35,11 @@ pub enum Value<'a> {
     AddrIndInc  (AddrReg),          // Address register indirect, post-increment
     AddrDisp    (AddrDisp   <'a>),  // Address register indirect, displaced
     AddrDispIdx (AddrDispIdx<'a>),  // Address register indirect, displaced, indexed
-  //PcDisp      (PcDisp     <'a>),  // PC-relative, displaced
-  //PcDispIdx   (PcDispIdx  <'a>),  // PC-relative, displaced, indexed
-  //Abs16       (Expr<'a>),         // Absolute, signed   16-bit address
-  //Abs32       (Expr<'a>),         // Absolute, unsigned 32-bit address
-  //Imm         (Expr<'a>),         // Immediate (variable bit width)
+    PcDisp      (PcDisp     <'a>),  // PC-relative, displaced
+    PcDispIdx   (PcDispIdx  <'a>),  // PC-relative, displaced, indexed
+    Abs16       (Expr<'a>),         // Absolute, signed   16-bit address
+    Abs32       (Expr<'a>),         // Absolute, unsigned 32-bit address
+    Imm         (Expr<'a>),         // Immediate (variable bit width)
 }
 
 impl<'a> AsmDisplay for Value<'a> {
@@ -52,11 +52,11 @@ impl<'a> AsmDisplay for Value<'a> {
             Value::AddrIndDec  (ref r) => s.write_ind_predec(f, r),
             Value::AddrDisp    (ref x) => x.fmt(f, s),
             Value::AddrDispIdx (ref x) => x.fmt(f, s),
-          //Value::PcDisp      (ref x) => x.fmt(f, s),
-          //Value::PcDispIdx   (ref x) => x.fmt(f, s),
-          //Value::Abs16       (ref e) => e.fmt(f, s),
-          //Value::Abs32       (ref e) => e.fmt(f, s),
-          //Value::Imm         (ref e) => e.fmt(f, s),
+            Value::PcDisp      (ref x) => x.fmt(f, s),
+            Value::PcDispIdx   (ref x) => x.fmt(f, s),
+            Value::Abs16       (ref e) => e.fmt(f, s),
+            Value::Abs32       (ref e) => e.fmt(f, s),
+            Value::Imm         (ref e) => e.fmt(f, s),
         }
     }
 }
@@ -75,11 +75,11 @@ impl<'a> Value<'a> {
             5 => Ok(Value::AddrDisp(    AddrDisp::decode(reg, more)?    )),
             6 => Ok(Value::AddrDispIdx( AddrDispIdx::decode(reg, more)? )),
             7 => match reg {
-                0 => invalid(), // abs short
-                1 => invalid(), // abs long
-                2 => invalid(), // pc disp
-                3 => invalid(), // pc disp idx
-                4 => invalid(), // immediate
+                0 => Ok(Value::Abs16(     Expr::Int(more.read_i16::<BE>()? as u32) )),
+                1 => Ok(Value::Abs32(     Expr::Int(more.read_u32::<BE>()?)        )),
+                2 => Ok(Value::PcDisp(    PcDisp::decode(more)?                    )),
+                3 => Ok(Value::PcDispIdx( PcDispIdx::decode(more)?                 )),
+                4 => Ok(Value::Imm(       Expr::Int(more.read_u32::<BE>()? as u32) )), // TODO: Size
                 _ => invalid(), // invalid
             },
             _ => invalid(), // Should not be possible
@@ -98,16 +98,53 @@ impl<'a> Value<'a> {
 
             Value::AddrDisp(ref x) => {
                 let disp = match x.disp {
-                    Expr::Int(n) => n as u16,
+                    Expr::Int(n) => n as u16, // TODO: Limit
                     _ => panic!("Non-integer displacement."),
                 };
                 more.write_u16::<BE>(disp).unwrap();
                 (5 << 3) | x.base.num() as u16
             },
             Value::AddrDispIdx(ref x) => {
+                let disp = match x.disp {
+                    Expr::Int(n) => n as u8, // TODO: Limit
+                    _ => panic!("Non-integer displacement."),
+                };
                 // stub
                 (6 << 3)
             },
+            Value::Abs16(ref e) => {
+                let addr = match *e {
+                    Expr::Int(n) => n as u16, // TODO: Limit
+                    _ => panic!("Non-integer displacement."),
+                };
+                more.write_u16::<BE>(addr).unwrap();
+                (7 << 3) | 0
+            },
+            Value::Abs32(ref e) => {
+                let addr = match *e {
+                    Expr::Int(n) => n, // TODO: Limit
+                    _ => panic!("Non-integer displacement."),
+                };
+                more.write_u32::<BE>(addr).unwrap();
+                (7 << 3) | 0
+            },
+            Value::PcDisp(ref x) => {
+                let disp = match x.disp {
+                    Expr::Int(n) => n as u16, // TODO: Limit
+                    _ => panic!("Non-integer displacement."),
+                };
+                more.write_u16::<BE>(disp).unwrap();
+                (7 << 3) | 2
+            },
+            Value::PcDispIdx(ref x) => {
+                let disp = match x.disp {
+                    Expr::Int(n) => n as u8, // TODO: Limit
+                    _ => panic!("Non-integer displacement."),
+                };
+                // stub
+                (7 << 3) | 3
+            },
+            _ => 0
         };
 
         *word = *word & (MASK << pos) | (bits << pos);
@@ -118,7 +155,7 @@ impl<'a> Value<'a> {
 mod tests {
     use std::io::Cursor;
     use super::*;
-    use super::super::*;
+    use super::super::*; 
     use aex::asm::*;
     use aex::ast::Expr;
 
