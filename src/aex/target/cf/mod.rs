@@ -16,10 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod data_reg;
-mod addr_reg;
 mod addr_disp;
 mod addr_disp_idx;
+mod addr_reg;
+mod data_reg;
 mod index;
 mod misc_regs;
 mod pc_disp;
@@ -27,13 +27,14 @@ mod pc_disp_idx;
 mod scale;
 mod value;
 
-pub use self::data_reg::*;
-pub use self::addr_reg::*;
 pub use self::addr_disp::*;
 pub use self::addr_disp_idx::*;
+pub use self::addr_reg::*;
+pub use self::data_reg::*;
 pub use self::index::*;
 pub use self::misc_regs::*;
 pub use self::pc_disp::*;
 pub use self::pc_disp_idx::*;
 pub use self::scale::*;
+pub use self::value::*;
 

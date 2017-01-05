@@ -155,7 +155,7 @@ impl<'a> Value<'a> {
 mod tests {
     use std::io::Cursor;
     use super::*;
-    use super::super::*; 
+    use super::super::{AddrDisp, AddrDispIdx, D3, FP, Index, Scale}; 
     use aex::asm::*;
     use aex::ast::Expr;
 
