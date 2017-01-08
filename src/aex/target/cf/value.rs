@@ -65,24 +65,23 @@ impl<'a> Value<'a> {
     pub fn decode<R: Read>(word: u16, pos: u8, more: &mut R) -> io::Result<Self> {
         let reg  = (word >> pos     & 7) as u8;
         let mode = (word >> pos + 3 & 7) as u8;
+        let size = 2u8; // TODO: parameter
 
-        match mode {
-            0 => Ok(Value::Data(        DataReg::with_num(reg)          )),
-            1 => Ok(Value::Addr(        AddrReg::with_num(reg)          )),
-            2 => Ok(Value::AddrInd(     AddrReg::with_num(reg)          )),
-            3 => Ok(Value::AddrIndInc(  AddrReg::with_num(reg)          )),
-            4 => Ok(Value::AddrIndDec(  AddrReg::with_num(reg)          )),
-            5 => Ok(Value::AddrDisp(    AddrDisp::decode(reg, more)?    )),
-            6 => Ok(Value::AddrDispIdx( AddrDispIdx::decode(reg, more)? )),
-            7 => match reg {
-                0 => Ok(Value::Abs16(     Expr::Int(more.read_i16::<BE>()? as u32) )),
-                1 => Ok(Value::Abs32(     Expr::Int(more.read_u32::<BE>()?)        )),
-                2 => Ok(Value::PcDisp(    PcDisp::decode(more)?                    )),
-                3 => Ok(Value::PcDispIdx( PcDispIdx::decode(more)?                 )),
-                4 => Ok(Value::Imm(       Expr::Int(more.read_u32::<BE>()? as u32) )), // TODO: Size
-                _ => invalid(), // invalid
-            },
-            _ => invalid(), // Should not be possible
+        match (mode, reg, size) {
+            (0, _, _) => Ok(Value::Data(        DataReg::with_num(reg)                   )),
+            (1, _, _) => Ok(Value::Addr(        AddrReg::with_num(reg)                   )),
+            (2, _, _) => Ok(Value::AddrInd(     AddrReg::with_num(reg)                   )),
+            (3, _, _) => Ok(Value::AddrIndInc(  AddrReg::with_num(reg)                   )),
+            (4, _, _) => Ok(Value::AddrIndDec(  AddrReg::with_num(reg)                   )),
+            (5, _, _) => Ok(Value::AddrDisp(    AddrDisp::decode(reg, more)?             )),
+            (6, _, _) => Ok(Value::AddrDispIdx( AddrDispIdx::decode(reg, more)?          )),
+            (7, 0, _) => Ok(Value::Abs16(       Expr::Int(more.read_i16::<BE>()? as u32) )),
+            (7, 1, _) => Ok(Value::Abs32(       Expr::Int(more.read_u32::<BE>()?)        )),
+            (7, 2, _) => Ok(Value::PcDisp(      PcDisp::decode(more)?                    )),
+            (7, 3, _) => Ok(Value::PcDispIdx(   PcDispIdx::decode(more)?                 )),
+            (7, 4, 2) => Ok(Value::Imm(         Expr::Int(more.read_u16::<BE>()? as u32) )),
+            (7, 4, 4) => Ok(Value::Imm(         Expr::Int(more.read_u32::<BE>()? as u32) )),
+            _         => invalid()
         }
     }
 
