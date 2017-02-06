@@ -16,13 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
+
+pub use self::att::*;
+
+pub mod att;
+
+// -----------------------------------------------------------------------------
 
 pub trait AsmDisplay {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result;
 }
 
-impl<'a, T> Display for Asm<'a, T> where T: AsmDisplay {
+impl<'a, T> Display for Asm<'a, T> where T: AsmDisplay + ?Sized {
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let Asm(value, style) = *self;
@@ -30,23 +36,57 @@ impl<'a, T> Display for Asm<'a, T> where T: AsmDisplay {
     }
 }
 
+// -----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug)]
-pub struct Asm<'a, T: 'a>(
+pub struct Asm<'a, T: 'a + ?Sized>(
     pub &'a T,
     pub &'a AsmStyle
 );
 
-#[derive(Clone, Debug)]
-pub struct AsmStyle {
-    pub arg_spaces:     bool,
-    pub reg_prefix:     &'static str,
-    pub imm_prefix:     &'static str,
+// -----------------------------------------------------------------------------
 
-    pub ind_style:      IndirectStyle,
-    pub ind_open:       &'static str,
-    pub ind_close:      &'static str,
+pub trait AsmStyle : Debug {
+    fn write_int(&self, f: &mut Formatter, value: u64) -> fmt::Result {
+        write!(f, "{}", value)
+    }
+
+    fn write_reg(&self, f: &mut Formatter, name: &str) -> fmt::Result {
+        f.write_str(name)
+    }
+
+    fn write_ind
+        (&self, f: &mut Formatter, reg: &AsmDisplay)
+        -> fmt::Result { Err(fmt::Error) }
+
+    fn write_ind_predec
+        (&self, f: &mut Formatter, reg: &AsmDisplay)
+        -> fmt::Result { Err(fmt::Error) }
+
+    fn write_ind_postinc
+        (&self, f: &mut Formatter, reg: &AsmDisplay)
+        -> fmt::Result { Err(fmt::Error) }
+
+    fn write_base_disp
+        (&self, f: &mut Formatter, base: &AsmDisplay, disp: &AsmDisplay)
+        -> fmt::Result { Err(fmt::Error) }
+
+    fn write_base_disp_idx
+        (&self, f: &mut Formatter, base: &AsmDisplay, disp: &AsmDisplay, index: &AsmDisplay, scale: &AsmDisplay)
+        -> fmt::Result { Err(fmt::Error) }
+
+    fn write_scale
+        (&self, f: &mut Formatter, scale: u8)
+        -> fmt::Result { Err(fmt::Error) }
 }
 
+pub static GAS_STYLE: AttStyle = AttStyle {
+    arg_spaces: true,
+    reg_prefix: "%",
+    imm_prefix: "#",
+};
+
+/*
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum IndirectStyle {
     Intel,  // [base + index*scale + disp]
@@ -62,15 +102,6 @@ pub static MY_STYLE: AsmStyle = AsmStyle {
     ind_style:      IndirectStyle::Intel,
     ind_open:       "[",
     ind_close:      "]",
-};
-
-pub static GAS_STYLE: AsmStyle = AsmStyle {
-    arg_spaces:     true,
-    reg_prefix:     "%",
-    imm_prefix:     "#",
-    ind_style:      IndirectStyle::Moto,
-    ind_open:       "(",
-    ind_close:      ")",
 };
 
 impl AsmStyle {
@@ -205,6 +236,7 @@ impl AsmStyle {
         write!(f, "{}", scale)
     }
 }
+*/
 
 #[cfg(test)]
 pub fn assert_display<T: AsmDisplay>(v: &T, s: &AsmStyle, asm: &str) {
