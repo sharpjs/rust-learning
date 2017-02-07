@@ -19,8 +19,12 @@
 use std::fmt::{self, Debug, Display, Formatter};
 
 pub use self::att::*;
+pub use self::intel::*;
+pub use self::mit::*;
 
 pub mod att;
+pub mod intel;
+pub mod mit;
 
 // -----------------------------------------------------------------------------
 
@@ -80,163 +84,12 @@ pub trait AsmStyle : Debug {
         -> fmt::Result { Err(fmt::Error) }
 }
 
+#[cfg(test)]
 pub static GAS_STYLE: AttStyle = AttStyle {
     arg_spaces: true,
     reg_prefix: "%",
     imm_prefix: "#",
 };
-
-/*
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum IndirectStyle {
-    Intel,  // [base + index*scale + disp]
-    Comma,  // (disp, base, index.size*scale)
-    Moto,   // disp(base, index.size*scale)
-    Mit,    // base@(disp, index:size:scale)
-}
-
-pub static MY_STYLE: AsmStyle = AsmStyle {
-    arg_spaces:     true,
-    reg_prefix:     "",
-    imm_prefix:     "",
-    ind_style:      IndirectStyle::Intel,
-    ind_open:       "[",
-    ind_close:      "]",
-};
-
-impl AsmStyle {
-    pub fn write_reg(&self, f: &mut Formatter, reg: &str) -> fmt::Result {
-        f.write_str(self.reg_prefix)?;
-        f.write_str(reg)
-    }
-
-    pub fn write_ind<R: AsmDisplay>
-                    (&self, f: &mut Formatter, reg: &R)
-                    -> fmt::Result {
-        match self.ind_style {
-            IndirectStyle::Intel => write!(f, "[{}]", Asm(reg, self)),
-            IndirectStyle::Comma => write!(f, "({})", Asm(reg, self)),
-            IndirectStyle::Moto  => write!(f, "({})", Asm(reg, self)),
-            IndirectStyle::Mit   => write!(f, "{}@",  Asm(reg, self)),
-        }
-    }
-
-    pub fn write_ind_postinc<R: AsmDisplay>
-                            (&self, f: &mut Formatter, reg: &R)
-                            -> fmt::Result {
-        match self.ind_style {
-            IndirectStyle::Intel => write!(f, "[{}++]", Asm(reg, self)),
-            IndirectStyle::Comma => write!(f, "({})+",  Asm(reg, self)),
-            IndirectStyle::Moto  => write!(f, "({})+",  Asm(reg, self)),
-            IndirectStyle::Mit   => write!(f, "{}@+",   Asm(reg, self)),
-        }
-    }
-
-    pub fn write_ind_predec<R: AsmDisplay>
-                           (&self, f: &mut Formatter, reg: &R)
-                           -> fmt::Result {
-        match self.ind_style {
-            IndirectStyle::Intel => write!(f, "[--{}]", Asm(reg, self)),
-            IndirectStyle::Comma => write!(f, "-({})",  Asm(reg, self)),
-            IndirectStyle::Moto  => write!(f, "-({})",  Asm(reg, self)),
-            IndirectStyle::Mit   => write!(f, "{}@-",   Asm(reg, self)),
-        }
-    }
-
-    pub fn write_base_disp<B: AsmDisplay, D: AsmDisplay>
-                          (&self, f: &mut Formatter, base: &B, disp: &D)
-                          -> fmt::Result {
-        match self.ind_style {
-            IndirectStyle::Intel => write!(
-                f, "{open}{base}{sp}+{sp}{disp}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                sp    = if self.arg_spaces {" "} else {""},
-                base  = Asm(base, self),
-                disp  = Asm(disp, self)
-            ),
-            IndirectStyle::Comma => write!(
-                f, "{open}{base},{sp}{disp}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                sp    = if self.arg_spaces {" "} else {""},
-                base  = Asm(base, self),
-                disp  = Asm(disp, self)
-            ),
-            IndirectStyle::Moto => write!(
-                f, "{disp}{open}{base}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                base  = Asm(base, self),
-                disp  = Asm(disp, self)
-            ),
-            IndirectStyle::Mit => write!(
-                f, "{base}@{open}{disp}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                base  = Asm(base, self),
-                disp  = Asm(disp, self)
-            ),
-        }
-    }
-
-    pub fn write_base_disp_idx<B: AsmDisplay,
-                               D: AsmDisplay,
-                               I: AsmDisplay,
-                               S: AsmDisplay>
-                              (&self, f: &mut Formatter,
-                               base: &B, disp: &D, index: &I, scale: &S)
-                              -> fmt::Result {
-        match self.ind_style {
-            IndirectStyle::Intel => write!(
-                f, "{open}{base}{sp}+{sp}{index}*{scale}{sp}+{sp}{disp}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                sp    = if self.arg_spaces {" "} else {""},
-                base  = Asm(base,  self),
-                disp  = Asm(disp,  self),
-                index = Asm(index, self),
-                scale = Asm(scale, self),
-            ),
-            IndirectStyle::Comma => write!(
-                f, "{open}{disp},{sp}{base},{sp}{index}*{scale}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                sp    = if self.arg_spaces {" "} else {""},
-                base  = Asm(base,  self),
-                disp  = Asm(disp,  self),
-                index = Asm(index, self),
-                scale = Asm(scale, self),
-            ),
-            IndirectStyle::Moto => write!(
-                f, "{disp}{open}{base},{sp}{index}*{scale}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                sp    = if self.arg_spaces {" "} else {""},
-                base  = Asm(base,  self),
-                disp  = Asm(disp,  self),
-                index = Asm(index, self),
-                scale = Asm(scale, self),
-            ),
-            IndirectStyle::Mit => write!(
-                f, "{base}@{open}{disp},{sp}{index}:{scale}{close}",
-                open  = self.ind_open,
-                close = self.ind_close,
-                sp    = if self.arg_spaces {" "} else {""},
-                base  = Asm(base,  self),
-                disp  = Asm(disp,  self),
-                index = Asm(index, self),
-                scale = Asm(scale, self),
-            ),
-        }
-    }
-
-    pub fn write_scale(&self, f: &mut Formatter, scale: u8)
-                      -> fmt::Result {
-        write!(f, "{}", scale)
-    }
-}
-*/
 
 #[cfg(test)]
 pub fn assert_display<T: AsmDisplay>(v: &T, s: &AsmStyle, asm: &str) {
