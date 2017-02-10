@@ -27,22 +27,30 @@ use aex::util::invalid;
 use super::{AddrDisp, AddrDispIdx, AddrReg, DataReg, PcDisp, PcDispIdx};
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Value<'a> {
-    Data        (DataReg),          // Data    register
-    Addr        (AddrReg),          // Address register
-    AddrInd     (AddrReg),          // Address register indirect
-    AddrIndDec  (AddrReg),          // Address register indirect, pre-decrement
-    AddrIndInc  (AddrReg),          // Address register indirect, post-increment
-    AddrDisp    (AddrDisp   <'a>),  // Address register indirect, displaced
-    AddrDispIdx (AddrDispIdx<'a>),  // Address register indirect, displaced, indexed
-    PcDisp      (PcDisp     <'a>),  // PC-relative, displaced
-    PcDispIdx   (PcDispIdx  <'a>),  // PC-relative, displaced, indexed
-    Abs16       (Expr<'a>),         // Absolute, signed   16-bit address
-    Abs32       (Expr<'a>),         // Absolute, unsigned 32-bit address
-    Imm         (Expr<'a>),         // Immediate (variable bit width)
+pub enum Value {
+    Data        (DataReg),      // Data    register
+    Addr        (AddrReg),      // Address register
+    AddrInd     (AddrReg),      // Address register indirect
+    AddrIndDec  (AddrReg),      // Address register indirect, pre-decrement
+    AddrIndInc  (AddrReg),      // Address register indirect, post-increment
+    AddrDisp    (AddrDisp),     // Address register indirect, displaced
+    AddrDispIdx (AddrDispIdx),  // Address register indirect, displaced, indexed
+    PcDisp      (PcDisp),       // PC-relative, displaced
+    PcDispIdx   (PcDispIdx),    // PC-relative, displaced, indexed
+    Abs16       (Expr),         // Absolute, signed   16-bit address
+    Abs32       (Expr),         // Absolute, unsigned 32-bit address
+    Imm         (Expr),         // Immediate (variable bit width)
 }
 
-impl<'a> AsmDisplay for Value<'a> {
+// Indirect  = '[' Component+ ']'
+// Component = Register | Displacement
+// Register  = Pre R | R Post?
+// Pre       = '--' | '++'
+// Post      = Pre | Scale | '!'
+//
+// [ --Reg++!*Scale, Displacement ]
+
+impl AsmDisplay for Value {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         match *self {
             Value::Data        (ref r) => r.fmt(f, s),
@@ -61,7 +69,7 @@ impl<'a> AsmDisplay for Value<'a> {
     }
 }
 
-impl<'a> Value<'a> {
+impl Value {
     pub fn decode<R: Read>(word: u16, pos: u8, more: &mut R) -> io::Result<Self> {
         let reg  = (word >> pos     & 7) as u8;
         let mode = (word >> pos + 3 & 7) as u8;

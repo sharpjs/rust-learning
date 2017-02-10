@@ -22,17 +22,17 @@ use aex::asm::{AsmDisplay, AsmStyle};
 // Just a stub for now.
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Expr<'a> {
+pub enum Expr {
     // Atomic
     Int(u32),
-    Str(&'a str),
+    SomethingElse,
 }
 
-impl<'a> AsmDisplay for Expr<'a> {
+impl AsmDisplay for Expr {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         match *self {
             Expr::Int(n) => write!(f, "{}", n),
-            Expr::Str(s) => write!(f, "{}", s),
+            _ => panic!()
         }
     }
 }
