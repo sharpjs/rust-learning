@@ -27,13 +27,13 @@ use super::{Index, Scale};
 use super::PcReg;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PcDispIdx {
-    pub disp:  Expr,
+pub struct PcDispIdx<'a> {
+    pub disp:  Expr<'a>,
     pub index: Index,
     pub scale: Scale,
 }
 
-impl PcDispIdx {
+impl<'a> PcDispIdx<'a> {
     pub fn decode<R: Read>(more: &mut R) -> io::Result<Self> {
         let ext = more.read_u16::<BE>()?;
 
@@ -45,7 +45,7 @@ impl PcDispIdx {
     }
 }
 
-impl AsmDisplay for PcDispIdx {
+impl<'a> AsmDisplay for PcDispIdx<'a> {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         s.write_base_disp_idx(f, &PcReg, &self.disp, &self.index, &self.scale)
     }

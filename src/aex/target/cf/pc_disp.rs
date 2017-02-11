@@ -26,11 +26,11 @@ use aex::ast::Expr;
 use super::PcReg;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct PcDisp {
-    pub disp: Expr
+pub struct PcDisp<'a> {
+    pub disp: Expr<'a>
 }
 
-impl PcDisp {
+impl<'a> PcDisp<'a> {
     pub fn decode<R: Read>(more: &mut R) -> io::Result<Self> {
         let ext = more.read_u16::<BE>()?;
 
@@ -38,7 +38,7 @@ impl PcDisp {
     }
 }
 
-impl AsmDisplay for PcDisp {
+impl<'a> AsmDisplay for PcDisp<'a> {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         s.write_base_disp(f, &PcReg, &self.disp)
     }

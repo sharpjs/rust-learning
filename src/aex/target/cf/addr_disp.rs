@@ -26,12 +26,12 @@ use aex::ast::Expr;
 use super::AddrReg;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct AddrDisp {
+pub struct AddrDisp<'a> {
     pub base: AddrReg,
-    pub disp: Expr,
+    pub disp: Expr<'a>
 }
 
-impl AddrDisp {
+impl<'a> AddrDisp<'a> {
     pub fn decode<R: Read>(reg: u8, more: &mut R) -> io::Result<Self> {
         let ext = more.read_u16::<BE>()?;
 
@@ -42,7 +42,7 @@ impl AddrDisp {
     }
 }
 
-impl AsmDisplay for AddrDisp {
+impl<'a> AsmDisplay for AddrDisp<'a> {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
         s.write_base_disp(f, &self.base, &self.disp)
     }
