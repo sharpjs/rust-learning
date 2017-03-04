@@ -16,12 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-#[macro_use]
+//#[macro_use]
 pub mod util;
 
-pub mod asm;
-pub mod ast;
-pub mod source;
-pub mod target;
-pub mod types;
+//pub mod asm;
+//pub mod ast;
+//pub mod source;
+//pub mod target;
+//pub mod types;
 
