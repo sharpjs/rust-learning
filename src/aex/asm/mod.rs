@@ -1,4 +1,4 @@
-// Assembly Style
+// Assembly Syntax
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -16,16 +16,54 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Debug, Display, Formatter};
+//use std::fmt::{self, Debug, Display, Formatter};
 
-pub use self::att::*;
-pub use self::intel::*;
-pub use self::mit::*;
+//pub use self::att::*;
+//pub use self::intel::*;
+//pub use self::mit::*;
 
-pub mod att;
-pub mod intel;
-pub mod mit;
+//pub mod att;
+//pub mod intel;
+//pub mod mit;
 
+use aex::ast::{Expr, Id};
+
+#[derive(Clone, Debug)]
+pub enum Operand<'a, C=()> {
+    Constant(Expr<'a, C>),
+    Register(Id  <'a, C>),
+    Indirect(Ea  <'a, C>),
+}
+
+#[derive(Clone, Debug)]
+pub struct Indirect<'a, C=()> {
+    pub parts:   Vec<Ea<'a, C>>,
+    pub context: C,
+}
+
+#[derive(Clone, Debug)]
+pub enum Ea<'a, C=()> {
+    Load,
+    Disp (Expr<'a, C>),
+    Reg  (Id  <'a, C>, EaEffect, C),
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum EaEffect {
+    None,       // No effect
+  //Write,      // Writeback
+    PreDec,     // Pre-decrement
+    PreInc,     // Pre-increment
+    PostDec,    // Post-decrement
+    PostInc,    // Post-increment
+    Lsl(u8),    // Logical shift left
+  //Lsr(u8),    // Logical shift right
+  //Asr(u8),    // Arithmetic shift right
+  //Ror(u8),    // Rotate right
+  //Rrx,        // Rotate right with extend
+}
+
+/*
 // -----------------------------------------------------------------------------
 
 pub trait AsmDisplay {
@@ -51,6 +89,10 @@ pub struct Asm<'a, T: 'a + ?Sized>(
 // -----------------------------------------------------------------------------
 
 pub trait AsmStyle : Debug {
+    fn write_id<'a>(&self, f: &mut Formatter, value: &Id<'a>) -> fmt::Result {
+        Ok(())
+    }
+
     fn write_int(&self, f: &mut Formatter, value: u64) -> fmt::Result {
         write!(f, "{}", value)
     }
@@ -97,54 +139,5 @@ pub fn assert_display<T: AsmDisplay>(v: &T, s: &AsmStyle, asm: &str) {
 }
 
 // -----------------------------------------------------------------------------
-
-use aex::ast::Expr;
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Register<'a, C=()> {
-    name: &'a str,
-    ctx:  C,
-}
-
-#[derive(Clone, Debug)]
-pub enum Operand<'a, C=()> {
-    Constant(Expr<'a>, C),
-    Register(C),
-    Indirect(C),
-}
-
-#[derive(Clone, Debug)]
-pub struct Indirect<'a, C=()> {
-    parts:   Vec<Ea<'a, C>>,
-    context: C,
-}
-
-#[derive(Clone, Debug)]
-pub enum Ea<'a, C=()> {
-    Load,
-    Reg  (Register<'a, C>, EaEffect, C),
-    Disp (Expr<'a>, C),
-}
-
-#[derive(Clone, Debug)]
-pub struct EaRegister<'a, C=()> {
-    register:   Register<'a, C>,    // The register
-    effect:     EaEffect,           // Effect applied to the register
-    context:    C,                  // Arbitrary context
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum EaEffect {
-    None,       // No effect
-    Write,      // Writeback
-    PreDec,     // Pre-decrement
-    PreInc,     // Pre-increment
-    PostDec,    // Post-decrement
-    PostInc,    // Post-increment
-    Lsl(u8),    // Logical shift left
-    Lsr(u8),    // Logical shift right
-    Asr(u8),    // Arithmetic shift right
-    Ror(u8),    // Rotate right
-    Rrx,        // Rotate right with extend
-}
+*/
 
