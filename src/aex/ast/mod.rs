@@ -16,53 +16,19 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Display, Formatter};
-
+// -----------------------------------------------------------------------------
+// Latest idea: Same AST for aex input and asm output.  Output AST is just a
+// subset that is AsmDisplayable.  This lets me develop just an assembler and
+// then bolt-on the aex features.  Possible?  Don't know.
+//
+// Might need two Expr types then:
+//   Expr => traditional assembler expressions, constant at runtime
+//   Flow => aex quasi-expressions that become assembly code
 // -----------------------------------------------------------------------------
 
-/// An identifier.
-#[derive(Clone, Copy, Debug)]
-pub struct Id<'a, C = ()> {
-    /// The name of the identifier.
-    pub name: &'a str,
+mod id;
 
-    /// A context value.
-    pub ctx: C,
-}
-
-impl<'a> Id<'a, ()> {
-    /// Creates a new `Id` with the given name and with `()` context.
-    #[inline]
-    pub fn new(name: &'a str) -> Self {
-        Id { name: name, ctx: () }
-    }
-}
-
-impl<'a, C> Id<'a, C> {
-    /// Creates a new `Id` with the given name and context.
-    #[inline]
-    pub fn new_with_context(name: &'a str, ctx: C) -> Self {
-        Id { name: name, ctx: ctx }
-    }
-}
-
-impl<'a, C> Display for Id<'a, C> {
-    /// Formats the value using the given formatter.
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        f.write_str(self.name)
-    }
-}
-
-/*
-impl<'a, C> AsmDisplay for Id<'a, C> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
-        s.write_id(f, self)
-    }
-}
-*/
-
-// -----------------------------------------------------------------------------
+pub use self::id::*;
 
 /*
 use aex::asm::{AsmDisplay, AsmStyle};
@@ -70,10 +36,11 @@ use aex::asm::{AsmDisplay, AsmStyle};
 // Just a stub for now.
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum Expr<'a> {
+pub enum Expr<'a, C=()> {
     // Atomic
     Int(u32),
     Str(&'a str),
+    Fnorp(C),
 }
 
 impl<'a> AsmDisplay for Expr<'a> {
@@ -81,6 +48,7 @@ impl<'a> AsmDisplay for Expr<'a> {
         match *self {
             Expr::Int(n) => write!(f, "{}", n),
             Expr::Str(s) => write!(f, "{}", s),
+            _ => panic!("Zboklem")
         }
     }
 }
