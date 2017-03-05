@@ -60,3 +60,29 @@ impl<'a, C> AsmDisplay for Id<'a, C> {
 }
 */
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    pub fn new() {
+        let id = Id::new("a");
+        assert_eq!(id.name, "a");
+        assert_eq!(id.ctx, ());
+    }
+
+    #[test]
+    pub fn new_with_context() {
+        let id = Id::new_with_context("a", 42);
+        assert_eq!(id.name, "a");
+        assert_eq!(id.ctx, 42);
+    }
+
+    #[test]
+    pub fn fmt() {
+        let id = Id { name: "a", ctx: 42 };
+        let s = format!("{}", &id);
+        assert_eq!(s, "a");
+    }
+}
+
