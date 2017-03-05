@@ -27,8 +27,10 @@
 // -----------------------------------------------------------------------------
 
 mod id;
+mod int;
 
 pub use self::id::*;
+pub use self::int::*;
 
 /*
 use aex::asm::{AsmDisplay, AsmStyle};
