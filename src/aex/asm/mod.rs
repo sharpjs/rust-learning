@@ -28,39 +28,116 @@
 
 use aex::ast::{Expr, Id};
 
+/// An instruction operand.
 #[derive(Clone, Debug)]
-pub enum Operand<'a, C=()> {
+pub enum Operand<'a, C = ()> {
+
+    /// A constant expression.
     Constant(Expr<'a, C>),
-    Register(Id  <'a, C>),
-    Indirect(Ea  <'a, C>),
+
+    /// A register.
+    Register(Id<'a, C>),
+
+    /// A memory location.
+    Indirect(Indirect<'a, C>),
 }
 
+/// A reference to a memory location.
 #[derive(Clone, Debug)]
-pub struct Indirect<'a, C=()> {
-    pub parts:   Vec<Ea<'a, C>>,
-    pub context: C,
+pub struct Indirect<'a, C = ()> {
+
+    /// Offsets that sum to the effective address.
+    pub offsets: Vec<Offset<'a, C>>,
+
+    /// A context value.
+    pub ctx: C,
 }
 
+/// An offset in an indirect operand.
 #[derive(Clone, Debug)]
-pub enum Ea<'a, C=()> {
-    Load,
-    Disp (Expr<'a, C>),
-    Reg  (Id  <'a, C>, EaEffect, C),
+pub enum Offset<'a, C = ()> {
+
+    /// Constant displacement.
+    Disp(Disp<'a, C>),
+
+    /// Base register.
+    Base(Id<'a, C>),
+
+    /// Register with pre-decrement.
+    PreDec(Id<'a, C>),
+
+    /// Register with post-increment.
+    PostInc(Id<'a, C>),
+
+    /// Register scaled by logical left shift.
+    Index(Index<'a, C>),
+
+    // Consider these additional modes for ARM
+    //
+    //Write,      // Writeback
+    //Lsr(n),     // Logical shift right
+    //Asr(n),     // Arithmetic shift right
+    //Ror(n),     // Rotate right
+    //Rrx,        // Rotate right with extend
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum EaEffect {
-    None,       // No effect
-  //Write,      // Writeback
-    PreDec,     // Pre-decrement
-    PreInc,     // Pre-increment
-    PostDec,    // Post-decrement
-    PostInc,    // Post-increment
-    Lsl(u8),    // Logical shift left
-  //Lsr(u8),    // Logical shift right
-  //Asr(u8),    // Arithmetic shift right
-  //Ror(u8),    // Rotate right
-  //Rrx,        // Rotate right with extend
+/// A constant displacement in an indirect operand.
+#[derive(Clone, Debug)]
+pub struct Disp<'a, C = ()> {
+
+    /// The amount of displacement.
+    pub value: Expr<'a, C>,
+
+    /// The kind of displacement: near, far, etc.
+    pub kind: DispKind,
+
+    /// A context value.
+    pub ctx: C,
+}
+
+/// Kinds of constant displacement in an indirect operand.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum DispKind {
+
+    /// Far displacement (ex: .L on M68K).
+    Far,
+
+    /// Near displacement (ex: .W on M68K).
+    Near,
+}
+
+/// An scaled index register in an indirect operand.
+#[derive(Clone, Debug)]
+pub struct Index<'a, C = ()> {
+
+    /// The index register.
+    pub reg: Id<'a, C>,
+
+    /// The scaling applied to the index register.
+    pub scale: Scale<'a, C>,
+
+    /// A context value.
+    pub ctx: C,
+}
+
+/// A scaling operation in an indirect operand.
+#[derive(Clone, Debug)]
+pub enum Scale<'a, C = ()> {
+
+    /// Logical left shift.
+    Lsl(Operand<'a, C>),
+
+    /// Logical right shift. (ARM)
+    Lsr(Operand<'a, C>),
+
+    /// Arithmetic right shift. (ARM)
+    Asr(Operand<'a, C>),
+
+    /// Rotate right. (ARM)
+    Ror(Operand<'a, C>),
+
+    /// Rotate right through carry. (ARM)
+    Rrc(Operand<'a, C>),
 }
 
 /*
