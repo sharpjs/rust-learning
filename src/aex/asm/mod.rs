@@ -114,7 +114,7 @@ pub struct Index<'a, C = ()> {
     pub reg: Id<'a, C>,
 
     /// The scaling applied to the index register.
-    pub scale: Scale<'a, C>,
+    pub scale: Option<Scale<'a, C>>,
 
     /// A context value.
     pub ctx: C,
