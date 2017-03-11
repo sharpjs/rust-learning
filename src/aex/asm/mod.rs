@@ -71,14 +71,6 @@ pub enum Offset<'a, C = ()> {
 
     /// Register scaled by logical left shift.
     Index(Index<'a, C>),
-
-    // Consider these additional modes for ARM
-    //
-    //Write,      // Writeback
-    //Lsr(n),     // Logical shift right
-    //Asr(n),     // Arithmetic shift right
-    //Ror(n),     // Rotate right
-    //Rrx,        // Rotate right with extend
 }
 
 /// A constant displacement in an indirect operand.
