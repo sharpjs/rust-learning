@@ -66,7 +66,7 @@ pub trait AsmStyle<C> : Debug {
     }
 
     fn write_int(&self, f: &mut Formatter, num: &Int<C>) -> fmt::Result {
-        write!(f, "{}", num.val)
+        write!(f, "{}", num.value)
     }
 /*
     fn write_reg(&self, f: &mut Formatter, name: &str) -> fmt::Result {
