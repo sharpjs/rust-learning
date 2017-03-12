@@ -28,6 +28,9 @@ pub enum Expr<'a, C = ()> {
 
     /// Integer literal
     Int(Int<C>),
+
+    /// Register
+    Reg(Reg<'a, C>),
 }
 
 impl<'a, C> Display for Expr<'a, C> {
@@ -36,6 +39,7 @@ impl<'a, C> Display for Expr<'a, C> {
         match *self {
             Expr::Id  (ref i) => Display::fmt(i, f),
             Expr::Int (ref n) => Display::fmt(n, f),
+            Expr::Reg (ref r) => Display::fmt(r, f),
         }
     }
 }
@@ -47,6 +51,7 @@ impl<'a, C> AsmDisplay<C> for Expr<'a, C> {
         match *self {
             Expr::Id  (ref i) => AsmDisplay::fmt(i, f, s),
             Expr::Int (ref n) => AsmDisplay::fmt(n, f, s),
+            Expr::Reg (ref r) => AsmDisplay::fmt(r, f, s),
         }
     }
 }
@@ -67,6 +72,13 @@ mod tests {
         let e = Expr::Int(Int::from(42));
         let s = format!("{}", &e);
         assert_eq!(s, "0x2A");
+    }
+
+    #[test]
+    fn fmt_reg() {
+        let e = Expr::Reg(Reg::new("a"));
+        let s = format!("{}", e);
+        assert_eq!(s, "a");
     }
 }
 

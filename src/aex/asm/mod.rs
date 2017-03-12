@@ -69,11 +69,12 @@ pub trait AsmStyle<C> : Debug {
     fn write_int(&self, f: &mut Formatter, num: &Int<C>) -> fmt::Result {
         write!(f, "{}", num.value)
     }
-/*
-    fn write_reg(&self, f: &mut Formatter, name: &str) -> fmt::Result {
-        f.write_str(name)
-    }
 
+    /// Writes a register to the given formatter in this assembly style.
+    fn write_reg(&self, f: &mut Formatter, reg: &Reg<C>) -> fmt::Result {
+        f.write_str(reg.name)
+    }
+/*
     fn write_ind
         (&self, f: &mut Formatter, reg: &AsmDisplay)
         -> fmt::Result { Err(fmt::Error) }
@@ -122,6 +123,13 @@ mod tests {
         let i = Int::from(42);
         let s = format!("{}", Asm(&i, &DefaultStyle));
         assert_eq!(s, "42");
+    }
+
+    #[test]
+    fn write_reg() {
+        let i = Reg::new("a");
+        let s = format!("{}", Asm(&i, &DefaultStyle));
+        assert_eq!(s, "a");
     }
 }
 
