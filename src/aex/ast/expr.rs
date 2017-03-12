@@ -61,16 +61,16 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn fmt_id() {
+    fn fmt_id() {
         let e = Expr::Id(Id::new("a"));
-        let s = format!("{}", &e);
+        let s = format!("{}", e);
         assert_eq!(s, "a");
     }
 
     #[test]
-    pub fn fmt_int() {
+    fn fmt_int() {
         let e = Expr::Int(Int::from(42));
-        let s = format!("{}", &e);
+        let s = format!("{}", e);
         assert_eq!(s, "0x2A");
     }
 
