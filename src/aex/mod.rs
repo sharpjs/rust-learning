@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //#[macro_use]
-pub mod util;
+//pub mod util;
 
 pub mod asm;
 pub mod ast;
