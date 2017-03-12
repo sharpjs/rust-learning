@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
+use aex::asm::{AsmDisplay, AsmStyle};
 use num::BigInt;
 
 /// An integer literal.
@@ -60,17 +61,18 @@ impl<C> Display for Int<C> {
     }
 }
 
-/*
-impl<C> AsmDisplay for Int<C> {
+impl<C> AsmDisplay<C> for Int<C> {
+    /// Formats the value as assembly code, using the given formatter and
+    /// assembly style.
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
-        s.write_id(f, self)
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
+        s.write_int(f, self)
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
+    use aex::asm::{Asm, IntelStyle};
     use num::BigInt;
     use super::*;
 
@@ -100,6 +102,13 @@ mod tests {
         let id = Int { value: BigInt::from(42), context: "a" };
         let s = format!("{}", &id);
         assert_eq!(s, "0x2A");
+    }
+
+    #[test]
+    pub fn fmt_asm() {
+        let id = Int { value: BigInt::from(42), context: "a" };
+        let s = format!("{}", Asm(&id, &IntelStyle));
+        assert_eq!(s, "42");
     }
 }
 

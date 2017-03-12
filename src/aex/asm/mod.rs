@@ -63,11 +63,11 @@ pub trait AsmStyle<C = ()> : Debug {
     fn write_id(&self, f: &mut Formatter, id: &Id<C>) -> fmt::Result {
         f.write_str(id.name)
     }
-/*
-    fn write_int(&self, f: &mut Formatter, value: u64) -> fmt::Result {
-        write!(f, "{}", value)
-    }
 
+    fn write_int(&self, f: &mut Formatter, num: &Int<C>) -> fmt::Result {
+        write!(f, "{}", num.value)
+    }
+/*
     fn write_reg(&self, f: &mut Formatter, name: &str) -> fmt::Result {
         f.write_str(name)
     }
