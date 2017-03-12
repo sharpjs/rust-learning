@@ -101,13 +101,6 @@ pub trait AsmStyle<C> : Debug {
 
 // -----------------------------------------------------------------------------
 
-/// Asserts that formatting the given value in the given assembly style yields
-/// the expected string.
-#[cfg(test)]
-pub fn assert_display<T: AsmDisplay<C>, C>(v: &T, s: &AsmStyle<C>, asm: &str) {
-    assert_eq!(format!("{0}", Asm(v, s)), asm);
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,12 +111,16 @@ mod tests {
 
     #[test]
     fn write_id() {
-        assert_display(&Id::new("a"), &DefaultStyle, "a")
+        let i = Id::new("a");
+        let s = format!("{}", Asm(&i, &DefaultStyle));
+        assert_eq!(s, "a");
     }
 
     #[test]
     fn write_num() {
-        assert_display(&Int::from(42), &DefaultStyle, "42")
+        let i = Int::from(42);
+        let s = format!("{}", Asm(&i, &DefaultStyle));
+        assert_eq!(s, "42");
     }
 }
 
