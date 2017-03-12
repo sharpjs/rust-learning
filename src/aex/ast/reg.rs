@@ -19,10 +19,10 @@
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
 
-/// An identifier.
+/// A register.
 #[derive(Clone, Copy, Debug)]
 pub struct Reg<'a, C = ()> {
-    /// The name of the identifier.
+    /// The name of the register.
     pub name: &'a str,
 
     /// A context value.
