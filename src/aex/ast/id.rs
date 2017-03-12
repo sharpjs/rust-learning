@@ -1,4 +1,4 @@
-// Identifiers
+// AST: Identifiers
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -47,12 +47,15 @@ impl<'a, C> Id<'a, C> {
 
 impl<'a, C> Display for Id<'a, C> {
     /// Formats the value using the given formatter.
+    #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         f.write_str(self.name)
     }
 }
 
 impl<'a, C> AsmDisplay<C> for Id<'a, C> {
+    /// Formats the value as assembly code, using the given formatter and
+    /// assembly style.
     #[inline]
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
         s.write_id(f, self)
