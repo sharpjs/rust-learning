@@ -1,4 +1,4 @@
-// Expressions (Runtime Constant)
+// AST: Expressions
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -20,7 +20,7 @@ use std::fmt::{self, Display, Formatter};
 use super::*;
 //use aex::asm::{AsmDisplay, AsmStyle};
 
-/// An expression whose value is constant at runtime.
+/// An expression.
 #[derive(Clone, Debug)]
 pub enum Expr<'a, C = ()> {
     /// Identifier
@@ -31,10 +31,11 @@ pub enum Expr<'a, C = ()> {
 }
 
 impl<'a, C> Display for Expr<'a, C> {
+    /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Expr::Id  (ref i) => write!(f, "{}", i),
-            Expr::Int (ref n) => write!(f, "{}", n),
+            Expr::Id  (ref i) => Display::fmt(i, f),
+            Expr::Int (ref n) => Display::fmt(n, f),
         }
     }
 }
