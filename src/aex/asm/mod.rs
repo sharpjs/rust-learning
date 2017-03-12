@@ -37,6 +37,7 @@ pub trait AsmDisplay<C = ()> {
 }
 
 impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
+    /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         let Asm(value, style) = *self;
@@ -48,7 +49,7 @@ impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
 
 /// An assembly-formattable value paired with an assembly style.
 #[derive(Clone, Copy, Debug)]
-pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a = ()>(
+pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
     /// Assembly-formattable value.
     pub &'a T,
     /// Assembly code style.
@@ -58,14 +59,14 @@ pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a = ()>(
 // -----------------------------------------------------------------------------
 
 /// An assembly code style.
-pub trait AsmStyle<C = ()> : Debug {
+pub trait AsmStyle<C> : Debug {
     /// Writes an identifier to the given formatter in this assembly style.
     fn write_id(&self, f: &mut Formatter, id: &Id<C>) -> fmt::Result {
         f.write_str(id.name)
     }
 
     fn write_int(&self, f: &mut Formatter, num: &Int<C>) -> fmt::Result {
-        write!(f, "{}", num.value)
+        write!(f, "{}", num.val)
     }
 /*
     fn write_reg(&self, f: &mut Formatter, name: &str) -> fmt::Result {
@@ -98,20 +99,31 @@ pub trait AsmStyle<C = ()> : Debug {
 */
 }
 
-/*
+// -----------------------------------------------------------------------------
 
+/// Asserts that formatting the given value in the given assembly style yields
+/// the expected string.
 #[cfg(test)]
-pub static GAS_STYLE: AttStyle = AttStyle {
-    arg_spaces: true,
-    reg_prefix: "%",
-    imm_prefix: "#",
-};
-
-#[cfg(test)]
-pub fn assert_display<T: AsmDisplay>(v: &T, s: &AsmStyle, asm: &str) {
+pub fn assert_display<T: AsmDisplay<C>, C>(v: &T, s: &AsmStyle<C>, asm: &str) {
     assert_eq!(format!("{0}", Asm(v, s)), asm);
 }
 
-// -----------------------------------------------------------------------------
-*/
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[derive(Debug)]
+    struct DefaultStyle;
+    impl<C> AsmStyle<C> for DefaultStyle { }
+
+    #[test]
+    fn write_id() {
+        assert_display(&Id::new("a"), &DefaultStyle, "a")
+    }
+
+    #[test]
+    fn write_num() {
+        assert_display(&Int::from(42), &DefaultStyle, "42")
+    }
+}
 
