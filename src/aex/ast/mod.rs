@@ -29,8 +29,10 @@
 mod expr;
 mod id;
 mod int;
+mod operand;
 
 pub use self::expr::*;
 pub use self::id::*;
 pub use self::int::*;
+pub use self::operand::*;
 
