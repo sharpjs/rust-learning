@@ -17,8 +17,8 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
+use aex::asm::{AsmDisplay, AsmStyle};
 use super::*;
-//use aex::asm::{AsmDisplay, AsmStyle};
 
 /// An expression.
 #[derive(Clone, Debug)]
@@ -40,14 +40,16 @@ impl<'a, C> Display for Expr<'a, C> {
     }
 }
 
-/*
-impl<'a, C> AsmDisplay for Expr<'a, C> {
-    #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmSyntax) -> fmt::Result {
-        // ?
+impl<'a, C> AsmDisplay<C> for Expr<'a, C> {
+    /// Formats the value as assembly code, using the given formatter and
+    /// assembly style.
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
+        match *self {
+            Expr::Id  (ref i) => AsmDisplay::fmt(i, f, s),
+            Expr::Int (ref n) => AsmDisplay::fmt(n, f, s),
+        }
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
