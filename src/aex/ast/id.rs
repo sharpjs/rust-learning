@@ -29,7 +29,7 @@ pub struct Id<'a, C = ()> {
     pub context: C,
 }
 
-impl<'a> Id<'a, ()> {
+impl<'a> Id<'a> {
     /// Creates a new `Id` with the given name and with `()` context.
     #[inline]
     pub fn new(name: &'a str) -> Self {
@@ -68,30 +68,30 @@ mod tests {
     use aex::asm::{Asm, IntelStyle};
 
     #[test]
-    pub fn new() {
-        let id = Id::new("a");
-        assert_eq!(id.name, "a");
-        assert_eq!(id.context, ());
+    fn new() {
+        let i = Id::new("a");
+        assert_eq!(i.name, "a");
+        assert_eq!(i.context, ());
     }
 
     #[test]
-    pub fn new_with_context() {
-        let id = Id::new_with_context("a", 42);
-        assert_eq!(id.name, "a");
-        assert_eq!(id.context, 42);
+    fn new_with_context() {
+        let i = Id::new_with_context("a", 42);
+        assert_eq!(i.name, "a");
+        assert_eq!(i.context, 42);
     }
 
     #[test]
-    pub fn fmt() {
-        let id = Id { name: "a", context: 42 };
-        let s = format!("{}", &id);
+    fn fmt() {
+        let i = Id { name: "a", context: 42 };
+        let s = format!("{}", &i);
         assert_eq!(s, "a");
     }
 
     #[test]
-    pub fn fmt_asm() {
-        let id = Id { name: "a", context: 42 };
-        let s = format!("{}", Asm(&id, &IntelStyle));
+    fn fmt_asm() {
+        let i = Id { name: "a", context: 42 };
+        let s = format!("{}", Asm(&i, &IntelStyle));
         assert_eq!(s, "a");
     }
 }

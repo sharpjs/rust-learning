@@ -1,4 +1,4 @@
-// Integer Literals
+// AST: Integer Literals
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -30,7 +30,7 @@ pub struct Int<C = ()> {
     pub context: C,
 }
 
-impl Int<()> {
+impl Int {
     /// Creates a new `Int` with the given value and with `()` context.
     #[inline]
     pub fn new(val: BigInt) -> Self {
@@ -46,7 +46,7 @@ impl<C> Int<C> {
     }
 }
 
-impl<T> From<T> for Int<()> where BigInt: From<T> {
+impl<T> From<T> for Int where BigInt: From<T> {
     /// Converts the given value to an `Int` with `()` context.
     #[inline]
     fn from(v: T) -> Self {
@@ -77,37 +77,37 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn new() {
-        let id = Int::new(BigInt::from(42));
-        assert_eq!(id.value, BigInt::from(42));
-        assert_eq!(id.context, ());
+    fn new() {
+        let i = Int::new(BigInt::from(42));
+        assert_eq!(i.value, BigInt::from(42));
+        assert_eq!(i.context, ());
     }
 
     #[test]
-    pub fn new_with_context() {
-        let id = Int::new_with_context(BigInt::from(42), "a");
-        assert_eq!(id.value, BigInt::from(42));
-        assert_eq!(id.context, "a");
+    fn new_with_context() {
+        let i = Int::new_with_context(BigInt::from(42), "a");
+        assert_eq!(i.value, BigInt::from(42));
+        assert_eq!(i.context, "a");
     }
 
     #[test]
-    pub fn from() {
-        let id = Int::from(42);
-        assert_eq!(id.value, BigInt::from(42));
-        assert_eq!(id.context, ());
+    fn from() {
+        let i = Int::from(42);
+        assert_eq!(i.value, BigInt::from(42));
+        assert_eq!(i.context, ());
     }
 
     #[test]
-    pub fn fmt() {
-        let id = Int { value: BigInt::from(42), context: "a" };
-        let s = format!("{}", &id);
+    fn fmt() {
+        let i = Int { value: BigInt::from(42), context: "a" };
+        let s = format!("{}", &i);
         assert_eq!(s, "0x2A");
     }
 
     #[test]
-    pub fn fmt_asm() {
-        let id = Int { value: BigInt::from(42), context: "a" };
-        let s = format!("{}", Asm(&id, &IntelStyle));
+    fn fmt_asm() {
+        let i = Int { value: BigInt::from(42), context: "a" };
+        let s = format!("{}", Asm(&i, &IntelStyle));
         assert_eq!(s, "42");
     }
 }
