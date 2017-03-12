@@ -17,6 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
+use aex::asm::{AsmDisplay, AsmStyle};
 
 /// An identifier.
 #[derive(Clone, Copy, Debug)]
@@ -51,18 +52,17 @@ impl<'a, C> Display for Id<'a, C> {
     }
 }
 
-/*
-impl<'a, C> AsmDisplay for Id<'a, C> {
+impl<'a, C> AsmDisplay<C> for Id<'a, C> {
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
         s.write_id(f, self)
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use aex::asm::{Asm, IntelStyle};
 
     #[test]
     pub fn new() {
@@ -82,6 +82,13 @@ mod tests {
     pub fn fmt() {
         let id = Id { name: "a", context: 42 };
         let s = format!("{}", &id);
+        assert_eq!(s, "a");
+    }
+
+    #[test]
+    pub fn fmt_asm() {
+        let id = Id { name: "a", context: 42 };
+        let s = format!("{}", Asm(&id, &IntelStyle));
         assert_eq!(s, "a");
     }
 }
