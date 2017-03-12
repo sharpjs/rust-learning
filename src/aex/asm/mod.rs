@@ -65,6 +65,7 @@ pub trait AsmStyle<C> : Debug {
         f.write_str(id.name)
     }
 
+    /// Writes an integer literal to the given formatter in this assembly style.
     fn write_int(&self, f: &mut Formatter, num: &Int<C>) -> fmt::Result {
         write!(f, "{}", num.value)
     }
