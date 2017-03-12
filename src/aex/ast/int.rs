@@ -23,17 +23,17 @@ use num::BigInt;
 #[derive(Clone, Debug)]
 pub struct Int<C = ()> {
     /// The value of the integer literal.
-    pub val: BigInt,
+    pub value: BigInt,
 
     /// A context value.
-    pub ctx: C,
+    pub context: C,
 }
 
 impl Int<()> {
     /// Creates a new `Int` with the given value and with `()` context.
     #[inline]
     pub fn new(val: BigInt) -> Self {
-        Int { val: val, ctx: () }
+        Int { value: val, context: () }
     }
 }
 
@@ -41,7 +41,7 @@ impl<C> Int<C> {
     /// Creates a new `Int` with the given value and context.
     #[inline]
     pub fn new_with_context(val: BigInt, ctx: C) -> Self {
-        Int { val: val, ctx: ctx }
+        Int { value: val, context: ctx }
     }
 }
 
@@ -56,7 +56,7 @@ impl<T> From<T> for Int<()> where BigInt: From<T> {
 impl<C> Display for Int<C> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "0x{:X}", &self.val)
+        write!(f, "0x{:X}", &self.value)
     }
 }
 
@@ -77,27 +77,27 @@ mod tests {
     #[test]
     pub fn new() {
         let id = Int::new(BigInt::from(42));
-        assert_eq!(id.val, BigInt::from(42));
-        assert_eq!(id.ctx, ());
+        assert_eq!(id.value, BigInt::from(42));
+        assert_eq!(id.context, ());
     }
 
     #[test]
     pub fn new_with_context() {
         let id = Int::new_with_context(BigInt::from(42), "a");
-        assert_eq!(id.val, BigInt::from(42));
-        assert_eq!(id.ctx, "a");
+        assert_eq!(id.value, BigInt::from(42));
+        assert_eq!(id.context, "a");
     }
 
     #[test]
     pub fn from() {
         let id = Int::from(42);
-        assert_eq!(id.val, BigInt::from(42));
-        assert_eq!(id.ctx, ());
+        assert_eq!(id.value, BigInt::from(42));
+        assert_eq!(id.context, ());
     }
 
     #[test]
     pub fn fmt() {
-        let id = Int { val: BigInt::from(42), ctx: "a" };
+        let id = Int { value: BigInt::from(42), context: "a" };
         let s = format!("{}", &id);
         assert_eq!(s, "0x2A");
     }
