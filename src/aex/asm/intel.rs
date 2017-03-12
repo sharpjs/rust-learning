@@ -19,10 +19,12 @@
 use std::fmt::{self, Formatter};
 use super::{Asm, AsmDisplay, AsmStyle};
 
-#[derive(Copy, Clone, Debug)]
+/// Intel assembly style.
+#[derive(Clone, Copy, Debug)]
 pub struct IntelStyle;
 
-impl AsmStyle for IntelStyle {
+impl<C> AsmStyle<C> for IntelStyle {
+/*
     fn write_reg(
         &self,
         f:    &mut Formatter,
@@ -92,5 +94,6 @@ impl AsmStyle for IntelStyle {
     ) -> fmt::Result {
         write!(f, "{}", scale)
     }
+*/
 }
 

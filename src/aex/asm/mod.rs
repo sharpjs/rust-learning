@@ -16,16 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//pub use self::att::*;
-//pub use self::intel::*;
-//pub use self::mit::*;
 use std::fmt::{self, Debug, Display, Formatter};
 use aex::ast::*;
 
 //pub mod att;
-//pub mod intel;
+pub mod intel;
 //pub mod mit;
 
+//pub use self::att::*;
+pub use self::intel::*;
+//pub use self::mit::*;
 
 // -----------------------------------------------------------------------------
 
