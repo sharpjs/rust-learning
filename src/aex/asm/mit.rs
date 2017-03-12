@@ -16,9 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
-use super::{Asm, AsmDisplay, AsmStyle};
+//use std::fmt::{self, Formatter};
+use super::{/*Asm , AsmDisplay,*/ AsmStyle};
 
+/// MIT assembly style.
 #[derive(Clone, Debug)]
 pub struct MitStyle {
     pub arg_spaces: bool,
@@ -26,7 +27,18 @@ pub struct MitStyle {
     pub imm_prefix: &'static str,
 }
 
-impl AsmStyle for MitStyle {
+impl Default for MitStyle {
+    fn default() -> Self {
+        MitStyle {
+            arg_spaces: false,
+            reg_prefix: "%",
+            imm_prefix: "#",
+        }
+    }
+}
+
+impl<C> AsmStyle<C> for MitStyle {
+/*
     fn write_reg(
         &self,
         f:    &mut Formatter,
@@ -97,5 +109,6 @@ impl AsmStyle for MitStyle {
     ) -> fmt::Result {
         write!(f, "{}", scale)
     }
+*/
 }
 

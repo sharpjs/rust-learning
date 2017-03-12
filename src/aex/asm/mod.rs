@@ -19,13 +19,13 @@
 use std::fmt::{self, Debug, Display, Formatter};
 use aex::ast::*;
 
-//pub mod att;
+pub mod att;
 pub mod intel;
-//pub mod mit;
+pub mod mit;
 
-//pub use self::att::*;
+pub use self::att::*;
 pub use self::intel::*;
-//pub use self::mit::*;
+pub use self::mit::*;
 
 // -----------------------------------------------------------------------------
 
