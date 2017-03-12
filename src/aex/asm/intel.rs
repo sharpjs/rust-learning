@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
-use super::{Asm, AsmDisplay, AsmStyle};
+//use std::fmt::{self, Formatter};
+use super::{/*Asm, AsmDisplay,*/ AsmStyle};
 
 /// Intel assembly style.
 #[derive(Clone, Copy, Debug)]
