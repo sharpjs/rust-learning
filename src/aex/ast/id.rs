@@ -25,14 +25,14 @@ pub struct Id<'a, C = ()> {
     pub name: &'a str,
 
     /// A context value.
-    pub ctx: C,
+    pub context: C,
 }
 
 impl<'a> Id<'a, ()> {
     /// Creates a new `Id` with the given name and with `()` context.
     #[inline]
     pub fn new(name: &'a str) -> Self {
-        Id { name: name, ctx: () }
+        Id { name: name, context: () }
     }
 }
 
@@ -40,7 +40,7 @@ impl<'a, C> Id<'a, C> {
     /// Creates a new `Id` with the given name and context.
     #[inline]
     pub fn new_with_context(name: &'a str, ctx: C) -> Self {
-        Id { name: name, ctx: ctx }
+        Id { name: name, context: ctx }
     }
 }
 
@@ -68,19 +68,19 @@ mod tests {
     pub fn new() {
         let id = Id::new("a");
         assert_eq!(id.name, "a");
-        assert_eq!(id.ctx, ());
+        assert_eq!(id.context, ());
     }
 
     #[test]
     pub fn new_with_context() {
         let id = Id::new_with_context("a", 42);
         assert_eq!(id.name, "a");
-        assert_eq!(id.ctx, 42);
+        assert_eq!(id.context, 42);
     }
 
     #[test]
     pub fn fmt() {
-        let id = Id { name: "a", ctx: 42 };
+        let id = Id { name: "a", context: 42 };
         let s = format!("{}", &id);
         assert_eq!(s, "a");
     }
