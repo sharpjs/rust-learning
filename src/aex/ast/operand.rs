@@ -129,7 +129,7 @@ pub enum Scale<'a, C = ()> {
 //    use super::*;
 //
 //    #[test]
-//    pub fn fmt() {
+//    fn fmt() {
 //    }
 //}
 
