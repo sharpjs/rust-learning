@@ -26,6 +26,7 @@
 //   Flow => aex quasi-expressions that become assembly code
 // -----------------------------------------------------------------------------
 
+mod binary;
 mod expr;
 mod id;
 mod int;
@@ -33,6 +34,7 @@ mod operand;
 mod prec;
 mod reg;
 
+pub use self::binary::*;
 pub use self::expr::*;
 pub use self::id::*;
 pub use self::int::*;

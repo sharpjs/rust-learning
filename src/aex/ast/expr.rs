@@ -31,15 +31,32 @@ pub enum Expr<'a, C = ()> {
 
     /// Register
     Reg(Reg<'a, C>),
+
+    /// Binary operation
+    Binary(Binary<'a, C>),
+}
+
+impl<'a, C> Precedence for Expr<'a, C> {
+    /// Gets the operator precedence level.
+    /// Higher values mean higher precendence.
+    fn precedence(&self) -> usize {
+        match *self {
+            Expr::Id     (_)     => 12,
+            Expr::Int    (_)     => 12,
+            Expr::Reg    (_)     => 12,
+            Expr::Binary (ref e) => e.precedence(),
+        }
+    }
 }
 
 impl<'a, C> Display for Expr<'a, C> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
-            Expr::Id  (ref i) => Display::fmt(i, f),
-            Expr::Int (ref n) => Display::fmt(n, f),
-            Expr::Reg (ref r) => Display::fmt(r, f),
+            Expr::Id     (ref i) => Display::fmt(i, f),
+            Expr::Int    (ref n) => Display::fmt(n, f),
+            Expr::Reg    (ref r) => Display::fmt(r, f),
+            Expr::Binary (ref e) => Display::fmt(e, f),
         }
     }
 }
@@ -49,9 +66,10 @@ impl<'a, C> AsmDisplay<C> for Expr<'a, C> {
     /// assembly style.
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
         match *self {
-            Expr::Id  (ref i) => AsmDisplay::fmt(i, f, s),
-            Expr::Int (ref n) => AsmDisplay::fmt(n, f, s),
-            Expr::Reg (ref r) => AsmDisplay::fmt(r, f, s),
+            Expr::Id     (ref i) => AsmDisplay::fmt(i, f, s),
+            Expr::Int    (ref n) => AsmDisplay::fmt(n, f, s),
+            Expr::Reg    (ref r) => AsmDisplay::fmt(r, f, s),
+            Expr::Binary (ref e) => AsmDisplay::fmt(e, f, s),
         }
     }
 }
