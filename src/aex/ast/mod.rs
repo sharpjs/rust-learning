@@ -33,6 +33,7 @@ mod int;
 mod operand;
 mod prec;
 mod reg;
+mod unary;
 
 pub use self::binary::*;
 pub use self::expr::*;
@@ -41,4 +42,5 @@ pub use self::int::*;
 pub use self::operand::*;
 pub use self::prec::*;
 pub use self::reg::*;
+pub use self::unary::*;
 
