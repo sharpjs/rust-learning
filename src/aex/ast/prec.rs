@@ -1,4 +1,4 @@
-// AST: Precedence Trait
+// AST: Operator Precedence
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -16,10 +16,30 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+/// Operator precedence levels.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Prec {
+    // Lowest precedence
+    Assignment,
+    Conditional,
+    Comparison,
+    BitwiseOr,
+    BitwiseXor,
+    BitwiseAnd,
+    BitwiseShift,
+    Additive,
+    Multiplicative,
+    Casting,
+    Prefix,
+    Postfix,
+    Atomic,
+    // Highest precedence
+}
+
 /// Trait for types that have operator precedence.
 pub trait Precedence {
     /// Gets the operator precedence level.
     /// Higher values mean higher precendence.
-    fn precedence(&self) -> usize;
+    fn precedence(&self) -> Prec;
 }
 

@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{Asm, AsmDisplay, AsmStyle};
-use aex::ast::{Expr, Precedence};
+use aex::ast::{Expr, Prec, Precedence};
 
 /// A binary operator expression.
 #[derive(Clone, Debug)]
@@ -59,7 +59,7 @@ impl<'a, C> Precedence for Binary<'a, C> {
     /// Gets the operator precedence level.
     /// Higher values mean higher precendence.
     #[inline]
-    fn precedence(&self) -> usize {
+    fn precedence(&self) -> Prec {
         self.op.precedence()
     }
 }
@@ -161,32 +161,33 @@ impl Display for BinaryOp {
 }
 
 impl Precedence for BinaryOp {
-    fn precedence(&self) -> usize {
+    fn precedence(&self) -> Prec {
         use self::BinaryOp::*;
+        use super::Prec::*;
 
         match *self {
-            Mul => 8,
-            Div => 8,
-            Mod => 8,
-            Add => 7,
-            Sub => 7,
-            Shl => 6,
-            Shr => 6,
-            Rol => 6,
-            Ror => 6,
-            Rcl => 6,
-            Rcr => 6,
-            And => 5,
-            Xor => 4,
-            Or  => 3,
-            Cmp => 2,
-            Eq  => 1,
-            Ne  => 1,
-            Lt  => 1,
-            Le  => 1,
-            Gt  => 1,
-            Ge  => 1,
-            Mov => 0,
+            Mul => Multiplicative,
+            Div => Multiplicative,
+            Mod => Multiplicative,
+            Add => Additive,
+            Sub => Additive,
+            Shl => BitwiseShift,
+            Shr => BitwiseShift,
+            Rol => BitwiseShift,
+            Ror => BitwiseShift,
+            Rcl => BitwiseShift,
+            Rcr => BitwiseShift,
+            And => BitwiseAnd,
+            Xor => BitwiseXor,
+            Or  => BitwiseOr,
+            Cmp => Comparison,
+            Eq  => Conditional,
+            Ne  => Conditional,
+            Lt  => Conditional,
+            Le  => Conditional,
+            Gt  => Conditional,
+            Ge  => Conditional,
+            Mov => Assignment,
         }
     }
 }
@@ -223,8 +224,8 @@ mod tests {
     #[test]
     fn precedence() {
         let b = binary();
-        assert!(b.precedence() == BinaryOp::Add.precedence());
-        assert!(b.precedence()  > 0);
+        let p = b.precedence();
+        assert_eq!(p, Prec::Additive);
     }
 
     #[test]

@@ -39,11 +39,12 @@ pub enum Expr<'a, C = ()> {
 impl<'a, C> Precedence for Expr<'a, C> {
     /// Gets the operator precedence level.
     /// Higher values mean higher precendence.
-    fn precedence(&self) -> usize {
+    fn precedence(&self) -> Prec {
+        use super::Prec::*;
         match *self {
-            Expr::Id     (_)     => 12,
-            Expr::Int    (_)     => 12,
-            Expr::Reg    (_)     => 12,
+            Expr::Id     (_)     => Atomic,
+            Expr::Int    (_)     => Atomic,
+            Expr::Reg    (_)     => Atomic,
             Expr::Binary (ref e) => e.precedence(),
         }
     }
