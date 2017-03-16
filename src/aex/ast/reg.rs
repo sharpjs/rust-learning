@@ -45,6 +45,12 @@ impl<'a, C> Reg<'a, C> {
     }
 }
 
+impl<'a> From<&'a str> for Reg<'a> {
+    /// Converts the given value to an `Reg` with `()` context.
+    #[inline]
+    fn from(name: &'a str) -> Self { Self::new(name) }
+}
+
 impl<'a, C> Display for Reg<'a, C> {
     /// Formats the value using the given formatter.
     #[inline]
@@ -79,6 +85,13 @@ mod tests {
         let r = Reg::new_with_context("a", 42);
         assert_eq!(r.name, "a");
         assert_eq!(r.context, 42);
+    }
+
+    #[test]
+    fn from() {
+        let r = Reg::from("a");
+        assert_eq!(r.name, "a");
+        assert_eq!(r.context, ());
     }
 
     #[test]
