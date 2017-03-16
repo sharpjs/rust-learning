@@ -33,24 +33,26 @@ pub struct Int<C = ()> {
 impl Int {
     /// Creates a new `Int` with the given value and with `()` context.
     #[inline]
-    pub fn new(val: BigInt) -> Self {
-        Int { value: val, context: () }
+    pub fn new<V>(val: V) -> Self
+    where V: Into<BigInt> {
+        Int { value: val.into(), context: () }
     }
 }
 
 impl<C> Int<C> {
     /// Creates a new `Int` with the given value and context.
     #[inline]
-    pub fn new_with_context(val: BigInt, ctx: C) -> Self {
-        Int { value: val, context: ctx }
+    pub fn new_with_context<V>(val: V, ctx: C) -> Self
+    where V: Into<BigInt>{
+        Int { value: val.into(), context: ctx }
     }
 }
 
-impl<T> From<T> for Int where BigInt: From<T> {
+impl<V> From<V> for Int where V: Into<BigInt> {
     /// Converts the given value to an `Int` with `()` context.
     #[inline]
-    fn from(v: T) -> Self {
-        Int::new(BigInt::from(v))
+    fn from(val: V) -> Self {
+        Int::new(val)
     }
 }
 
@@ -78,14 +80,14 @@ mod tests {
 
     #[test]
     fn new() {
-        let i = Int::new(BigInt::from(42));
+        let i = Int::new(42);
         assert_eq!(i.value, BigInt::from(42));
         assert_eq!(i.context, ());
     }
 
     #[test]
     fn new_with_context() {
-        let i = Int::new_with_context(BigInt::from(42), "a");
+        let i = Int::new_with_context(42, "a");
         assert_eq!(i.value, BigInt::from(42));
         assert_eq!(i.context, "a");
     }
