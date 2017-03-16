@@ -33,7 +33,7 @@ impl<'a> Reg<'a> {
     /// Creates a new `Reg` with the given name and with `()` context.
     #[inline]
     pub fn new(name: &'a str) -> Self {
-        Reg { name: name, context: () }
+        Self::new_with_context(name, ())
     }
 }
 

@@ -35,7 +35,7 @@ impl Int {
     #[inline]
     pub fn new<V>(val: V) -> Self
     where V: Into<BigInt> {
-        Int::new_with_context(val, ())
+        Self::new_with_context(val, ())
     }
 }
 
@@ -51,7 +51,7 @@ impl<C> Int<C> {
 impl<T> From<T> for Int where T: Into<BigInt> {
     /// Converts the given value to an `Int` with `()` context.
     #[inline]
-    fn from(val: T) -> Self { Int::new(val) }
+    fn from(val: T) -> Self { Self::new(val) }
 }
 
 impl<C> Display for Int<C> {

@@ -38,7 +38,7 @@ impl<'a> Unary<'a> {
     /// context.
     pub fn new<E>(op: UnaryOp, expr: E) -> Self
     where E: Into<Box<Expr<'a>>> {
-        Unary { op: op, expr: expr.into(), context: () }
+        Self::new_with_context(op, expr, ())
     }
 }
 

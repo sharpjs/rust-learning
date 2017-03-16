@@ -42,7 +42,7 @@ impl<'a> Binary<'a> {
     pub fn new<L, R>(op: BinaryOp, lhs: L, rhs: R) -> Self
     where L: Into<Box<Expr<'a>>>,
           R: Into<Box<Expr<'a>>> {
-        Binary { op: op, lhs: lhs.into(), rhs: rhs.into(), context: () }
+        Self::new_with_context(op, lhs, rhs, ())
     }
 }
 

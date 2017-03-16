@@ -33,7 +33,7 @@ impl<'a> Id<'a> {
     /// Creates a new `Id` with the given name and with `()` context.
     #[inline]
     pub fn new(name: &'a str) -> Self {
-        Id::new_with_context(name, ())
+        Self::new_with_context(name, ())
     }
 }
 
@@ -48,7 +48,7 @@ impl<'a, C> Id<'a, C> {
 impl<'a> From<&'a str> for Id<'a> {
     /// Converts the given value to an `Id` with `()` context.
     #[inline]
-    fn from(name: &'a str) -> Self { Id::new(name) }
+    fn from(name: &'a str) -> Self { Self::new(name) }
 }
 
 impl<'a, C> Display for Id<'a, C> {
