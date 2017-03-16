@@ -48,12 +48,10 @@ impl<C> Int<C> {
     }
 }
 
-impl<V> From<V> for Int where V: Into<BigInt> {
+impl<T> From<T> for Int where T: Into<BigInt> {
     /// Converts the given value to an `Int` with `()` context.
     #[inline]
-    fn from(val: V) -> Self {
-        Int::new(val)
-    }
+    fn from(val: T) -> Self { Int::new(val) }
 }
 
 impl<C> Display for Int<C> {
