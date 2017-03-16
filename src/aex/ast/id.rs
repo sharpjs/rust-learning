@@ -45,6 +45,12 @@ impl<'a, C> Id<'a, C> {
     }
 }
 
+impl<'a> From<&'a str> for Id<'a> {
+    /// Converts the given value to an `Id` with `()` context.
+    #[inline]
+    fn from(name: &'a str) -> Self { Id::new(name) }
+}
+
 impl<'a, C> Display for Id<'a, C> {
     /// Formats the value using the given formatter.
     #[inline]
@@ -79,6 +85,13 @@ mod tests {
         let i = Id::new_with_context("a", 42);
         assert_eq!(i.name, "a");
         assert_eq!(i.context, 42);
+    }
+
+    #[test]
+    fn from() {
+        let i = Id::from("a");
+        assert_eq!(i.name, "a");
+        assert_eq!(i.context, ());
     }
 
     #[test]
