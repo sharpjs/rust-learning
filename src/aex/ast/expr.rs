@@ -41,15 +41,13 @@ pub enum Expr<'a, C = ()> {
 
 impl<'a, C> Precedence for Expr<'a, C> {
     /// Gets the operator precedence level.
-    /// Higher values mean higher precendence.
     fn precedence(&self) -> Prec {
-        use super::Prec::*;
         match *self {
-            Expr::Id     (_)     => Atomic,
-            Expr::Int    (_)     => Atomic,
-            Expr::Reg    (_)     => Atomic,
-            Expr::Unary  (ref e) => e.precedence(),
-            Expr::Binary (ref e) => e.precedence(),
+            Expr::Id     (ref i) => i.precedence(),
+            Expr::Int    (ref i) => i.precedence(),
+            Expr::Reg    (ref r) => r.precedence(),
+            Expr::Unary  (ref u) => u.precedence(),
+            Expr::Binary (ref b) => b.precedence(),
         }
     }
 }
@@ -84,6 +82,16 @@ impl<'a, C> AsmDisplay<C> for Expr<'a, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn precedence() {
+        let e = Binary::new(
+            BinaryOp::Add,
+            Expr::Id(Id::new("a")),
+            Expr::Id(Id::new("b"))
+        );
+        assert_eq!(e.precedence(), Prec::Additive);
+    }
 
     #[test]
     fn fmt_id() {

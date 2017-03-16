@@ -18,6 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
+use aex::ast::{Prec, Precedence};
 
 /// A register.
 #[derive(Clone, Copy, Debug)]
@@ -51,6 +52,12 @@ impl<'a> From<&'a str> for Reg<'a> {
     fn from(name: &'a str) -> Self { Self::new(name) }
 }
 
+impl<'a, C> Precedence for Reg<'a, C> {
+    /// Gets the operator precedence level.
+    #[inline(always)]
+    fn precedence(&self) -> Prec { Prec::Atomic }
+}
+
 impl<'a, C> Display for Reg<'a, C> {
     /// Formats the value using the given formatter.
     #[inline]
@@ -72,6 +79,7 @@ impl<'a, C> AsmDisplay<C> for Reg<'a, C> {
 mod tests {
     use super::*;
     use aex::asm::{Asm, IntelStyle};
+    use aex::ast::Prec;
 
     #[test]
     fn new() {
@@ -92,6 +100,12 @@ mod tests {
         let r = Reg::from("a");
         assert_eq!(r.name, "a");
         assert_eq!(r.context, ());
+    }
+
+    #[test]
+    fn precedence() {
+        let i = Reg::new("a");
+        assert_eq!(i.precedence(), Prec::Atomic);
     }
 
     #[test]

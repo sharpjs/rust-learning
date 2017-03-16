@@ -18,6 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
+use aex::ast::{Prec, Precedence};
 use num::BigInt;
 
 /// An integer literal.
@@ -54,6 +55,12 @@ impl<T> From<T> for Int where T: Into<BigInt> {
     fn from(val: T) -> Self { Self::new(val) }
 }
 
+impl<C> Precedence for Int<C> {
+    /// Gets the operator precedence level.
+    #[inline(always)]
+    fn precedence(&self) -> Prec { Prec::Atomic }
+}
+
 impl<C> Display for Int<C> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -72,9 +79,10 @@ impl<C> AsmDisplay<C> for Int<C> {
 
 #[cfg(test)]
 mod tests {
-    use aex::asm::{Asm, IntelStyle};
-    use num::BigInt;
     use super::*;
+    use aex::asm::{Asm, IntelStyle};
+    use aex::ast::Prec;
+    use num::BigInt;
 
     #[test]
     fn new() {
@@ -95,6 +103,12 @@ mod tests {
         let i = Int::from(42);
         assert_eq!(i.value, BigInt::from(42));
         assert_eq!(i.context, ());
+    }
+
+    #[test]
+    fn precedence() {
+        let i = Int::new(42);
+        assert_eq!(i.precedence(), Prec::Atomic);
     }
 
     #[test]
