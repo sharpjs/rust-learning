@@ -165,55 +165,63 @@ mod tests {
 
     #[test]
     fn new() {
-        let e = unary();
-        assert_neg_a(&e);
+        let e = pre_dec();
+        assert_pre_dec(&e);
     }
 
     #[test]
     fn new_with_context() {
-        let e = unary_with_context();
-        assert_neg_a(&e);
+        let e = pre_dec_with_context();
+        assert_pre_dec(&e);
         assert_eq!(e.context, 42);
     }
 
     #[test]
     fn precedence() {
-        let e = unary();
-        let p = e.precedence();
-        assert_eq!(p, Prec::Prefix);
+        let e = pre_dec();
+        assert_eq!(e.precedence(), Prec::Prefix);
     }
 
     #[test]
     fn fmt() {
-        let e = unary();
-        let s = e.to_string();
-        assert_eq!(s, "-a");
+        let pre  = pre_dec() .to_string();
+        let post = post_inc().to_string();
+        assert_eq!(pre,  "--a");
+        assert_eq!(post, "a++");
     }
 
     #[test]
     fn fmt_asm() {
-        let e = unary();
-        let s = Asm(&e, &IntelStyle).to_string();
-        assert_eq!(s, "-a");
+        let pre  = Asm(&pre_dec(),  &IntelStyle).to_string();
+        let post = Asm(&post_inc(), &IntelStyle).to_string();
+        assert_eq!(pre,  "--a");
+        assert_eq!(post, "a++");
     }
 
-    fn unary<'a>() -> Unary<'a> {
+    fn pre_dec<'a>() -> Unary<'a> {
         Unary::new(
-            UnaryOp::Neg,
+            UnaryOp::PreDec,
             Expr::Id(Id::new("a"))
         )
     }
 
-    fn unary_with_context<'a>() -> Unary<'a, usize> {
+    fn post_inc<'a>() -> Unary<'a> {
+        Unary::new(
+            UnaryOp::PostInc,
+            Expr::Id(Id::new("a"))
+        )
+    }
+
+    fn pre_dec_with_context<'a>() -> Unary<'a, usize> {
         Unary::new_with_context(
-            UnaryOp::Neg,
+            UnaryOp::PreDec,
             Expr::Id(Id::new_with_context("a", 123)),
             42
         )
     }
 
-    fn assert_neg_a<C>(e: &Unary<C>) {
-        assert_eq!(e.op, UnaryOp::Neg);
+    fn assert_pre_dec<C>(e: &Unary<C>) {
+        assert_eq!(e.op, UnaryOp::PreDec);
 
         match *e.expr {
             Expr::Id(ref i) => assert_eq!(i.name, "a"),
