@@ -79,7 +79,7 @@ impl<'a, C> AsmDisplay<C> for Binary<'a, C> {
     }
 }
 
-/// A binary operator expression.
+/// Binary operators
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BinaryOp {
     /// Multiply

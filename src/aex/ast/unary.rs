@@ -20,7 +20,7 @@ use std::fmt::{self, Display, Formatter};
 use aex::asm::{Asm, AsmDisplay, AsmStyle};
 use aex::ast::{Expr, Prec, Precedence};
 
-/// A binary operator expression.
+/// A unary operator expression.
 #[derive(Clone, Debug)]
 pub struct Unary<'a, C = ()> {
     /// Operator.
@@ -82,7 +82,7 @@ impl<'a, C> AsmDisplay<C> for Unary<'a, C> {
     }
 }
 
-/// A binary operator expression.
+/// Unary operators
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum UnaryOp {
     // Post-increment
