@@ -57,10 +57,10 @@ impl<'a, C> Display for Expr<'a, C> {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
             Expr::Id     (ref i) => Display::fmt(i, f),
-            Expr::Int    (ref n) => Display::fmt(n, f),
+            Expr::Int    (ref i) => Display::fmt(i, f),
             Expr::Reg    (ref r) => Display::fmt(r, f),
-            Expr::Unary  (ref e) => Display::fmt(e, f),
-            Expr::Binary (ref e) => Display::fmt(e, f),
+            Expr::Unary  (ref u) => Display::fmt(u, f),
+            Expr::Binary (ref b) => Display::fmt(b, f),
         }
     }
 }
@@ -71,10 +71,10 @@ impl<'a, C> AsmDisplay<C> for Expr<'a, C> {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
         match *self {
             Expr::Id     (ref i) => AsmDisplay::fmt(i, f, s),
-            Expr::Int    (ref n) => AsmDisplay::fmt(n, f, s),
+            Expr::Int    (ref i) => AsmDisplay::fmt(i, f, s),
             Expr::Reg    (ref r) => AsmDisplay::fmt(r, f, s),
-            Expr::Unary  (ref e) => AsmDisplay::fmt(e, f, s),
-            Expr::Binary (ref e) => AsmDisplay::fmt(e, f, s),
+            Expr::Unary  (ref u) => AsmDisplay::fmt(u, f, s),
+            Expr::Binary (ref b) => AsmDisplay::fmt(b, f, s),
         }
     }
 }
