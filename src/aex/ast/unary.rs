@@ -101,13 +101,15 @@ pub enum UnaryOp {
     Not,
     // Negate (2's complement)
     Neg,
+    // Test (comparison with 0)
+    Tst,
 }
 
 impl UnaryOp {
     /// Tests if a `UnaryOp` is a postfix operator (instead of prefix).
     #[inline]
     pub fn is_postfix(&self) -> bool {
-        self.precedence() == Prec::Postfix
+        self.precedence() != Prec::Prefix
     }
 }
 
@@ -125,6 +127,7 @@ impl Display for UnaryOp {
             Clr     => "!",
             Not     => "~",
             Neg     => "-",
+            Tst     => "?",
         })
     }
 }
@@ -143,6 +146,7 @@ impl Precedence for UnaryOp {
             Clr     => Prefix,
             Not     => Prefix,
             Neg     => Prefix,
+            Tst     => Comparison,
         }
     }
 }
@@ -180,6 +184,16 @@ mod tests {
     fn precedence() {
         let e = pre_dec();
         assert_eq!(e.precedence(), Prec::Prefix);
+    }
+
+    #[test]
+    fn is_postfix() {
+        let pre  = pre_dec();
+        let post = post_inc();
+        let test = Unary::new(UnaryOp::Tst, Expr::Id(Id::new("a")));
+        assert_eq!(pre .op.is_postfix(), false);
+        assert_eq!(post.op.is_postfix(), true);
+        assert_eq!(test.op.is_postfix(), true);
     }
 
     #[test]
