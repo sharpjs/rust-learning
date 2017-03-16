@@ -62,10 +62,11 @@ impl<'a, C> Precedence for Unary<'a, C> {
 impl<'a, C> Display for Unary<'a, C> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        if self.op.is_postfix() {
-            write!(f, "{}{}", self.expr, self.op)
-        } else {
-            write!(f, "{}{}", self.op, self.expr)
+        use self::Fixity::*;
+
+        match self.op.fixity() {
+            Prefix  => write!(f, "{}{}", self.op, self.expr),
+            Postfix => write!(f, "{}{}", self.expr, self.op),
         }
     }
 }
@@ -74,10 +75,11 @@ impl<'a, C> AsmDisplay<C> for Unary<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
-        if self.op.is_postfix() {
-            write!(f, "{}{}", Asm(&*self.expr, s), self.op)
-        } else {
-            write!(f, "{}{}", self.op, Asm(&*self.expr, s))
+        use self::Fixity::*;
+
+        match self.op.fixity() {
+            Prefix  => write!(f, "{}{}", self.op, Asm(&*self.expr, s)),
+            Postfix => write!(f, "{}{}", Asm(&*self.expr, s), self.op),
         }
     }
 }
@@ -105,11 +107,18 @@ pub enum UnaryOp {
     Tst,
 }
 
+/// Unary operator fixity (prefix or postfix)
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Fixity { Prefix, Postfix }
+
 impl UnaryOp {
-    /// Tests if a `UnaryOp` is a postfix operator (instead of prefix).
+    /// Gets the fixity (prefix or postfix) of this operator.
     #[inline]
-    pub fn is_postfix(&self) -> bool {
-        self.precedence() != Prec::Prefix
+    pub fn fixity(&self) -> Fixity {
+        match self.precedence() {
+            Prec::Prefix => Fixity::Prefix,
+            _            => Fixity::Postfix,
+        }
     }
 }
 
@@ -187,13 +196,13 @@ mod tests {
     }
 
     #[test]
-    fn is_postfix() {
+    fn fixity() {
         let pre  = pre_dec();
         let post = post_inc();
         let test = Unary::new(UnaryOp::Tst, Expr::Id(Id::new("a")));
-        assert_eq!(pre .op.is_postfix(), false);
-        assert_eq!(post.op.is_postfix(), true);
-        assert_eq!(test.op.is_postfix(), true);
+        assert_eq!(pre .op.fixity(), Fixity::Prefix);
+        assert_eq!(post.op.fixity(), Fixity::Postfix);
+        assert_eq!(test.op.fixity(), Fixity::Postfix);
     }
 
     #[test]
