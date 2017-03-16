@@ -17,6 +17,9 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 /// Operator precedence levels.
+///
+/// Higher values indicate higher precedence.
+///
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Prec {
     // Lowest precedence
@@ -39,7 +42,6 @@ pub enum Prec {
 /// Trait for types that have operator precedence.
 pub trait Precedence {
     /// Gets the operator precedence level.
-    /// Higher values mean higher precendence.
     fn precedence(&self) -> Prec;
 }
 
