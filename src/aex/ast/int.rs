@@ -35,7 +35,7 @@ impl Int {
     #[inline]
     pub fn new<V>(val: V) -> Self
     where V: Into<BigInt> {
-        Int { value: val.into(), context: () }
+        Int::new_with_context(val, ())
     }
 }
 

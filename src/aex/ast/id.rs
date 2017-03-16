@@ -33,7 +33,7 @@ impl<'a> Id<'a> {
     /// Creates a new `Id` with the given name and with `()` context.
     #[inline]
     pub fn new(name: &'a str) -> Self {
-        Id { name: name, context: () }
+        Id::new_with_context(name, ())
     }
 }
 
