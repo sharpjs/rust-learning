@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{Asm, AsmDisplay, AsmStyle};
+use aex::asm::{AsmDisplay, AsmStyle};
 use aex::ast::{Expr, Prec, Precedence};
 
 /// A unary operator expression.
@@ -75,12 +75,7 @@ impl<'a, C> AsmDisplay<C> for Unary<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
-        use self::Fixity::*;
-
-        match self.op.fixity() {
-            Prefix  => write!(f, "{}{}", self.op, Asm(&*self.expr, s)),
-            Postfix => write!(f, "{}{}", Asm(&*self.expr, s), self.op),
-        }
+        s.write_unary(f, self)
     }
 }
 
