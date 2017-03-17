@@ -38,7 +38,31 @@ pub trait AsmDisplay<C = ()> {
 
 // -----------------------------------------------------------------------------
 
-/// An assembly-formattable value paired with an assembly style.
+/// Contextual information required for assembly-code formatting.
+#[derive(Clone, Copy, Debug)]
+pub struct AsmContext<'a, C: 'a> {
+    /// Assembly style.
+    pub style: &'a AsmStyle<C>,
+    /// Precedence level of surrounding code.
+    pub prec: Prec,
+}
+
+impl<'a, C: 'a> AsmContext<'a, C> {
+    #[inline]
+    pub fn new(style: &'a AsmStyle<C>) -> Self {
+        Self { style: style, prec: Prec::Statement }
+    }
+
+    #[inline]
+    pub fn with_precedence(&self, prec: Prec) -> Self {
+        Self { style: self.style, prec: prec }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+/// An assembly-formattable value, with contextual information required for
+/// formatting.
 #[derive(Clone, Copy, Debug)]
 pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
     /// Assembly-formattable value.
