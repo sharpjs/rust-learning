@@ -36,15 +36,6 @@ pub trait AsmDisplay<C = ()> {
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result;
 }
 
-impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
-    /// Formats the value using the given formatter.
-    #[inline]
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Asm(value, style) = *self;
-        value.fmt(f, style)
-    }
-}
-
 // -----------------------------------------------------------------------------
 
 /// An assembly-formattable value paired with an assembly style.
@@ -53,8 +44,19 @@ pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
     /// Assembly-formattable value.
     pub &'a T,
     /// Assembly code style.
-    pub &'a AsmStyle<C>
+    pub &'a AsmStyle<C>,
+    ///// Precedence level of containing code.
+    //pub Prec,
 );
+
+impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
+    /// Formats the value using the given formatter.
+    #[inline]
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        let Asm(value, style) = *self;
+        value.fmt(f, style)
+    }
+}
 
 // -----------------------------------------------------------------------------
 
@@ -74,31 +76,28 @@ pub trait AsmStyle<C> : Debug {
     fn write_reg(&self, f: &mut Formatter, reg: &Reg<C>) -> fmt::Result {
         f.write_str(reg.name)
     }
-/*
-    fn write_ind
-        (&self, f: &mut Formatter, reg: &AsmDisplay)
-        -> fmt::Result { Err(fmt::Error) }
 
-    fn write_ind_predec
-        (&self, f: &mut Formatter, reg: &AsmDisplay)
-        -> fmt::Result { Err(fmt::Error) }
+    /// Writes a unary expression to the given formatter in this assembly style.
+    fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result
+    where Self: Sized {
+        use aex::ast::Fixity::*;
 
-    fn write_ind_postinc
-        (&self, f: &mut Formatter, reg: &AsmDisplay)
-        -> fmt::Result { Err(fmt::Error) }
+        let subexpr = Asm(&*expr.expr, self);
 
-    fn write_base_disp
-        (&self, f: &mut Formatter, base: &AsmDisplay, disp: &AsmDisplay)
-        -> fmt::Result { Err(fmt::Error) }
+        match expr.op.fixity() {
+            Prefix  => write!(f, "{}{}", expr.op, subexpr),
+            Postfix => write!(f, "{}{}", subexpr, expr.op),
+        }
+    }
 
-    fn write_base_disp_idx
-        (&self, f: &mut Formatter, base: &AsmDisplay, disp: &AsmDisplay, index: &AsmDisplay, scale: &AsmDisplay)
-        -> fmt::Result { Err(fmt::Error) }
+    /// Writes a binary expression to the given formatter in this assembly style.
+    fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result
+    where Self: Sized {
+        let lhs = Asm(&*expr.lhs, self);
+        let rhs = Asm(&*expr.rhs, self);
 
-    fn write_scale
-        (&self, f: &mut Formatter, scale: u8)
-        -> fmt::Result { Err(fmt::Error) }
-*/
+        write!(f, "({} {} {})", lhs, expr.op, rhs)
+    }
 }
 
 // -----------------------------------------------------------------------------
