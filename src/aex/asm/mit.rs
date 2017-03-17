@@ -38,6 +38,7 @@ impl Default for MitStyle {
 }
 
 impl<C> AsmStyle<C> for MitStyle {
+    fn lift(&self) -> &AsmStyle<C> { self }
 /*
     fn write_reg(
         &self,

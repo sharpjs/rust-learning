@@ -62,6 +62,9 @@ impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
 
 /// An assembly code style.
 pub trait AsmStyle<C> : Debug {
+    /// Returns the assembly style as a trait object.
+    fn lift(&self) -> &AsmStyle<C>;
+
     /// Writes an identifier to the given formatter in this assembly style.
     fn write_id(&self, f: &mut Formatter, id: &Id<C>) -> fmt::Result {
         f.write_str(id.name)
@@ -78,11 +81,10 @@ pub trait AsmStyle<C> : Debug {
     }
 
     /// Writes a unary expression to the given formatter in this assembly style.
-    fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result
-    where Self: Sized {
+    fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result {
         use aex::ast::Fixity::*;
 
-        let subexpr = Asm(&*expr.expr, self);
+        let subexpr = Asm(&*expr.expr, self.lift());
 
         match expr.op.fixity() {
             Prefix  => write!(f, "{}{}", expr.op, subexpr),
@@ -91,10 +93,9 @@ pub trait AsmStyle<C> : Debug {
     }
 
     /// Writes a binary expression to the given formatter in this assembly style.
-    fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result
-    where Self: Sized {
-        let lhs = Asm(&*expr.lhs, self);
-        let rhs = Asm(&*expr.rhs, self);
+    fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
+        let lhs = Asm(&*expr.lhs, self.lift());
+        let rhs = Asm(&*expr.rhs, self.lift());
 
         write!(f, "({} {} {})", lhs, expr.op, rhs)
     }
@@ -108,7 +109,9 @@ mod tests {
 
     #[derive(Debug)]
     struct DefaultStyle;
-    impl<C> AsmStyle<C> for DefaultStyle { }
+    impl<C> AsmStyle<C> for DefaultStyle {
+        fn lift(&self) -> &AsmStyle<C> { self }
+    }
 
     #[test]
     fn write_id() {

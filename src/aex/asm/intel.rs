@@ -24,6 +24,7 @@ use super::{/*Asm, AsmDisplay,*/ AsmStyle};
 pub struct IntelStyle;
 
 impl<C> AsmStyle<C> for IntelStyle {
+    fn lift(&self) -> &AsmStyle<C> { self }
 /*
     fn write_reg(
         &self,

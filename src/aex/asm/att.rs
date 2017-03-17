@@ -38,6 +38,7 @@ impl Default for AttStyle {
 }
 
 impl<C> AsmStyle<C> for AttStyle {
+    fn lift(&self) -> &AsmStyle<C> { self }
 /*
     fn write_reg(
         &self,
