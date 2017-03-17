@@ -23,6 +23,7 @@
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Prec {
     // Lowest precedence
+    Statement, // special level, lower than all expression levels
     Assignment,
     Conditional,
     Comparison,
