@@ -44,3 +44,14 @@ pub use self::prec::*;
 pub use self::reg::*;
 pub use self::unary::*;
 
+/// A type that carries some context value.
+pub trait Context {
+
+    /// Type of the context value.
+    type Context;
+
+    /// Gets the context value.
+    fn context(&self) -> &Self::Context;
+}
+
+

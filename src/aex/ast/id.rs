@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
-use aex::ast::{Prec, Precedence};
+use aex::ast::{Context, Prec, Precedence};
 
 /// An identifier.
 #[derive(Clone, Copy, Debug)]
@@ -50,6 +50,14 @@ impl<'a> From<&'a str> for Id<'a> {
     /// Converts the given value to an `Id` with `()` context.
     #[inline]
     fn from(name: &'a str) -> Self { Self::new(name) }
+}
+
+impl<'a, C> Context for Id<'a, C> {
+    /// Type of the context value.
+    type Context = C;
+
+    /// Gets the context value.
+    fn context(&self) -> &C { &self.context }
 }
 
 impl<'a, C> Precedence for Id<'a, C> {

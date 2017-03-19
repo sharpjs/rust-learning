@@ -1,4 +1,4 @@
-// Assembly Syntax
+// Code Output Formatting
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -27,36 +27,105 @@ pub use self::att::*;
 pub use self::intel::*;
 pub use self::mit::*;
 
+// Context          trait for thing with a context
+// Style            trait for output language; strategy
+// Styled           node + style + prec; adapter?; makes node formattable
+// Code             trait for fmt
+// Node?            trait to get context type
+// ToStyled         trait to get style type
+
 // -----------------------------------------------------------------------------
 
-/// A type that is formattable as assembly code.
+pub trait Style<C>: Debug {
+    fn lift(&self) -> &Style<C>;
+}
+
+// -----------------------------------------------------------------------------
+
+pub trait ToStyled: Context {
+    fn styled<'a>(&'a self, style: &'a Style<Self::Context>) -> Styled<'a, Self>;
+}
+
+impl<T> ToStyled for T where T: Context {
+    #[inline(always)]
+    fn styled<'a>(&'a self, style: &'a Style<Self::Context>) -> Styled<'a, Self> {
+        //Styled::new(self, style)
+        panic!()
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+
+/// A code-formattable object with the additional data necessary for formatting.
+#[derive(Clone, Copy, Debug)]
+pub struct Styled<'a, T: 'a + Context + ?Sized> {
+    /// Code-formattable object.
+    pub node: &'a T,
+
+    /// Code style.
+    pub style: &'a Style<T::Context>,
+
+    /// Surrounding precedence level.
+    pub prec: Prec,
+}
+
+
+impl<'a, T> Styled<'a, T> where T: 'a + Context + ?Sized {
+
+    /// Constructs a new `Styled` with the given node and style.
+    #[inline]
+    pub fn new(node: &'a T, style: &'a Style<T::Context>) -> Self {
+        Styled {
+            node:  node,
+            style: style,
+            prec:  Prec::Statement
+        }
+    }
+
+    /// Maps a `Styled<T>` to `Styled<U>` by applying a function to the
+    /// contained node.
+    pub fn map<F, U>(&self, f: F, prec: Prec) -> Styled<U>
+    where F: FnOnce(&T) -> &U,
+          U: Context<Context=T::Context> {
+        Styled {
+            node:  f(self.node),
+            style: self.style,
+            prec:  prec,
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+/// A type formattable as code.
+pub trait Code: Context {
+    fn fmt(&self, f: &mut Formatter, s: &Style<Self::Context>, p: Prec) -> fmt::Result;
+}
+
+impl<'a, C> Code for Id<'a, C> {
+    fn fmt(&self, f: &mut Formatter, s: &Style<C>, p: Prec) -> fmt::Result {
+        panic!()
+    }
+}
+
+impl<'a, T> Display for Styled<'a, T> where T: Code {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        self.node.fmt(f, self.style, self.prec)
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// Older version of the above stuff; going away soon.
+// -----------------------------------------------------------------------------
+
+
+/// A code-formattable type.
 pub trait AsmDisplay<C = ()> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result;
-}
-
-// -----------------------------------------------------------------------------
-
-/// Contextual information required for assembly-code formatting.
-#[derive(Clone, Copy, Debug)]
-pub struct AsmContext<'a, C: 'a> {
-    /// Assembly style.
-    pub style: &'a AsmStyle<C>,
-    /// Precedence level of surrounding code.
-    pub prec: Prec,
-}
-
-impl<'a, C: 'a> AsmContext<'a, C> {
-    #[inline]
-    pub fn new(style: &'a AsmStyle<C>) -> Self {
-        Self { style: style, prec: Prec::Statement }
-    }
-
-    #[inline]
-    pub fn with_precedence(&self, prec: Prec) -> Self {
-        Self { style: self.style, prec: prec }
-    }
 }
 
 // -----------------------------------------------------------------------------
@@ -70,7 +139,7 @@ pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
     /// Assembly code style.
     pub &'a AsmStyle<C>,
     ///// Precedence level of containing code.
-    //pub Prec,
+    // pub Prec,
 );
 
 impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
