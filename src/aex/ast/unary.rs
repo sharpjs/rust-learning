@@ -74,7 +74,7 @@ impl<'a, C> Display for Unary<'a, C> {
 impl<'a, C> AsmDisplay<C> for Unary<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
         s.write_unary(f, self)
     }
 }

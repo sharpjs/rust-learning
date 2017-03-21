@@ -33,7 +33,7 @@ pub use self::mit::*;
 pub trait AsmDisplay<C = ()> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>/*, p: Prec*/) -> fmt::Result;
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result;
 }
 
 // -----------------------------------------------------------------------------
@@ -57,8 +57,8 @@ impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
     /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Asm(value, style, _) = *self;
-        value.fmt(f, style)
+        let Asm(value, style, prec) = *self;
+        value.fmt(f, style, prec)
     }
 }
 
@@ -122,21 +122,21 @@ mod tests {
     #[test]
     fn write_id() {
         let i = Id::new("a");
-        let s = format!("{}", Asm(&i, &DefaultStyle));
+        let s = format!("{}", Asm(&i, &DefaultStyle, Prec::Statement));
         assert_eq!(s, "a");
     }
 
     #[test]
     fn write_num() {
         let i = Int::from(42);
-        let s = format!("{}", Asm(&i, &DefaultStyle));
+        let s = format!("{}", Asm(&i, &DefaultStyle, Prec::Statement));
         assert_eq!(s, "42");
     }
 
     #[test]
     fn write_reg() {
         let i = Reg::new("a");
-        let s = format!("{}", Asm(&i, &DefaultStyle));
+        let s = format!("{}", Asm(&i, &DefaultStyle, Prec::Statement));
         assert_eq!(s, "a");
     }
 }

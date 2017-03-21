@@ -68,13 +68,13 @@ impl<'a, C> Display for Expr<'a, C> {
 impl<'a, C> AsmDisplay<C> for Expr<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
         match *self {
-            Expr::Id     (ref i) => AsmDisplay::fmt(i, f, s),
-            Expr::Int    (ref i) => AsmDisplay::fmt(i, f, s),
-            Expr::Reg    (ref r) => AsmDisplay::fmt(r, f, s),
-            Expr::Unary  (ref u) => AsmDisplay::fmt(u, f, s),
-            Expr::Binary (ref b) => AsmDisplay::fmt(b, f, s),
+            Expr::Id     (ref i) => AsmDisplay::fmt(i, f, s, p),
+            Expr::Int    (ref i) => AsmDisplay::fmt(i, f, s, p),
+            Expr::Reg    (ref r) => AsmDisplay::fmt(r, f, s, p),
+            Expr::Unary  (ref u) => AsmDisplay::fmt(u, f, s, p),
+            Expr::Binary (ref b) => AsmDisplay::fmt(b, f, s, p),
         }
     }
 }

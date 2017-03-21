@@ -72,7 +72,7 @@ impl<C> AsmDisplay<C> for Int<C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
         s.write_int(f, self)
     }
 }
