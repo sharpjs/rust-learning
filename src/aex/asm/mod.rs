@@ -29,17 +29,20 @@ pub use self::mit::*;
 
 // -----------------------------------------------------------------------------
 
-/// A code-formattable type.
+/// Trait for types that are formattable as source code.
+///
 pub trait AsmDisplay<C = ()> {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
+
+    /// Formats the object as source code in the given style.
     fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result;
 }
 
 // -----------------------------------------------------------------------------
 
-/// An assembly-formattable value, with contextual information required for
-/// formatting.
+/// A code-formattable object with the additional data required for formatting.
+///
+/// Used to adapt an `AsmDisplay` value to a `Display` one.
+///
 #[derive(Clone, Copy, Debug)]
 pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
 
