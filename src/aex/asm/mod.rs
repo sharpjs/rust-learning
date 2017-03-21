@@ -33,7 +33,7 @@ pub use self::mit::*;
 pub trait AsmDisplay<C = ()> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>) -> fmt::Result;
+    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>/*, p: Prec*/) -> fmt::Result;
 }
 
 // -----------------------------------------------------------------------------
@@ -42,19 +42,22 @@ pub trait AsmDisplay<C = ()> {
 /// formatting.
 #[derive(Clone, Copy, Debug)]
 pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
+
     /// Assembly-formattable value.
     pub &'a T,
+
     /// Assembly code style.
     pub &'a AsmStyle<C>,
-    ///// Precedence level of containing code.
-    // pub Prec,
+
+    /// Precedence level of containing code.
+    pub Prec,
 );
 
 impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
     /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Asm(value, style) = *self;
+        let Asm(value, style, _) = *self;
         value.fmt(f, style)
     }
 }
@@ -85,7 +88,8 @@ pub trait AsmStyle<C> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result {
         use aex::ast::Fixity::*;
 
-        let subexpr = Asm(&*expr.expr, self.lift());
+        let p       = expr.precedence();
+        let subexpr = Asm(&*expr.expr, self.lift(), p);
 
         match expr.op.fixity() {
             Prefix  => write!(f, "{}{}", expr.op, subexpr),
@@ -95,8 +99,9 @@ pub trait AsmStyle<C> : Debug {
 
     /// Writes a binary expression to the given formatter in this assembly style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
-        let lhs = Asm(&*expr.lhs, self.lift());
-        let rhs = Asm(&*expr.rhs, self.lift());
+        let p   = expr.precedence();
+        let lhs = Asm(&*expr.lhs, self.lift(), p);
+        let rhs = Asm(&*expr.rhs, self.lift(), p);
 
         write!(f, "({} {} {})", lhs, expr.op, rhs)
     }
