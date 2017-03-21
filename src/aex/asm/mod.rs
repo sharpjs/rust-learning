@@ -33,7 +33,7 @@ pub use self::mit::*;
 pub trait AsmDisplay: Node {
     /// Formats the object as source code in the given style.
     fn fmt<S>(&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result
-        where S: AsmStyle<Self::Context> + ?Sized;
+        where S: Style<Self::Context> + ?Sized;
 }
 
 // -----------------------------------------------------------------------------
@@ -45,7 +45,7 @@ pub trait AsmDisplay: Node {
 #[derive(Clone, Copy, Debug)]
 pub struct Asm<'a,
                T: 'a + AsmDisplay + ?Sized,
-               S: 'a + AsmStyle<T::Context> + ?Sized>(
+               S: 'a + Style<T::Context> + ?Sized>(
 
     /// Assembly-formattable value.
     pub &'a T,
@@ -59,7 +59,7 @@ pub struct Asm<'a,
 
 impl<'a, T, S> Asm<'a, T, S>
 where T: AsmDisplay           + ?Sized,
-      S: AsmStyle<T::Context> + ?Sized {
+      S: Style<T::Context> + ?Sized {
 
     /// Formats the value using the given formatter.
     #[inline]
@@ -70,7 +70,7 @@ where T: AsmDisplay           + ?Sized,
 
 impl<'a, T, S> Display for Asm<'a, T, S>
 where T: AsmDisplay           + ?Sized,
-      S: AsmStyle<T::Context> + ?Sized {
+      S: Style<T::Context> + ?Sized {
 
     /// Formats the value using the given formatter.
     #[inline]
@@ -83,10 +83,7 @@ where T: AsmDisplay           + ?Sized,
 // -----------------------------------------------------------------------------
 
 /// An assembly code style.
-pub trait AsmStyle<C> : Debug {
-    /// Returns the assembly style as a trait object.
-    fn lift(&self) -> &AsmStyle<C>;
-
+pub trait Style<C> : Debug {
     /// Writes an identifier to the given formatter in this assembly style.
     fn write_id(&self, f: &mut Formatter, id: &Id<C>) -> fmt::Result {
         f.write_str(id.name)
@@ -133,9 +130,7 @@ mod tests {
 
     #[derive(Debug)]
     struct DefaultStyle;
-    impl<C> AsmStyle<C> for DefaultStyle {
-        fn lift(&self) -> &AsmStyle<C> { self }
-    }
+    impl<C> Style<C> for DefaultStyle { }
 
     #[test]
     fn write_id() {

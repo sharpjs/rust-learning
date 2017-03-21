@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{AsmDisplay, AsmStyle};
+use aex::asm::{AsmDisplay, Style};
 use aex::ast::{Node, Prec, Precedence};
 use num::BigInt;
 
@@ -80,7 +80,7 @@ impl<C> AsmDisplay for Int<C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     #[inline]
-    fn fmt<S: AsmStyle<C> + ?Sized>
+    fn fmt<S: Style<C> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_int(f, self)
     }

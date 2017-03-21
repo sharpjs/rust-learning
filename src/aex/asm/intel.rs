@@ -17,14 +17,13 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use std::fmt::{self, Formatter};
-use super::{/*Asm, AsmDisplay,*/ AsmStyle};
+use super::{/*Asm, AsmDisplay,*/ Style};
 
 /// Intel assembly style.
 #[derive(Clone, Copy, Debug)]
 pub struct IntelStyle;
 
-impl<C> AsmStyle<C> for IntelStyle {
-    fn lift(&self) -> &AsmStyle<C> { self }
+impl<C> Style<C> for IntelStyle {
 /*
     fn write_reg(
         &self,

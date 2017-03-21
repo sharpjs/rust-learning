@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use std::fmt::{self, Formatter};
-use super::{/*Asm , AsmDisplay,*/ AsmStyle};
+use super::{/*Asm , AsmDisplay,*/ Style};
 
 /// MIT assembly style.
 #[derive(Clone, Debug)]
@@ -37,8 +37,7 @@ impl Default for MitStyle {
     }
 }
 
-impl<C> AsmStyle<C> for MitStyle {
-    fn lift(&self) -> &AsmStyle<C> { self }
+impl<C> Style<C> for MitStyle {
 /*
     fn write_reg(
         &self,
