@@ -87,7 +87,7 @@ impl<'a, C> AsmDisplay for Reg<'a, C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::asm::{Asm, IntelStyle};
+    use aex::asm::{Styled, IntelStyle};
     use aex::ast::Prec;
 
     #[test]
@@ -127,7 +127,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let r = Reg { name: "a", context: 42 };
-        let s = format!("{}", Asm::new(&r, &IntelStyle));
+        let s = format!("{}", Styled::new(&r, &IntelStyle));
         assert_eq!(s, "a");
     }
 }

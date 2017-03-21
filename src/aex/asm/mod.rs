@@ -43,7 +43,7 @@ pub trait AsmDisplay: Node {
 /// Used to adapt an `AsmDisplay` value to a `Display` one.
 ///
 #[derive(Clone, Copy, Debug)]
-pub struct Asm<'a,
+pub struct Styled<'a,
                T: 'a + AsmDisplay + ?Sized,
                S: 'a + Style<T::Context> + ?Sized>(
 
@@ -57,25 +57,25 @@ pub struct Asm<'a,
     pub Prec,
 );
 
-impl<'a, T, S> Asm<'a, T, S>
+impl<'a, T, S> Styled<'a, T, S>
 where T: AsmDisplay           + ?Sized,
       S: Style<T::Context> + ?Sized {
 
     /// Formats the value using the given formatter.
     #[inline]
     pub fn new(value: &'a T, style: &'a S) -> Self {
-        Asm(value, style, Prec::Statement)
+        Styled(value, style, Prec::Statement)
     }
 }
 
-impl<'a, T, S> Display for Asm<'a, T, S>
+impl<'a, T, S> Display for Styled<'a, T, S>
 where T: AsmDisplay           + ?Sized,
       S: Style<T::Context> + ?Sized {
 
     /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Asm(value, style, prec) = *self;
+        let Styled(value, style, prec) = *self;
         value.fmt(f, style, prec)
     }
 }
@@ -104,7 +104,7 @@ pub trait Style<C> : Debug {
         use aex::ast::Fixity::*;
 
         let p       = expr.precedence();
-        let subexpr = Asm(&*expr.expr, self, p);
+        let subexpr = Styled(&*expr.expr, self, p);
 
         match expr.op.fixity() {
             Prefix  => write!(f, "{}{}", expr.op, subexpr),
@@ -115,8 +115,8 @@ pub trait Style<C> : Debug {
     /// Writes a binary expression to the given formatter in this assembly style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
         let p   = expr.precedence();
-        let lhs = Asm(&*expr.lhs, self, p);
-        let rhs = Asm(&*expr.rhs, self, p);
+        let lhs = Styled(&*expr.lhs, self, p);
+        let rhs = Styled(&*expr.rhs, self, p);
 
         write!(f, "({} {} {})", lhs, expr.op, rhs)
     }
@@ -135,21 +135,21 @@ mod tests {
     #[test]
     fn write_id() {
         let i = Id::new("a");
-        let s = format!("{}", Asm::new(&i, &DefaultStyle));
+        let s = format!("{}", Styled::new(&i, &DefaultStyle));
         assert_eq!(s, "a");
     }
 
     #[test]
     fn write_num() {
         let i = Int::from(42);
-        let s = format!("{}", Asm::new(&i, &DefaultStyle));
+        let s = format!("{}", Styled::new(&i, &DefaultStyle));
         assert_eq!(s, "42");
     }
 
     #[test]
     fn write_reg() {
         let i = Reg::new("a");
-        let s = format!("{}", Asm::new(&i, &DefaultStyle));
+        let s = format!("{}", Styled::new(&i, &DefaultStyle));
         assert_eq!(s, "a");
     }
 }

@@ -215,7 +215,7 @@ impl<C> AsmDisplay<C> for BinaryOp {
 mod tests {
     use super::*;
     use super::super::Id;
-    use aex::asm::{Asm, IntelStyle};
+    use aex::asm::{Styled, IntelStyle};
 
     #[test]
     fn new() {
@@ -247,7 +247,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let b = binary();
-        let s = Asm::new(&b, &IntelStyle).to_string();
+        let s = Styled::new(&b, &IntelStyle).to_string();
         assert_eq!(s, "(a + b)");
     }
 

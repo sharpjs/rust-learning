@@ -89,7 +89,7 @@ impl<C> AsmDisplay for Int<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::asm::{Asm, IntelStyle};
+    use aex::asm::{Styled, IntelStyle};
     use aex::ast::Prec;
     use num::BigInt;
 
@@ -130,7 +130,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let i = Int { value: BigInt::from(42), context: "a" };
-        let s = format!("{}", Asm::new(&i, &IntelStyle));
+        let s = format!("{}", Styled::new(&i, &IntelStyle));
         assert_eq!(s, "42");
     }
 }

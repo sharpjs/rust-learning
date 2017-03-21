@@ -178,7 +178,7 @@ impl<C> AsmDisplay<C> for UnaryOp {
 mod tests {
     use super::*;
     use super::super::Id;
-    use aex::asm::{Asm, IntelStyle};
+    use aex::asm::{Styled, IntelStyle};
 
     #[test]
     fn new() {
@@ -219,8 +219,8 @@ mod tests {
 
     #[test]
     fn fmt_asm() {
-        let pre  = Asm::new(&pre_dec(),  &IntelStyle).to_string();
-        let post = Asm::new(&post_inc(), &IntelStyle).to_string();
+        let pre  = Styled::new(&pre_dec(),  &IntelStyle).to_string();
+        let post = Styled::new(&post_inc(), &IntelStyle).to_string();
         assert_eq!(pre,  "--a");
         assert_eq!(post, "a++");
     }
