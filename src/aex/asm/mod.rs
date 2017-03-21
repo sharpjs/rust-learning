@@ -56,16 +56,24 @@ pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
     pub Prec,
 );
 
-impl<'a, T, C> Asm<'a, T, C>
-where T: AsmDisplay<C> + ?Sized {
+impl<'a, T, C> Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
 
     /// Constructs a new `Asm` with the given value and style.
     pub fn new<S: AsmStyle<C>>(value: &'a T, style: &'a S) ->  Self {
         Asm(value, style, Prec::Statement)
     }
+
+    /// Applies a function to the contained value, yielding a new `Asm`.
+    pub fn map<F, U>(&self, f: F, prec: Prec) -> Asm<U, C>
+    where F: FnOnce(&T) -> &U,
+          U: AsmDisplay<C> + ?Sized {
+        let Asm(value, style, _) = *self;
+        Asm(f(value), style, prec)
+    }
 }
 
 impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
+
     /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
