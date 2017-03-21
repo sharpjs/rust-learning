@@ -27,11 +27,10 @@ pub use self::att::*;
 pub use self::intel::*;
 pub use self::mit::*;
 
-// Context          trait for thing with a context
 // Style            trait for output language; strategy
 // Styled           node + style + prec; adapter?; makes node formattable
 // Code             trait for fmt
-// Node?            trait to get context type
+// Node             trait to get context type
 // ToStyled         trait to get style type
 
 // -----------------------------------------------------------------------------

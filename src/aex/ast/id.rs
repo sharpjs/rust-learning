@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{AsmDisplay, Style};
+use aex::asm::{Code, Style};
 use aex::ast::{Node, Prec, Precedence};
 
 /// An identifier.
@@ -74,7 +74,7 @@ impl<'a, C> Display for Id<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay for Id<'a, C> {
+impl<'a, C> Code for Id<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     #[inline]

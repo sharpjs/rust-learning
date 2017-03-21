@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{AsmDisplay, Style};
+use aex::asm::{Code, Style};
 use super::*;
 
 /// An expression.
@@ -81,17 +81,17 @@ impl<'a, C> Display for Expr<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay for Expr<'a, C> {
+impl<'a, C> Code for Expr<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     fn fmt<S: Style<C> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         match *self {
-            Expr::Id     (ref i) => AsmDisplay::fmt(i, f, s, p),
-            Expr::Int    (ref i) => AsmDisplay::fmt(i, f, s, p),
-            Expr::Reg    (ref r) => AsmDisplay::fmt(r, f, s, p),
-            Expr::Unary  (ref u) => AsmDisplay::fmt(u, f, s, p),
-            Expr::Binary (ref b) => AsmDisplay::fmt(b, f, s, p),
+            Expr::Id     (ref i) => Code::fmt(i, f, s, p),
+            Expr::Int    (ref i) => Code::fmt(i, f, s, p),
+            Expr::Reg    (ref r) => Code::fmt(r, f, s, p),
+            Expr::Unary  (ref u) => Code::fmt(u, f, s, p),
+            Expr::Binary (ref b) => Code::fmt(b, f, s, p),
         }
     }
 }

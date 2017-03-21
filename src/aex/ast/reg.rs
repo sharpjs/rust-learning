@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{AsmDisplay, Style};
+use aex::asm::{Code, Style};
 use aex::ast::{Node, Prec, Precedence};
 
 /// A register.
@@ -74,7 +74,7 @@ impl<'a, C> Display for Reg<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay for Reg<'a, C> {
+impl<'a, C> Code for Reg<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     #[inline]

@@ -30,7 +30,7 @@ pub use self::mit::*;
 // -----------------------------------------------------------------------------
 
 /// Trait for types that are formattable as source code.
-pub trait AsmDisplay: Node {
+pub trait Code: Node {
     /// Formats the object as source code in the given style.
     fn fmt<S>(&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result
         where S: Style<Self::Context> + ?Sized;
@@ -40,12 +40,12 @@ pub trait AsmDisplay: Node {
 
 /// A code-formattable object with the additional data required for formatting.
 ///
-/// Used to adapt an `AsmDisplay` value to a `Display` one.
+/// Used to adapt a `Code` value to a `Display` one.
 ///
 #[derive(Clone, Copy, Debug)]
 pub struct Styled<'a,
-               T: 'a + AsmDisplay + ?Sized,
-               S: 'a + Style<T::Context> + ?Sized>(
+                  T: 'a + Code              + ?Sized,
+                  S: 'a + Style<T::Context> + ?Sized>(
 
     /// Assembly-formattable value.
     pub &'a T,
@@ -58,7 +58,7 @@ pub struct Styled<'a,
 );
 
 impl<'a, T, S> Styled<'a, T, S>
-where T: AsmDisplay           + ?Sized,
+where T: Code              + ?Sized,
       S: Style<T::Context> + ?Sized {
 
     /// Formats the value using the given formatter.
@@ -69,7 +69,7 @@ where T: AsmDisplay           + ?Sized,
 }
 
 impl<'a, T, S> Display for Styled<'a, T, S>
-where T: AsmDisplay           + ?Sized,
+where T: Code              + ?Sized,
       S: Style<T::Context> + ?Sized {
 
     /// Formats the value using the given formatter.
@@ -103,8 +103,7 @@ pub trait Style<C> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result {
         use aex::ast::Fixity::*;
 
-        let p       = expr.precedence();
-        let subexpr = Styled(&*expr.expr, self, p);
+        let subexpr = Styled(&*expr.expr, self, expr.precedence());
 
         match expr.op.fixity() {
             Prefix  => write!(f, "{}{}", expr.op, subexpr),

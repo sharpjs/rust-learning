@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{AsmDisplay, Style};
+use aex::asm::{Code, Style};
 use aex::ast::{Expr, Node, Prec, Precedence};
 
 /// A binary operator expression.
@@ -79,7 +79,7 @@ impl<'a, C> Display for Binary<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay for Binary<'a, C> {
+impl<'a, C> Code for Binary<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     fn fmt<S: Style<C> + ?Sized>
@@ -202,7 +202,7 @@ impl Precedence for BinaryOp {
 }
 
 /*
-impl<C> AsmDisplay<C> for BinaryOp {
+impl<C> Code<C> for BinaryOp {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     fn fmt(&self, f: &mut Formatter, s: &Style<C>) -> fmt::Result {
