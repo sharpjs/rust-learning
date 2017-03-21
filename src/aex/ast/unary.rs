@@ -210,8 +210,8 @@ mod tests {
 
     #[test]
     fn fmt_asm() {
-        let pre  = Asm(&pre_dec(),  &IntelStyle).to_string();
-        let post = Asm(&post_inc(), &IntelStyle).to_string();
+        let pre  = Asm::new(&pre_dec(),  &IntelStyle).to_string();
+        let post = Asm::new(&post_inc(), &IntelStyle).to_string();
         assert_eq!(pre,  "--a");
         assert_eq!(post, "a++");
     }

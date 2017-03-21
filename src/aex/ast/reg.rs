@@ -118,7 +118,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let r = Reg { name: "a", context: 42 };
-        let s = format!("{}", Asm(&r, &IntelStyle));
+        let s = format!("{}", Asm::new(&r, &IntelStyle));
         assert_eq!(s, "a");
     }
 }

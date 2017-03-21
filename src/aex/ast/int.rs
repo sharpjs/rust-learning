@@ -121,7 +121,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let i = Int { value: BigInt::from(42), context: "a" };
-        let s = format!("{}", Asm(&i, &IntelStyle));
+        let s = format!("{}", Asm::new(&i, &IntelStyle));
         assert_eq!(s, "42");
     }
 }

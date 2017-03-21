@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let i = Id { name: "a", context: 42 };
-        let s = format!("{}", Asm(&i, &IntelStyle));
+        let s = format!("{}", Asm::new(&i, &IntelStyle));
         assert_eq!(s, "a");
     }
 }

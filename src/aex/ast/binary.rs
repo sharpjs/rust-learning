@@ -238,7 +238,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let b = binary();
-        let s = Asm(&b, &IntelStyle).to_string();
+        let s = Asm::new(&b, &IntelStyle).to_string();
         assert_eq!(s, "(a + b)");
     }
 

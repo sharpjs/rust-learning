@@ -56,6 +56,15 @@ pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
     pub Prec,
 );
 
+impl<'a, T, C> Asm<'a, T, C>
+where T: AsmDisplay<C> + ?Sized {
+
+    /// Constructs a new `Asm` with the given value and style.
+    pub fn new<S: AsmStyle<C>>(value: &'a T, style: &'a S) ->  Self {
+        Asm(value, style, Prec::Statement)
+    }
+}
+
 impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
     /// Formats the value using the given formatter.
     #[inline]
