@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
-use aex::ast::{Prec, Precedence};
+use aex::ast::{Node, Prec, Precedence};
 
 /// A register.
 #[derive(Clone, Copy, Debug)]
@@ -52,6 +52,14 @@ impl<'a> From<&'a str> for Reg<'a> {
     fn from(name: &'a str) -> Self { Self::new(name) }
 }
 
+impl<'a, C> Node for Reg<'a, C> {
+    /// Type of the context value.
+    type Context = C;
+
+    /// Gets the context value.
+    fn context(&self) -> &C { &self.context }
+}
+
 impl<'a, C> Precedence for Reg<'a, C> {
     /// Gets the operator precedence level.
     #[inline(always)]
@@ -66,11 +74,12 @@ impl<'a, C> Display for Reg<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay<C> for Reg<'a, C> {
+impl<'a, C> AsmDisplay for Reg<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
+    fn fmt<S: AsmStyle<C> + ?Sized>
+          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_reg(f, self)
     }
 }

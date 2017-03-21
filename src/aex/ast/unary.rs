@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
-use aex::ast::{Expr, Prec, Precedence};
+use aex::ast::{Expr, Node, Prec, Precedence};
 
 /// A unary operator expression.
 #[derive(Clone, Debug)]
@@ -50,6 +50,14 @@ impl<'a, C> Unary<'a, C> {
     }
 }
 
+impl<'a, C> Node for Unary<'a, C> {
+    /// Type of the context value.
+    type Context = C;
+
+    /// Gets the context value.
+    fn context(&self) -> &C { &self.context }
+}
+
 impl<'a, C> Precedence for Unary<'a, C> {
     /// Gets the operator precedence level.
     /// Higher values mean higher precendence.
@@ -71,10 +79,11 @@ impl<'a, C> Display for Unary<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay<C> for Unary<'a, C> {
+impl<'a, C> AsmDisplay for Unary<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
+    fn fmt<S: AsmStyle<C> + ?Sized>
+          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_unary(f, self)
     }
 }

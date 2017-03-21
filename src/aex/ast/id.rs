@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
-use aex::ast::{Context, Prec, Precedence};
+use aex::ast::{Node, Prec, Precedence};
 
 /// An identifier.
 #[derive(Clone, Copy, Debug)]
@@ -52,7 +52,7 @@ impl<'a> From<&'a str> for Id<'a> {
     fn from(name: &'a str) -> Self { Self::new(name) }
 }
 
-impl<'a, C> Context for Id<'a, C> {
+impl<'a, C> Node for Id<'a, C> {
     /// Type of the context value.
     type Context = C;
 
@@ -74,11 +74,12 @@ impl<'a, C> Display for Id<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay<C> for Id<'a, C> {
+impl<'a, C> AsmDisplay for Id<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
+    fn fmt<S: AsmStyle<C> + ?Sized>
+          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_id(f, self)
     }
 }

@@ -30,11 +30,10 @@ pub use self::mit::*;
 // -----------------------------------------------------------------------------
 
 /// Trait for types that are formattable as source code.
-///
-pub trait AsmDisplay<C = ()> {
-
+pub trait AsmDisplay: Node {
     /// Formats the object as source code in the given style.
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result;
+    fn fmt<S>(&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result
+        where S: AsmStyle<Self::Context> + ?Sized;
 }
 
 // -----------------------------------------------------------------------------
@@ -44,35 +43,34 @@ pub trait AsmDisplay<C = ()> {
 /// Used to adapt an `AsmDisplay` value to a `Display` one.
 ///
 #[derive(Clone, Copy, Debug)]
-pub struct Asm<'a, T: 'a + AsmDisplay<C> + ?Sized, C: 'a>(
+pub struct Asm<'a,
+               T: 'a + AsmDisplay + ?Sized,
+               S: 'a + AsmStyle<T::Context> + ?Sized>(
 
     /// Assembly-formattable value.
     pub &'a T,
 
     /// Assembly code style.
-    pub &'a AsmStyle<C>,
+    pub &'a S,
 
     /// Precedence level of containing code.
     pub Prec,
 );
 
-impl<'a, T, C> Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
+impl<'a, T, S> Asm<'a, T, S>
+where T: AsmDisplay           + ?Sized,
+      S: AsmStyle<T::Context> + ?Sized {
 
-    /// Constructs a new `Asm` with the given value and style.
-    pub fn new<S: AsmStyle<C>>(value: &'a T, style: &'a S) ->  Self {
+    /// Formats the value using the given formatter.
+    #[inline]
+    pub fn new(value: &'a T, style: &'a S) -> Self {
         Asm(value, style, Prec::Statement)
-    }
-
-    /// Applies a function to the contained value, yielding a new `Asm`.
-    pub fn map<F, U>(&self, f: F, prec: Prec) -> Asm<U, C>
-    where F: FnOnce(&T) -> &U,
-          U: AsmDisplay<C> + ?Sized {
-        let Asm(value, style, _) = *self;
-        Asm(f(value), style, prec)
     }
 }
 
-impl<'a, T, C> Display for Asm<'a, T, C> where T: AsmDisplay<C> + ?Sized {
+impl<'a, T, S> Display for Asm<'a, T, S>
+where T: AsmDisplay           + ?Sized,
+      S: AsmStyle<T::Context> + ?Sized {
 
     /// Formats the value using the given formatter.
     #[inline]
@@ -109,7 +107,7 @@ pub trait AsmStyle<C> : Debug {
         use aex::ast::Fixity::*;
 
         let p       = expr.precedence();
-        let subexpr = Asm(&*expr.expr, self.lift(), p);
+        let subexpr = Asm(&*expr.expr, self, p);
 
         match expr.op.fixity() {
             Prefix  => write!(f, "{}{}", expr.op, subexpr),
@@ -120,8 +118,8 @@ pub trait AsmStyle<C> : Debug {
     /// Writes a binary expression to the given formatter in this assembly style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
         let p   = expr.precedence();
-        let lhs = Asm(&*expr.lhs, self.lift(), p);
-        let rhs = Asm(&*expr.rhs, self.lift(), p);
+        let lhs = Asm(&*expr.lhs, self, p);
+        let rhs = Asm(&*expr.rhs, self, p);
 
         write!(f, "({} {} {})", lhs, expr.op, rhs)
     }
@@ -142,21 +140,21 @@ mod tests {
     #[test]
     fn write_id() {
         let i = Id::new("a");
-        let s = format!("{}", Asm(&i, &DefaultStyle, Prec::Statement));
+        let s = format!("{}", Asm::new(&i, &DefaultStyle));
         assert_eq!(s, "a");
     }
 
     #[test]
     fn write_num() {
         let i = Int::from(42);
-        let s = format!("{}", Asm(&i, &DefaultStyle, Prec::Statement));
+        let s = format!("{}", Asm::new(&i, &DefaultStyle));
         assert_eq!(s, "42");
     }
 
     #[test]
     fn write_reg() {
         let i = Reg::new("a");
-        let s = format!("{}", Asm(&i, &DefaultStyle, Prec::Statement));
+        let s = format!("{}", Asm::new(&i, &DefaultStyle));
         assert_eq!(s, "a");
     }
 }

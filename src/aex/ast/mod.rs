@@ -30,7 +30,7 @@ mod binary;
 mod expr;
 mod id;
 mod int;
-mod operand;
+//mod operand;
 mod prec;
 mod reg;
 mod unary;
@@ -39,13 +39,13 @@ pub use self::binary::*;
 pub use self::expr::*;
 pub use self::id::*;
 pub use self::int::*;
-pub use self::operand::*;
+//pub use self::operand::*;
 pub use self::prec::*;
 pub use self::reg::*;
 pub use self::unary::*;
 
-/// A type that carries some context value.
-pub trait Context {
+/// An AST node.
+pub trait Node {
 
     /// Type of the context value.
     type Context;
@@ -53,5 +53,4 @@ pub trait Context {
     /// Gets the context value.
     fn context(&self) -> &Self::Context;
 }
-
 

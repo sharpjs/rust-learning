@@ -39,6 +39,22 @@ pub enum Expr<'a, C = ()> {
     Binary(Binary<'a, C>),
 }
 
+impl<'a, C> Node for Expr<'a, C> {
+    /// Type of the context value.
+    type Context = C;
+
+    /// Gets the context value.
+    fn context(&self) -> &C {
+        match *self {
+            Expr::Id     (ref i) => i.context(),
+            Expr::Int    (ref i) => i.context(),
+            Expr::Reg    (ref r) => r.context(),
+            Expr::Unary  (ref u) => u.context(),
+            Expr::Binary (ref b) => b.context(),
+        }
+    }
+}
+
 impl<'a, C> Precedence for Expr<'a, C> {
     /// Gets the operator precedence level.
     fn precedence(&self) -> Prec {
@@ -65,10 +81,11 @@ impl<'a, C> Display for Expr<'a, C> {
     }
 }
 
-impl<'a, C> AsmDisplay<C> for Expr<'a, C> {
+impl<'a, C> AsmDisplay for Expr<'a, C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
+    fn fmt<S: AsmStyle<C> + ?Sized>
+          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         match *self {
             Expr::Id     (ref i) => AsmDisplay::fmt(i, f, s, p),
             Expr::Int    (ref i) => AsmDisplay::fmt(i, f, s, p),

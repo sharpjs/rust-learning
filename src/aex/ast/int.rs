@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::asm::{AsmDisplay, AsmStyle};
-use aex::ast::{Prec, Precedence};
+use aex::ast::{Node, Prec, Precedence};
 use num::BigInt;
 
 /// An integer literal.
@@ -55,6 +55,14 @@ impl<T> From<T> for Int where T: Into<BigInt> {
     fn from(val: T) -> Self { Self::new(val) }
 }
 
+impl<C> Node for Int<C> {
+    /// Type of the context value.
+    type Context = C;
+
+    /// Gets the context value.
+    fn context(&self) -> &C { &self.context }
+}
+
 impl<C> Precedence for Int<C> {
     /// Gets the operator precedence level.
     #[inline(always)]
@@ -68,11 +76,12 @@ impl<C> Display for Int<C> {
     }
 }
 
-impl<C> AsmDisplay<C> for Int<C> {
+impl<C> AsmDisplay for Int<C> {
     /// Formats the value as assembly code, using the given formatter and
     /// assembly style.
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle<C>, p: Prec) -> fmt::Result {
+    fn fmt<S: AsmStyle<C> + ?Sized>
+          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_int(f, self)
     }
 }
