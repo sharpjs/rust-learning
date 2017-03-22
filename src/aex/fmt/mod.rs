@@ -29,9 +29,9 @@ pub use self::mit::*;
 
 // -----------------------------------------------------------------------------
 
-/// Trait for types that are formattable as source code.
+/// Trait for types that are formattable as code.
 pub trait Code: Node {
-    /// Formats the object as source code in the given style.
+    /// Formats the object as code in the given style.
     fn fmt<S: Style<Self::Context> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result;
 }
@@ -78,24 +78,24 @@ where T: Code              + ?Sized,
 
 // -----------------------------------------------------------------------------
 
-/// An assembly code style.
+/// A code output style.
 pub trait Style<C> : Debug {
-    /// Writes an identifier to the given formatter in this assembly style.
+    /// Writes an identifier to the given formatter in this code style.
     fn write_id(&self, f: &mut Formatter, id: &Id<C>) -> fmt::Result {
         f.write_str(id.name)
     }
 
-    /// Writes an integer literal to the given formatter in this assembly style.
+    /// Writes an integer literal to the given formatter in this code style.
     fn write_int(&self, f: &mut Formatter, num: &Int<C>) -> fmt::Result {
         write!(f, "{}", num.value)
     }
 
-    /// Writes a register to the given formatter in this assembly style.
+    /// Writes a register to the given formatter in this code style.
     fn write_reg(&self, f: &mut Formatter, reg: &Reg<C>) -> fmt::Result {
         f.write_str(reg.name)
     }
 
-    /// Writes a unary expression to the given formatter in this assembly style.
+    /// Writes a unary expression to the given formatter in this code style.
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result {
         use aex::ast::Fixity::*;
 
@@ -107,7 +107,7 @@ pub trait Style<C> : Debug {
         }
     }
 
-    /// Writes a binary expression to the given formatter in this assembly style.
+    /// Writes a binary expression to the given formatter in this code style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
         let p   = expr.precedence();
         let lhs = Styled(&*expr.lhs, self, p);
