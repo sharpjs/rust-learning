@@ -18,14 +18,14 @@
 
 use std::fmt::{self, Formatter};
 
-use aex::fmt::{AsmDisplay, AsmStyle};
+use aex::fmt::{Code, Style};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct PcReg;
 
-impl AsmDisplay for PcReg {
+impl Code for PcReg {
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
         s.write_reg(f, "pc")
     }
 }

@@ -18,7 +18,7 @@
 
 // -----------------------------------------------------------------------------
 // Latest idea: Same AST for aex input and asm output.  Output AST is just a
-// subset that is AsmDisplayable.  This lets me develop just an assembler and
+// subset that is Codeable.  This lets me develop just an assembler and
 // then bolt-on the aex features.  Possible?  Don't know.
 //
 // Might need two Expr types then:

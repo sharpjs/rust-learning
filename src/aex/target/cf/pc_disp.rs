@@ -20,7 +20,7 @@ use std::fmt::{self, Formatter};
 use std::io::{self, Read};
 use byteorder::{BigEndian as BE, ReadBytesExt};
 
-use aex::fmt::{AsmDisplay, AsmStyle};
+use aex::fmt::{Code, Style};
 use aex::ast::Expr;
 
 use super::PcReg;
@@ -38,8 +38,8 @@ impl<'a> PcDisp<'a> {
     }
 }
 
-impl<'a> AsmDisplay for PcDisp<'a> {
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+impl<'a> Code for PcDisp<'a> {
+    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
         s.write_base_disp(f, &PcReg, &self.disp)
     }
 }

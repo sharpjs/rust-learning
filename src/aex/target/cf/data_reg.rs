@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Formatter};
-use aex::fmt::{AsmDisplay, AsmStyle};
+use aex::fmt::{Code, Style};
 
 pub use self::DataReg::*;
 
@@ -52,9 +52,9 @@ impl DataReg {
     }
 }
 
-impl AsmDisplay for DataReg {
+impl Code for DataReg {
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
         s.write_reg(f, self.name())
     }
 }

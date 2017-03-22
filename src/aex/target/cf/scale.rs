@@ -19,7 +19,7 @@
 use std::fmt::{self, Formatter};
 use std::io;
 
-use aex::fmt::{AsmDisplay, AsmStyle};
+use aex::fmt::{Code, Style};
 use aex::util::invalid;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
@@ -56,8 +56,8 @@ impl Scale {
     }
 }
 
-impl AsmDisplay for Scale {
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+impl Code for Scale {
+    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
         s.write_scale(f, self.size())
     }
 }

@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Formatter};
 
-use aex::fmt::{AsmDisplay, AsmStyle};
+use aex::fmt::{Code, Style};
 use super::{AddrReg, DataReg};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -39,8 +39,8 @@ impl Index {
     }
 }
 
-impl AsmDisplay for Index {
-    fn fmt(&self, f: &mut Formatter, s: &AsmStyle) -> fmt::Result {
+impl Code for Index {
+    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
         match *self {
             Index::Data(ref r) => r.fmt(f, s),
             Index::Addr(ref r) => r.fmt(f, s),
