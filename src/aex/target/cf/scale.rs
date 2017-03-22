@@ -19,7 +19,7 @@
 use std::fmt::{self, Formatter};
 use std::io;
 
-use aex::asm::{AsmDisplay, AsmStyle};
+use aex::fmt::{AsmDisplay, AsmStyle};
 use aex::util::invalid;
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

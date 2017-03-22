@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{Code, Style};
+use aex::fmt::{Code, Style};
 use super::*;
 
 /// An expression.

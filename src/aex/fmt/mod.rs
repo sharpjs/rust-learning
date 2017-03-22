@@ -32,21 +32,17 @@ pub use self::mit::*;
 /// Trait for types that are formattable as source code.
 pub trait Code: Node {
     /// Formats the object as source code in the given style.
-    fn fmt<S>(&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result
-        where S: Style<Self::Context> + ?Sized;
+    fn fmt<S: Style<Self::Context> + ?Sized>
+          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result;
 }
 
 // -----------------------------------------------------------------------------
 
 /// A code-formattable object with the additional data required for formatting.
-///
-/// Used to adapt a `Code` value to a `Display` one.
-///
 #[derive(Clone, Copy, Debug)]
 pub struct Styled<'a,
                   T: 'a + Code              + ?Sized,
                   S: 'a + Style<T::Context> + ?Sized>(
-
     /// Assembly-formattable value.
     pub &'a T,
 

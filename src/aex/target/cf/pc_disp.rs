@@ -20,7 +20,7 @@ use std::fmt::{self, Formatter};
 use std::io::{self, Read};
 use byteorder::{BigEndian as BE, ReadBytesExt};
 
-use aex::asm::{AsmDisplay, AsmStyle};
+use aex::fmt::{AsmDisplay, AsmStyle};
 use aex::ast::Expr;
 
 use super::PcReg;
@@ -46,7 +46,7 @@ impl<'a> AsmDisplay for PcDisp<'a> {
 
 #[cfg(test)]
 mod tests {
-    use aex::asm::*;
+    use aex::fmt::*;
     use aex::ast::Expr;
     use super::*;
 

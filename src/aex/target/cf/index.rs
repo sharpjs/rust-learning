@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Formatter};
 
-use aex::asm::{AsmDisplay, AsmStyle};
+use aex::fmt::{AsmDisplay, AsmStyle};
 use super::{AddrReg, DataReg};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]

@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Formatter};
 
-use aex::asm::{AsmDisplay, AsmStyle};
+use aex::fmt::{AsmDisplay, AsmStyle};
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub struct PcReg;
@@ -33,7 +33,7 @@ impl AsmDisplay for PcReg {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::asm::*;
+    use aex::fmt::*;
 
     #[test]
     fn display() {

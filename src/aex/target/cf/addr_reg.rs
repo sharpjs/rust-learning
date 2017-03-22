@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Formatter};
-use aex::asm::{AsmDisplay, AsmStyle};
+use aex::fmt::{AsmDisplay, AsmStyle};
 
 pub use self::AddrReg::*;
 
@@ -65,7 +65,7 @@ impl AsmDisplay for AddrReg {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::asm::*;
+    use aex::fmt::*;
 
     #[test]
     fn with_num() {

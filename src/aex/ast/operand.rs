@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 //use std::fmt::{self, Display, Formatter};
-//use aex::asm::{AsmDisplay, AsmStyle};
+//use aex::fmt::{AsmDisplay, AsmStyle};
 use super::*;
 
 /// An instruction operand.

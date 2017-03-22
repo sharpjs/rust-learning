@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{Code, Style};
+use aex::fmt::{Code, Style};
 use aex::ast::{Node, Prec, Precedence};
 use num::BigInt;
 
@@ -89,7 +89,7 @@ impl<C> Code for Int<C> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::asm::{Styled, IntelStyle};
+    use aex::fmt::{Styled, IntelStyle};
     use aex::ast::Prec;
     use num::BigInt;
 

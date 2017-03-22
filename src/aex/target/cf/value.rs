@@ -20,7 +20,7 @@ use std::fmt::{self, Formatter};
 use std::io::{self, Read};
 use byteorder::{BigEndian as BE, ReadBytesExt, WriteBytesExt};
 
-use aex::asm::{AsmDisplay, AsmStyle};
+use aex::fmt::{AsmDisplay, AsmStyle};
 use aex::ast::Expr;
 use aex::util::invalid;
 
@@ -155,7 +155,7 @@ mod tests {
     use std::io::Cursor;
     use super::*;
     use super::super::{AddrDisp, AddrDispIdx, D3, FP, Index, Scale}; 
-    use aex::asm::*;
+    use aex::fmt::*;
     use aex::ast::Expr;
 
     #[test]

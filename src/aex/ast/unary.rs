@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use aex::asm::{Code, Style};
+use aex::fmt::{Code, Style};
 use aex::ast::{Expr, Node, Prec, Precedence};
 
 /// A unary operator expression.
@@ -178,7 +178,7 @@ impl<C> Code<C> for UnaryOp {
 mod tests {
     use super::*;
     use super::super::Id;
-    use aex::asm::{Styled, IntelStyle};
+    use aex::fmt::{Styled, IntelStyle};
 
     #[test]
     fn new() {
