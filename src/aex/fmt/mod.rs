@@ -78,6 +78,18 @@ where T: Code              + ?Sized,
 
 // -----------------------------------------------------------------------------
 
+pub trait ToStyled: Code {
+    fn styled<'a, S>(&'a self, style: &'a S, prec: Prec) -> Styled<'a, Self, S>
+        where S: Style<Self::Context> + ?Sized
+    {
+        Styled(self, style, prec)
+    }
+}
+
+impl<T> ToStyled for T where T: Code + ?Sized {}
+
+// -----------------------------------------------------------------------------
+
 /// A code output style.
 pub trait Style<C> : Debug {
     /// Writes an identifier to the given formatter in this code style.
@@ -99,7 +111,7 @@ pub trait Style<C> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result {
         use aex::ast::Fixity::*;
 
-        let subexpr = Styled(&*expr.expr, self, expr.precedence());
+        let subexpr = expr.expr.styled(self, expr.precedence());
 
         match expr.op.fixity() {
             Prefix  => write!(f, "{}{}", expr.op, subexpr),
@@ -109,9 +121,10 @@ pub trait Style<C> : Debug {
 
     /// Writes a binary expression to the given formatter in this code style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
-        let p   = expr.precedence();
-        let lhs = Styled(&*expr.lhs, self, p);
-        let rhs = Styled(&*expr.rhs, self, p);
+
+        let prec = expr.precedence();
+        let lhs  = expr.lhs.styled(self, prec);
+        let rhs  = expr.rhs.styled(self, prec);
 
         write!(f, "({} {} {})", lhs, expr.op, rhs)
     }
