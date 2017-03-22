@@ -110,6 +110,8 @@ pub trait Style<C> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result {
         use aex::ast::Fixity::*;
 
+        // TODO: Here we need to know the containing precedence.
+
         let subexpr = expr.expr.styled(self, expr.precedence());
 
         match expr.op.fixity() {
@@ -120,6 +122,8 @@ pub trait Style<C> : Debug {
 
     /// Writes a binary expression to the given formatter in this code style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
+
+        // TODO: Here we need to know the containing precedence.
 
         let prec = expr.precedence();
         let lhs  = expr.lhs.styled(self, prec);
