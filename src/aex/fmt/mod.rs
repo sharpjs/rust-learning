@@ -80,8 +80,7 @@ where T: Code              + ?Sized,
 
 pub trait ToStyled: Code {
     fn styled<'a, S>(&'a self, style: &'a S, prec: Prec) -> Styled<'a, Self, S>
-        where S: Style<Self::Context> + ?Sized
-    {
+    where S: Style<Self::Context> + ?Sized {
         Styled(self, style, prec)
     }
 }
