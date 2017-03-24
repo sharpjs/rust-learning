@@ -23,64 +23,63 @@ use num::BigInt;
 
 /// An integer literal.
 #[derive(Clone, Debug)]
-pub struct Int<C = ()> {
+pub struct Int<A = ()> {
     /// The value of the integer literal.
     pub value: BigInt,
 
-    /// A context value.
-    pub context: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 impl Int {
-    /// Creates a new `Int` with the given value and with `()` context.
+    /// Creates a new `Int` with the given value and with `()` annotation.
     #[inline]
     pub fn new<V>(val: V) -> Self
     where V: Into<BigInt> {
-        Self::new_with_context(val, ())
+        Self::new_with_ann(val, ())
     }
 }
 
-impl<C> Int<C> {
-    /// Creates a new `Int` with the given value and context.
+impl<A> Int<A> {
+    /// Creates a new `Int` with the given value and annotation.
     #[inline]
-    pub fn new_with_context<V>(val: V, ctx: C) -> Self
+    pub fn new_with_ann<V>(val: V, ann: A) -> Self
     where V: Into<BigInt>{
-        Int { value: val.into(), context: ctx }
+        Int { value: val.into(), ann: ann }
     }
 }
 
 impl<T> From<T> for Int where T: Into<BigInt> {
-    /// Converts the given value to an `Int` with `()` context.
+    /// Converts the given value to an `Int` with `()` annotation.
     #[inline]
     fn from(val: T) -> Self { Self::new(val) }
 }
 
-impl<C> Node for Int<C> {
-    /// Type of the context value.
-    type Context = C;
+impl<A> Node for Int<A> {
+    /// Annotation type.
+    type Ann = A;
 
-    /// Gets the context value.
-    fn context(&self) -> &C { &self.context }
+    /// Gets the annotation for this node.
+    fn ann(&self) -> &A { &self.ann }
 }
 
-impl<C> Precedence for Int<C> {
+impl<A> Precedence for Int<A> {
     /// Gets the operator precedence level.
     #[inline(always)]
     fn precedence(&self) -> Prec { Prec::Atomic }
 }
 
-impl<C> Display for Int<C> {
+impl<A> Display for Int<A> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "0x{:X}", &self.value)
     }
 }
 
-impl<C> Code for Int<C> {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
+impl<A> Code for Int<A> {
+    /// Formats the value as code, using the given formatter and style.
     #[inline]
-    fn fmt<S: Style<C> + ?Sized>
+    fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_int(f, self)
     }
@@ -97,21 +96,21 @@ mod tests {
     fn new() {
         let i = Int::new(42);
         assert_eq!(i.value, BigInt::from(42));
-        assert_eq!(i.context, ());
+        assert_eq!(i.ann, ());
     }
 
     #[test]
-    fn new_with_context() {
-        let i = Int::new_with_context(42, "a");
+    fn new_with_ann() {
+        let i = Int::new_with_ann(42, "a");
         assert_eq!(i.value, BigInt::from(42));
-        assert_eq!(i.context, "a");
+        assert_eq!(i.ann, "a");
     }
 
     #[test]
     fn from() {
         let i = Int::from(42);
         assert_eq!(i.value, BigInt::from(42));
-        assert_eq!(i.context, ());
+        assert_eq!(i.ann, ());
     }
 
     #[test]
@@ -122,14 +121,14 @@ mod tests {
 
     #[test]
     fn fmt() {
-        let i = Int { value: BigInt::from(42), context: "a" };
+        let i = Int { value: BigInt::from(42), ann: "a" };
         let s = format!("{}", &i);
         assert_eq!(s, "0x2A");
     }
 
     #[test]
     fn fmt_asm() {
-        let i = Int { value: BigInt::from(42), context: "a" };
+        let i = Int { value: BigInt::from(42), ann: "a" };
         let s = format!("{}", Styled::new(&i, &IntelStyle));
         assert_eq!(s, "42");
     }

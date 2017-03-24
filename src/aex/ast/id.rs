@@ -22,51 +22,51 @@ use aex::ast::{Node, Prec, Precedence};
 
 /// An identifier.
 #[derive(Clone, Copy, Debug)]
-pub struct Id<'a, C = ()> {
+pub struct Id<'a, A = ()> {
     /// The name of the identifier.
     pub name: &'a str,
 
-    /// A context value.
-    pub context: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 impl<'a> Id<'a> {
-    /// Creates a new `Id` with the given name and with `()` context.
+    /// Creates a new `Id` with the given name and with `()` annotation.
     #[inline]
     pub fn new(name: &'a str) -> Self {
-        Self::new_with_context(name, ())
+        Self::new_with_ann(name, ())
     }
 }
 
-impl<'a, C> Id<'a, C> {
-    /// Creates a new `Id` with the given name and context.
+impl<'a, A> Id<'a, A> {
+    /// Creates a new `Id` with the given name and annotation.
     #[inline]
-    pub fn new_with_context(name: &'a str, ctx: C) -> Self {
-        Id { name: name, context: ctx }
+    pub fn new_with_ann(name: &'a str, ann: A) -> Self {
+        Id { name: name, ann: ann }
     }
 }
 
 impl<'a> From<&'a str> for Id<'a> {
-    /// Converts the given value to an `Id` with `()` context.
+    /// Converts the given value to an `Id` with `()` annotation.
     #[inline]
     fn from(name: &'a str) -> Self { Self::new(name) }
 }
 
-impl<'a, C> Node for Id<'a, C> {
-    /// Type of the context value.
-    type Context = C;
+impl<'a, A> Node for Id<'a, A> {
+    /// Annotation type.
+    type Ann = A;
 
-    /// Gets the context value.
-    fn context(&self) -> &C { &self.context }
+    /// Gets the annotation for this node.
+    fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, C> Precedence for Id<'a, C> {
+impl<'a, A> Precedence for Id<'a, A> {
     /// Gets the operator precedence level.
     #[inline(always)]
     fn precedence(&self) -> Prec { Prec::Atomic }
 }
 
-impl<'a, C> Display for Id<'a, C> {
+impl<'a, A> Display for Id<'a, A> {
     /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -74,11 +74,10 @@ impl<'a, C> Display for Id<'a, C> {
     }
 }
 
-impl<'a, C> Code for Id<'a, C> {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
+impl<'a, A> Code for Id<'a, A> {
+    /// Formats the value as code, using the given formatter and style.
     #[inline]
-    fn fmt<S: Style<C> + ?Sized>
+    fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_id(f, self)
     }
@@ -94,21 +93,21 @@ mod tests {
     fn new() {
         let i = Id::new("a");
         assert_eq!(i.name, "a");
-        assert_eq!(i.context, ());
+        assert_eq!(i.ann, ());
     }
 
     #[test]
-    fn new_with_context() {
-        let i = Id::new_with_context("a", 42);
+    fn new_with_ann() {
+        let i = Id::new_with_ann("a", 42);
         assert_eq!(i.name, "a");
-        assert_eq!(i.context, 42);
+        assert_eq!(i.ann, 42);
     }
 
     #[test]
     fn from() {
         let i = Id::from("a");
         assert_eq!(i.name, "a");
-        assert_eq!(i.context, ());
+        assert_eq!(i.ann, ());
     }
 
     #[test]
@@ -119,14 +118,14 @@ mod tests {
 
     #[test]
     fn fmt() {
-        let i = Id { name: "a", context: 42 };
+        let i = Id { name: "a", ann: 42 };
         let s = format!("{}", &i);
         assert_eq!(s, "a");
     }
 
     #[test]
     fn fmt_asm() {
-        let i = Id { name: "a", context: 42 };
+        let i = Id { name: "a", ann: 42 };
         let s = format!("{}", Styled::new(&i, &IntelStyle));
         assert_eq!(s, "a");
     }

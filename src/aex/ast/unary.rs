@@ -22,43 +22,43 @@ use aex::ast::{Expr, Node, Prec, Precedence};
 
 /// A unary operator expression.
 #[derive(Clone, Debug)]
-pub struct Unary<'a, C = ()> {
+pub struct Unary<'a, A = ()> {
     /// Operator.
     pub op: UnaryOp,
 
     /// Subexpression.
-    pub expr: Box<Expr<'a, C>>,
+    pub expr: Box<Expr<'a, A>>,
 
-    /// Context value.
-    pub context: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 impl<'a> Unary<'a> {
     /// Creates a new `Unary` with the given subexpression and with `()`
-    /// context.
+    /// annotation.
     pub fn new<E>(op: UnaryOp, expr: E) -> Self
     where E: Into<Box<Expr<'a>>> {
-        Self::new_with_context(op, expr, ())
+        Self::new_with_ann(op, expr, ())
     }
 }
 
-impl<'a, C> Unary<'a, C> {
-    /// Creates a new `Unary` with the given subexpression and context.
-    pub fn new_with_context<E>(op: UnaryOp, expr: E, ctx: C) -> Self
-    where E: Into<Box<Expr<'a, C>>> {
-        Unary { op: op, expr: expr.into(), context: ctx }
+impl<'a, A> Unary<'a, A> {
+    /// Creates a new `Unary` with the given subexpression and annotation.
+    pub fn new_with_ann<E>(op: UnaryOp, expr: E, ann: A) -> Self
+    where E: Into<Box<Expr<'a, A>>> {
+        Unary { op: op, expr: expr.into(), ann: ann }
     }
 }
 
-impl<'a, C> Node for Unary<'a, C> {
-    /// Type of the context value.
-    type Context = C;
+impl<'a, A> Node for Unary<'a, A> {
+    /// Annotation type.
+    type Ann = A;
 
-    /// Gets the context value.
-    fn context(&self) -> &C { &self.context }
+    /// Gets the annotation for this node.
+    fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, C> Precedence for Unary<'a, C> {
+impl<'a, A> Precedence for Unary<'a, A> {
     /// Gets the operator precedence level.
     /// Higher values mean higher precendence.
     #[inline]
@@ -67,7 +67,7 @@ impl<'a, C> Precedence for Unary<'a, C> {
     }
 }
 
-impl<'a, C> Display for Unary<'a, C> {
+impl<'a, A> Display for Unary<'a, A> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         use self::Fixity::*;
@@ -79,10 +79,9 @@ impl<'a, C> Display for Unary<'a, C> {
     }
 }
 
-impl<'a, C> Code for Unary<'a, C> {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
-    fn fmt<S: Style<C> + ?Sized>
+impl<'a, A> Code for Unary<'a, A> {
+    /// Formats the value as code, using the given formatter and style.
+    fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_unary(f, self)
     }
@@ -164,16 +163,6 @@ impl Precedence for UnaryOp {
     }
 }
 
-/*
-impl<C> Code<C> for UnaryOp {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &Style<C>) -> fmt::Result {
-        // ...
-    }
-}
-*/
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -187,10 +176,10 @@ mod tests {
     }
 
     #[test]
-    fn new_with_context() {
-        let e = pre_dec_with_context();
+    fn new_with_ann() {
+        let e = pre_dec_with_ann();
         assert_pre_dec(&e);
-        assert_eq!(e.context, 42);
+        assert_eq!(e.ann, 42);
     }
 
     #[test]
@@ -239,15 +228,15 @@ mod tests {
         )
     }
 
-    fn pre_dec_with_context<'a>() -> Unary<'a, usize> {
-        Unary::new_with_context(
+    fn pre_dec_with_ann<'a>() -> Unary<'a, usize> {
+        Unary::new_with_ann(
             UnaryOp::PreDec,
-            Expr::Id(Id::new_with_context("a", 123)),
+            Expr::Id(Id::new_with_ann("a", 123)),
             42
         )
     }
 
-    fn assert_pre_dec<C>(e: &Unary<C>) {
+    fn assert_pre_dec<A>(e: &Unary<A>) {
         assert_eq!(e.op, UnaryOp::PreDec);
 
         match *e.expr {

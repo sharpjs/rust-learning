@@ -31,8 +31,9 @@ pub use self::mit::*;
 
 /// Trait for types that are formattable as code.
 pub trait Code: Node {
+
     /// Formats the object as code in the given style.
-    fn fmt<S: Style<Self::Context> + ?Sized>
+    fn fmt<S: Style<Self::Ann> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result;
 }
 
@@ -41,23 +42,24 @@ pub trait Code: Node {
 /// A code-formattable object with the additional data required for formatting.
 #[derive(Clone, Copy, Debug)]
 pub struct Styled<'a,
-                  T: 'a + Code              + ?Sized,
-                  S: 'a + Style<T::Context> + ?Sized>(
-    /// Assembly-formattable value.
+                  T: 'a + Code          + ?Sized,
+                  S: 'a + Style<T::Ann> + ?Sized>(
+
+    /// Code-formattable object.
     pub &'a T,
 
-    /// Assembly code style.
+    /// Code style.
     pub &'a S,
 
-    /// Precedence level of containing code.
+    /// Surrounding precedence level.
     pub Prec,
 );
 
 impl<'a, T, S> Styled<'a, T, S>
-where T: Code              + ?Sized,
-      S: Style<T::Context> + ?Sized {
+where T: Code          + ?Sized,
+      S: Style<T::Ann> + ?Sized {
 
-    /// Formats the value using the given formatter.
+    /// Formats the value using the given formatter and style.
     #[inline]
     pub fn new(value: &'a T, style: &'a S) -> Self {
         Styled(value, style, Prec::Statement)
@@ -65,8 +67,8 @@ where T: Code              + ?Sized,
 }
 
 impl<'a, T, S> Display for Styled<'a, T, S>
-where T: Code              + ?Sized,
-      S: Style<T::Context> + ?Sized {
+where T: Code          + ?Sized,
+      S: Style<T::Ann> + ?Sized {
 
     /// Formats the value using the given formatter.
     #[inline]
@@ -80,7 +82,7 @@ where T: Code              + ?Sized,
 
 pub trait ToStyled: Code {
     fn styled<'a, S>(&'a self, style: &'a S, prec: Prec) -> Styled<'a, Self, S>
-    where S: Style<Self::Context> + ?Sized {
+    where S: Style<Self::Ann> + ?Sized {
         Styled(self, style, prec)
     }
 }
@@ -90,24 +92,24 @@ impl<T> ToStyled for T where T: Code + ?Sized {}
 // -----------------------------------------------------------------------------
 
 /// A code output style.
-pub trait Style<C> : Debug {
+pub trait Style<A> : Debug {
     /// Writes an identifier to the given formatter in this code style.
-    fn write_id(&self, f: &mut Formatter, id: &Id<C>) -> fmt::Result {
+    fn write_id(&self, f: &mut Formatter, id: &Id<A>) -> fmt::Result {
         f.write_str(id.name)
     }
 
     /// Writes an integer literal to the given formatter in this code style.
-    fn write_int(&self, f: &mut Formatter, num: &Int<C>) -> fmt::Result {
+    fn write_int(&self, f: &mut Formatter, num: &Int<A>) -> fmt::Result {
         write!(f, "{}", num.value)
     }
 
     /// Writes a register to the given formatter in this code style.
-    fn write_reg(&self, f: &mut Formatter, reg: &Reg<C>) -> fmt::Result {
+    fn write_reg(&self, f: &mut Formatter, reg: &Reg<A>) -> fmt::Result {
         f.write_str(reg.name)
     }
 
     /// Writes a unary expression to the given formatter in this code style.
-    fn write_unary(&self, f: &mut Formatter, expr: &Unary<C>) -> fmt::Result {
+    fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>) -> fmt::Result {
         use aex::ast::Fixity::*;
 
         // TODO: Here we need to know the containing precedence.
@@ -121,7 +123,7 @@ pub trait Style<C> : Debug {
     }
 
     /// Writes a binary expression to the given formatter in this code style.
-    fn write_binary(&self, f: &mut Formatter, expr: &Binary<C>) -> fmt::Result {
+    fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>) -> fmt::Result {
 
         // TODO: Here we need to know the containing precedence.
 
@@ -141,7 +143,7 @@ mod tests {
 
     #[derive(Debug)]
     struct DefaultStyle;
-    impl<C> Style<C> for DefaultStyle { }
+    impl<A> Style<A> for DefaultStyle { }
 
     #[test]
     fn write_id() {

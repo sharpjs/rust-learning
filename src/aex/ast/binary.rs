@@ -22,48 +22,48 @@ use aex::ast::{Expr, Node, Prec, Precedence};
 
 /// A binary operator expression.
 #[derive(Clone, Debug)]
-pub struct Binary<'a, C = ()> {
+pub struct Binary<'a, A = ()> {
     /// Operator.
     pub op: BinaryOp,
 
     /// Left subexpression.
-    pub lhs: Box<Expr<'a, C>>,
+    pub lhs: Box<Expr<'a, A>>,
 
     /// Right subexpression.
-    pub rhs: Box<Expr<'a, C>>,
+    pub rhs: Box<Expr<'a, A>>,
 
-    /// Context value.
-    pub context: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 impl<'a> Binary<'a> {
     /// Creates a new `Binary` with the given subexpressions and with `()`
-    /// context.
+    /// annotation.
     pub fn new<L, R>(op: BinaryOp, lhs: L, rhs: R) -> Self
     where L: Into<Box<Expr<'a>>>,
           R: Into<Box<Expr<'a>>> {
-        Self::new_with_context(op, lhs, rhs, ())
+        Self::new_with_ann(op, lhs, rhs, ())
     }
 }
 
-impl<'a, C> Binary<'a, C> {
-    /// Creates a new `Binary` with the given subexpressions and context.
-    pub fn new_with_context<L, R>(op: BinaryOp, lhs: L, rhs: R, ctx: C) -> Self
-    where L: Into<Box<Expr<'a, C>>>,
-          R: Into<Box<Expr<'a, C>>> {
-        Binary { op: op, lhs: lhs.into(), rhs: rhs.into(), context: ctx }
+impl<'a, A> Binary<'a, A> {
+    /// Creates a new `Binary` with the given subexpressions and annotation.
+    pub fn new_with_ann<L, R>(op: BinaryOp, lhs: L, rhs: R, ann: A) -> Self
+    where L: Into<Box<Expr<'a, A>>>,
+          R: Into<Box<Expr<'a, A>>> {
+        Binary { op: op, lhs: lhs.into(), rhs: rhs.into(), ann: ann }
     }
 }
 
-impl<'a, C> Node for Binary<'a, C> {
-    /// Type of the context value.
-    type Context = C;
+impl<'a, A> Node for Binary<'a, A> {
+    /// Annotation type.
+    type Ann = A;
 
-    /// Gets the context value.
-    fn context(&self) -> &C { &self.context }
+    /// Gets the annotation for this node.
+    fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, C> Precedence for Binary<'a, C> {
+impl<'a, A> Precedence for Binary<'a, A> {
     /// Gets the operator precedence level.
     /// Higher values mean higher precendence.
     #[inline]
@@ -72,17 +72,16 @@ impl<'a, C> Precedence for Binary<'a, C> {
     }
 }
 
-impl<'a, C> Display for Binary<'a, C> {
+impl<'a, A> Display for Binary<'a, A> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         write!(f, "({} {} {})", self.lhs, self.op, self.rhs)
     }
 }
 
-impl<'a, C> Code for Binary<'a, C> {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
-    fn fmt<S: Style<C> + ?Sized>
+impl<'a, A> Code for Binary<'a, A> {
+    /// Formats the value as code, using the given formatter and style.
+    fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_binary(f, self)
     }
@@ -201,16 +200,6 @@ impl Precedence for BinaryOp {
     }
 }
 
-/*
-impl<C> Code<C> for BinaryOp {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
-    fn fmt(&self, f: &mut Formatter, s: &Style<C>) -> fmt::Result {
-        // ...
-    }
-}
-*/
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -224,10 +213,10 @@ mod tests {
     }
 
     #[test]
-    fn new_with_context() {
-        let b = binary_with_context();
+    fn new_with_ann() {
+        let b = binary_with_ann();
         assert_add_a_b(&b);
-        assert_eq!(b.context, 42);
+        assert_eq!(b.ann, 42);
     }
 
     #[test]
@@ -259,16 +248,16 @@ mod tests {
         )
     }
 
-    fn binary_with_context<'a>() -> Binary<'a, usize> {
-        Binary::new_with_context(
+    fn binary_with_ann<'a>() -> Binary<'a, usize> {
+        Binary::new_with_ann(
             BinaryOp::Add,
-            Expr::Id(Id::new_with_context("a", 123)),
-            Expr::Id(Id::new_with_context("b", 456)),
+            Expr::Id(Id::new_with_ann("a", 123)),
+            Expr::Id(Id::new_with_ann("b", 456)),
             42
         )
     }
 
-    fn assert_add_a_b<C>(b: &Binary<C>) {
+    fn assert_add_a_b<A>(b: &Binary<A>) {
         assert_eq!(b.op, BinaryOp::Add);
 
         match *b.lhs {

@@ -22,40 +22,40 @@ use super::*;
 
 /// An expression.
 #[derive(Clone, Debug)]
-pub enum Expr<'a, C = ()> {
+pub enum Expr<'a, A = ()> {
     /// Identifier
-    Id(Id<'a, C>),
+    Id(Id<'a, A>),
 
     /// Integer literal
-    Int(Int<C>),
+    Int(Int<A>),
 
     /// Register
-    Reg(Reg<'a, C>),
+    Reg(Reg<'a, A>),
 
     /// Unary expression
-    Unary(Unary<'a, C>),
+    Unary(Unary<'a, A>),
 
     /// Binary expression
-    Binary(Binary<'a, C>),
+    Binary(Binary<'a, A>),
 }
 
-impl<'a, C> Node for Expr<'a, C> {
-    /// Type of the context value.
-    type Context = C;
+impl<'a, A> Node for Expr<'a, A> {
+    /// Annotation type.
+    type Ann = A;
 
-    /// Gets the context value.
-    fn context(&self) -> &C {
+    /// Gets the annotation for this node.
+    fn ann(&self) -> &A {
         match *self {
-            Expr::Id     (ref i) => i.context(),
-            Expr::Int    (ref i) => i.context(),
-            Expr::Reg    (ref r) => r.context(),
-            Expr::Unary  (ref u) => u.context(),
-            Expr::Binary (ref b) => b.context(),
+            Expr::Id     (ref i) => i.ann(),
+            Expr::Int    (ref i) => i.ann(),
+            Expr::Reg    (ref r) => r.ann(),
+            Expr::Unary  (ref u) => u.ann(),
+            Expr::Binary (ref b) => b.ann(),
         }
     }
 }
 
-impl<'a, C> Precedence for Expr<'a, C> {
+impl<'a, A> Precedence for Expr<'a, A> {
     /// Gets the operator precedence level.
     fn precedence(&self) -> Prec {
         match *self {
@@ -68,7 +68,7 @@ impl<'a, C> Precedence for Expr<'a, C> {
     }
 }
 
-impl<'a, C> Display for Expr<'a, C> {
+impl<'a, A> Display for Expr<'a, A> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match *self {
@@ -81,10 +81,9 @@ impl<'a, C> Display for Expr<'a, C> {
     }
 }
 
-impl<'a, C> Code for Expr<'a, C> {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
-    fn fmt<S: Style<C> + ?Sized>
+impl<'a, A> Code for Expr<'a, A> {
+    /// Formats the value as code, using the given formatter and style.
+    fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         match *self {
             Expr::Id     (ref i) => Code::fmt(i, f, s, p),

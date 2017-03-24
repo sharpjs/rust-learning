@@ -22,61 +22,61 @@ use super::*;
 
 /// An instruction operand.
 #[derive(Clone, Debug)]
-pub enum Operand<'a, C = ()> {
+pub enum Operand<'a, A = ()> {
 
     /// A constant expression.
-    Constant(Expr<'a, C>),
+    Constant(Expr<'a, A>),
 
     /// A register.
-    Register(Id<'a, C>),
+    Register(Id<'a, A>),
 
     /// A memory location.
-    Indirect(Indirect<'a, C>),
+    Indirect(Indirect<'a, A>),
 }
 
 /// A reference to a memory location.
 #[derive(Clone, Debug)]
-pub struct Indirect<'a, C = ()> {
+pub struct Indirect<'a, A = ()> {
 
     /// Offsets that sum to the effective address.
-    pub offsets: Vec<Offset<'a, C>>,
+    pub offsets: Vec<Offset<'a, A>>,
 
-    /// A context value.
-    pub ctx: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 /// An offset in an indirect operand.
 #[derive(Clone, Debug)]
-pub enum Offset<'a, C = ()> {
+pub enum Offset<'a, A = ()> {
 
     /// Constant displacement.
-    Disp(Disp<'a, C>),
+    Disp(Disp<'a, A>),
 
     /// Base register.
-    Base(Id<'a, C>),
+    Base(Id<'a, A>),
 
     /// Register with pre-decrement.
-    PreDec(Id<'a, C>),
+    PreDec(Id<'a, A>),
 
     /// Register with post-increment.
-    PostInc(Id<'a, C>),
+    PostInc(Id<'a, A>),
 
     /// Register scaled by logical left shift.
-    Index(Index<'a, C>),
+    Index(Index<'a, A>),
 }
 
 /// A constant displacement in an indirect operand.
 #[derive(Clone, Debug)]
-pub struct Disp<'a, C = ()> {
+pub struct Disp<'a, A = ()> {
 
     /// The amount of displacement.
-    pub value: Expr<'a, C>,
+    pub value: Expr<'a, A>,
 
     /// The kind of displacement: near, far, etc.
     pub kind: DispKind,
 
-    /// A context value.
-    pub ctx: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 /// Kinds of constant displacement in an indirect operand.
@@ -92,36 +92,36 @@ pub enum DispKind {
 
 /// An scaled index register in an indirect operand.
 #[derive(Clone, Debug)]
-pub struct Index<'a, C = ()> {
+pub struct Index<'a, A = ()> {
 
     /// The index register.
-    pub reg: Id<'a, C>,
+    pub reg: Id<'a, A>,
 
     /// The scaling applied to the index register.
-    pub scale: Option<Scale<'a, C>>,
+    pub scale: Option<Scale<'a, A>>,
 
-    /// A context value.
-    pub ctx: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 /// A scaling operation in an indirect operand.
 #[derive(Clone, Debug)]
-pub enum Scale<'a, C = ()> {
+pub enum Scale<'a, A = ()> {
 
     /// Logical left shift.
-    Lsl(Operand<'a, C>),
+    Lsl(Operand<'a, A>),
 
     /// Logical right shift. (ARM)
-    Lsr(Operand<'a, C>),
+    Lsr(Operand<'a, A>),
 
     /// Arithmetic right shift. (ARM)
-    Asr(Operand<'a, C>),
+    Asr(Operand<'a, A>),
 
     /// Rotate right. (ARM)
-    Ror(Operand<'a, C>),
+    Ror(Operand<'a, A>),
 
     /// Rotate right through carry. (ARM)
-    Rrc(Operand<'a, C>),
+    Rrc(Operand<'a, A>),
 }
 
 //#[cfg(test)]

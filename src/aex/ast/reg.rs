@@ -22,51 +22,51 @@ use aex::ast::{Node, Prec, Precedence};
 
 /// A register.
 #[derive(Clone, Copy, Debug)]
-pub struct Reg<'a, C = ()> {
+pub struct Reg<'a, A = ()> {
     /// The name of the register.
     pub name: &'a str,
 
-    /// A context value.
-    pub context: C,
+    /// Annotation.
+    pub ann: A,
 }
 
 impl<'a> Reg<'a> {
-    /// Creates a new `Reg` with the given name and with `()` context.
+    /// Creates a new `Reg` with the given name and with `()` annotation.
     #[inline]
     pub fn new(name: &'a str) -> Self {
-        Self::new_with_context(name, ())
+        Self::new_with_ann(name, ())
     }
 }
 
-impl<'a, C> Reg<'a, C> {
-    /// Creates a new `Reg` with the given name and context.
+impl<'a, A> Reg<'a, A> {
+    /// Creates a new `Reg` with the given name and annotation.
     #[inline]
-    pub fn new_with_context(name: &'a str, ctx: C) -> Self {
-        Reg { name: name, context: ctx }
+    pub fn new_with_ann(name: &'a str, ann: A) -> Self {
+        Reg { name: name, ann: ann }
     }
 }
 
 impl<'a> From<&'a str> for Reg<'a> {
-    /// Converts the given value to an `Reg` with `()` context.
+    /// Converts the given value to an `Reg` with `()` annotation.
     #[inline]
     fn from(name: &'a str) -> Self { Self::new(name) }
 }
 
-impl<'a, C> Node for Reg<'a, C> {
-    /// Type of the context value.
-    type Context = C;
+impl<'a, A> Node for Reg<'a, A> {
+    /// Annotation type.
+    type Ann = A;
 
-    /// Gets the context value.
-    fn context(&self) -> &C { &self.context }
+    /// Gets the annotation for this node.
+    fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, C> Precedence for Reg<'a, C> {
+impl<'a, A> Precedence for Reg<'a, A> {
     /// Gets the operator precedence level.
     #[inline(always)]
     fn precedence(&self) -> Prec { Prec::Atomic }
 }
 
-impl<'a, C> Display for Reg<'a, C> {
+impl<'a, A> Display for Reg<'a, A> {
     /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -74,11 +74,10 @@ impl<'a, C> Display for Reg<'a, C> {
     }
 }
 
-impl<'a, C> Code for Reg<'a, C> {
-    /// Formats the value as assembly code, using the given formatter and
-    /// assembly style.
+impl<'a, A> Code for Reg<'a, A> {
+    /// Formats the value as code, using the given formatter and style.
     #[inline]
-    fn fmt<S: Style<C> + ?Sized>
+    fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_reg(f, self)
     }
@@ -94,21 +93,21 @@ mod tests {
     fn new() {
         let r = Reg::new("a");
         assert_eq!(r.name, "a");
-        assert_eq!(r.context, ());
+        assert_eq!(r.ann, ());
     }
 
     #[test]
-    fn new_with_context() {
-        let r = Reg::new_with_context("a", 42);
+    fn new_with_ann() {
+        let r = Reg::new_with_ann("a", 42);
         assert_eq!(r.name, "a");
-        assert_eq!(r.context, 42);
+        assert_eq!(r.ann, 42);
     }
 
     #[test]
     fn from() {
         let r = Reg::from("a");
         assert_eq!(r.name, "a");
-        assert_eq!(r.context, ());
+        assert_eq!(r.ann, ());
     }
 
     #[test]
@@ -119,14 +118,14 @@ mod tests {
 
     #[test]
     fn fmt() {
-        let r = Reg { name: "a", context: 42 };
+        let r = Reg { name: "a", ann: 42 };
         let s = format!("{}", &r);
         assert_eq!(s, "a");
     }
 
     #[test]
     fn fmt_asm() {
-        let r = Reg { name: "a", context: 42 };
+        let r = Reg { name: "a", ann: 42 };
         let s = format!("{}", Styled::new(&r, &IntelStyle));
         assert_eq!(s, "a");
     }

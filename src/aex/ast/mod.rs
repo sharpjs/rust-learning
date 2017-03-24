@@ -18,8 +18,8 @@
 
 // -----------------------------------------------------------------------------
 // Latest idea: Same AST for aex input and asm output.  Output AST is just a
-// subset that is Codeable.  This lets me develop just an assembler and
-// then bolt-on the aex features.  Possible?  Don't know.
+// subset that impls Code.  This lets me develop just an assembler and then bolt
+// on the aex features.  Possible?  Don't know.
 //
 // Might need two Expr types then:
 //   Expr => traditional assembler expressions, constant at runtime
@@ -47,10 +47,10 @@ pub use self::unary::*;
 /// An AST node.
 pub trait Node {
 
-    /// Type of the context value.
-    type Context;
+    /// Type of annotations attached to nodes.
+    type Ann;
 
-    /// Gets the context value.
-    fn context(&self) -> &Self::Context;
+    /// Gets the annotation on this node.
+    fn ann(&self) -> &Self::Ann;
 }
 
