@@ -112,12 +112,12 @@ pub trait Style<A> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>, prec: Prec) -> fmt::Result {
         use aex::ast::Fixity::*;
 
-        let p = expr.precedence();
+        let (in_prec, my_prec) = (prec, expr.precedence());
 
-        if prec > p {
-            write!(f, "({})", expr.styled(self, p))
+        if in_prec > my_prec {
+            write!(f, "({})", expr.styled(self, my_prec))
         } else {
-            let subexpr = expr.expr.styled(self, p);
+            let subexpr = expr.expr.styled(self, my_prec);
 
             match expr.op.fixity() {
                 Prefix  => write!(f, "{}{}", expr.op, subexpr),
@@ -128,15 +128,14 @@ pub trait Style<A> : Debug {
 
     /// Writes a binary expression to the given formatter in this code style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>, prec: Prec) -> fmt::Result {
+        let (in_prec, my_prec) = (prec, expr.precedence());
 
-        let p = expr.precedence();
-
-        if prec > p {
-            write!(f, "({})", expr.styled(self, p))
+        if in_prec > my_prec {
+            write!(f, "({})", expr.styled(self, my_prec))
         } else {
             let prec = expr.precedence();
-            let lhs  = expr.lhs.styled(self, prec);
-            let rhs  = expr.rhs.styled(self, prec);
+            let lhs  = expr.lhs.styled(self, my_prec);
+            let rhs  = expr.rhs.styled(self, my_prec);
 
             write!(f, "{} {} {}", lhs, expr.op, rhs)
         }
