@@ -83,7 +83,7 @@ impl<'a, A> Code for Unary<'a, A> {
     /// Formats the value as code, using the given formatter and style.
     fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
-        s.write_unary(f, self)
+        s.write_unary(f, self, p)
     }
 }
 

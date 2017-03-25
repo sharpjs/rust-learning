@@ -83,7 +83,7 @@ impl<'a, A> Code for Binary<'a, A> {
     /// Formats the value as code, using the given formatter and style.
     fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
-        s.write_binary(f, self)
+        s.write_binary(f, self, p)
     }
 }
 
@@ -237,7 +237,7 @@ mod tests {
     fn fmt_asm() {
         let b = binary();
         let s = Styled::new(&b, &IntelStyle).to_string();
-        assert_eq!(s, "(a + b)");
+        assert_eq!(s, "a + b");
     }
 
     fn binary<'a>() -> Binary<'a> {

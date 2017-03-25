@@ -109,29 +109,37 @@ pub trait Style<A> : Debug {
     }
 
     /// Writes a unary expression to the given formatter in this code style.
-    fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>) -> fmt::Result {
+    fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>, prec: Prec) -> fmt::Result {
         use aex::ast::Fixity::*;
 
-        // TODO: Here we need to know the containing precedence.
+        let p = expr.precedence();
 
-        let subexpr = expr.expr.styled(self, expr.precedence());
+        if prec > p {
+            write!(f, "({})", expr.styled(self, p))
+        } else {
+            let subexpr = expr.expr.styled(self, p);
 
-        match expr.op.fixity() {
-            Prefix  => write!(f, "{}{}", expr.op, subexpr),
-            Postfix => write!(f, "{}{}", subexpr, expr.op),
+            match expr.op.fixity() {
+                Prefix  => write!(f, "{}{}", expr.op, subexpr),
+                Postfix => write!(f, "{}{}", subexpr, expr.op),
+            }
         }
     }
 
     /// Writes a binary expression to the given formatter in this code style.
-    fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>) -> fmt::Result {
+    fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>, prec: Prec) -> fmt::Result {
 
-        // TODO: Here we need to know the containing precedence.
+        let p = expr.precedence();
 
-        let prec = expr.precedence();
-        let lhs  = expr.lhs.styled(self, prec);
-        let rhs  = expr.rhs.styled(self, prec);
+        if prec > p {
+            write!(f, "({})", expr.styled(self, p))
+        } else {
+            let prec = expr.precedence();
+            let lhs  = expr.lhs.styled(self, prec);
+            let rhs  = expr.rhs.styled(self, prec);
 
-        write!(f, "({} {} {})", lhs, expr.op, rhs)
+            write!(f, "{} {} {}", lhs, expr.op, rhs)
+        }
     }
 }
 
@@ -164,6 +172,21 @@ mod tests {
         let i = Reg::new("a");
         let s = format!("{}", Styled::new(&i, &DefaultStyle));
         assert_eq!(s, "a");
+    }
+
+    #[test]
+    fn write_binary_1() {
+        let e = Binary::new(
+            BinaryOp::Add,
+            Expr::Id(Id::new("a")),
+            Expr::Id(Id::new("b"))
+        );
+
+        let s = format!("{}", e.styled(&DefaultStyle, Prec::Atomic));
+        assert_eq!(s, "(a + b)");
+
+        let s = format!("{}", e.styled(&DefaultStyle, Prec::Assignment));
+        assert_eq!(s, "a + b");
     }
 }
 
