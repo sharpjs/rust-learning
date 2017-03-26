@@ -1,4 +1,4 @@
-// AST: Operator Precedence
+
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -16,14 +16,40 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+// -----------------------------------------------------------------------------
+
+/// Types that have operator metadata.
+pub trait Op {
+    /// Gets the operator precedence level.
+    fn prec(&self) -> Prec;
+
+    /// Gets the operator associativity.
+    fn assoc(&self) -> Assoc;
+}
+
+// -----------------------------------------------------------------------------
+
+/// Operator associativity.
+pub enum Assoc {
+    /// Left-associative
+    Left,
+
+    /// Right-associative
+    Right,
+
+    /// Non-associative
+    None,
+}
+
+// -----------------------------------------------------------------------------
+
 /// Operator precedence levels.
 ///
 /// Higher values indicate higher precedence.
 ///
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Prec {
-    // Lowest precedence
-    Statement, // special level, lower than all expression levels
+    Statement,          // Lowest precedence
     Assignment,
     Conditional,
     Comparison,
@@ -36,9 +62,12 @@ pub enum Prec {
     Casting,
     Prefix,
     Postfix,
-    Atomic,
-    // Highest precedence
+    Atomic,             // Highest precedence
 }
+
+// -----------------------------------------------------------------------------
+
+// TODO: Can this go away in favor of Op?
 
 /// Trait for types that have operator precedence.
 pub trait Precedence {

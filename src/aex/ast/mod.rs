@@ -31,7 +31,7 @@ mod expr;
 mod id;
 mod int;
 //mod operand;
-mod prec;
+mod ops;
 mod reg;
 mod unary;
 
@@ -40,7 +40,7 @@ pub use self::expr::*;
 pub use self::id::*;
 pub use self::int::*;
 //pub use self::operand::*;
-pub use self::prec::*;
+pub use self::ops::*;
 pub use self::reg::*;
 pub use self::unary::*;
 
