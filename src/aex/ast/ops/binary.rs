@@ -71,7 +71,33 @@ pub enum BinaryOp {
 impl Op for BinaryOp {
     /// Gets the operator precedence level.
     fn prec(&self) -> Prec {
-        self.precedence()
+        use self::BinaryOp::*;
+        use super::Prec::*;
+
+        match *self {
+            Mul => Multiplicative,
+            Div => Multiplicative,
+            Mod => Multiplicative,
+            Add => Additive,
+            Sub => Additive,
+            Shl => BitwiseShift,
+            Shr => BitwiseShift,
+            Rol => BitwiseShift,
+            Ror => BitwiseShift,
+            Rcl => BitwiseShift,
+            Rcr => BitwiseShift,
+            And => BitwiseAnd,
+            Xor => BitwiseXor,
+            Or  => BitwiseOr,
+            Cmp => Comparison,
+            Eq  => Conditional,
+            Ne  => Conditional,
+            Lt  => Conditional,
+            Le  => Conditional,
+            Gt  => Conditional,
+            Ge  => Conditional,
+            Mov => Assignment,
+        }
     }
 
     /// Gets the operator associativity.
@@ -140,32 +166,8 @@ impl Display for BinaryOp {
 
 impl Precedence for BinaryOp {
     fn precedence(&self) -> Prec {
-        use self::BinaryOp::*;
-        use super::Prec::*;
-
-        match *self {
-            Mul => Multiplicative,
-            Div => Multiplicative,
-            Mod => Multiplicative,
-            Add => Additive,
-            Sub => Additive,
-            Shl => BitwiseShift,
-            Shr => BitwiseShift,
-            Rol => BitwiseShift,
-            Ror => BitwiseShift,
-            Rcl => BitwiseShift,
-            Rcr => BitwiseShift,
-            And => BitwiseAnd,
-            Xor => BitwiseXor,
-            Or  => BitwiseOr,
-            Cmp => Comparison,
-            Eq  => Conditional,
-            Ne  => Conditional,
-            Lt  => Conditional,
-            Le  => Conditional,
-            Gt  => Conditional,
-            Ge  => Conditional,
-            Mov => Assignment,
-        }
+        #[inline]
+        self.prec()
     }
 }
+

@@ -45,7 +45,20 @@ pub enum UnaryOp {
 impl Op for UnaryOp {
     /// Gets the operator precedence level.
     fn prec(&self) -> Prec {
-        self.precedence()
+        use self::UnaryOp::*;
+        use super::Prec::*;
+
+        match *self {
+            PostInc => Postfix,
+            PostDec => Postfix,
+            PreInc  => Prefix,
+            PreDec  => Prefix,
+            Ref     => Prefix,
+            Clr     => Prefix,
+            Not     => Prefix,
+            Neg     => Prefix,
+            Tst     => Comparison,
+        }
     }
 
     /// Gets the operator associativity.
@@ -102,21 +115,9 @@ impl Display for UnaryOp {
 }
 
 impl Precedence for UnaryOp {
+    #[inline]
     fn precedence(&self) -> Prec {
-        use self::UnaryOp::*;
-        use super::Prec::*;
-
-        match *self {
-            PostInc => Postfix,
-            PostDec => Postfix,
-            PreInc  => Prefix,
-            PreDec  => Prefix,
-            Ref     => Prefix,
-            Clr     => Prefix,
-            Not     => Prefix,
-            Neg     => Prefix,
-            Tst     => Comparison,
-        }
+        self.prec()
     }
 }
 
