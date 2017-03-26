@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{Expr, Node, Prec, Precedence};
+use aex::ast::{Assoc, Expr, Node, Op, Prec, Precedence};
 
 /// A unary operator expression.
 #[derive(Clone, Debug)]
@@ -108,6 +108,31 @@ pub enum UnaryOp {
     Neg,
     // Test (comparison with 0)
     Tst,
+}
+
+impl Op for UnaryOp {
+    /// Gets the operator precedence level.
+    fn prec(&self) -> Prec {
+        self.precedence()
+    }
+
+    /// Gets the operator associativity.
+    fn assoc(&self) -> Assoc {
+        use self::UnaryOp::*;
+        use super::Assoc::*;
+
+        match *self {
+            PostInc => Left,
+            PostDec => Left,
+            PreInc  => Right,
+            PreDec  => Right,
+            Ref     => Right,
+            Clr     => Right,
+            Not     => Right,
+            Neg     => Right,
+            Tst     => Left,
+        }
+    }
 }
 
 /// Unary operator fixity (prefix or postfix)

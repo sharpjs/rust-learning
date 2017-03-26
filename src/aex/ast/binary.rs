@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{Expr, Node, Prec, Precedence};
+use aex::ast::{Assoc, Expr, Node, Op, Prec, Precedence};
 
 /// A binary operator expression.
 #[derive(Clone, Debug)]
@@ -134,6 +134,44 @@ pub enum BinaryOp {
     Ge,
     /// Assign
     Mov,
+}
+
+impl Op for BinaryOp {
+    /// Gets the operator precedence level.
+    fn prec(&self) -> Prec {
+        self.precedence()
+    }
+
+    /// Gets the operator associativity.
+    fn assoc(&self) -> Assoc {
+        use self::BinaryOp::*;
+        use super::Assoc::*;
+
+        match *self {
+            Mul => Left,
+            Div => Left,
+            Mod => Left,
+            Add => Left,
+            Sub => Left,
+            Shl => Left,
+            Shr => Left,
+            Rol => Left,
+            Ror => Left,
+            Rcl => Left,
+            Rcr => Left,
+            And => Left,
+            Xor => Left,
+            Or  => Left,
+            Cmp => Left,
+            Eq  => None,
+            Ne  => None,
+            Lt  => None,
+            Le  => None,
+            Gt  => None,
+            Ge  => None,
+            Mov => Right,
+        }
+    }
 }
 
 impl Display for BinaryOp {
