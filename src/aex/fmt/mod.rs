@@ -112,6 +112,25 @@ pub trait Style<A> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>, prec: Prec) -> fmt::Result {
         use aex::ast::Fixity::*;
 
+        // _ + _    LEFT assoc
+        //  \   \____ (-) would     need to be in parens
+        //   \_______ (-) would NOT need to be in parens
+        //        ... (|) would     need to be in parens for either
+        //
+        //
+        // _ = _    RIGHT assoc
+        //  \   \____ (+=) would NOT need to be in parens
+        //   \_______ (+=) would     need to be in parens
+        //        ... (, ) would     need to be in parens for either
+        // 
+        // in C, prec P:
+        //
+        // for LA, LHS (_) when P <  C
+        //         RHS (_) when P <= C
+        //
+        // for RA, LHS (_) when P <= C
+        //         RHS (_) when P <  C
+
         let (in_prec, my_prec) = (prec, expr.precedence());
 
         if in_prec > my_prec {
