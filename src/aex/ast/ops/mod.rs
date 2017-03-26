@@ -72,6 +72,9 @@ pub enum Prec {
     Atomic,             // Highest precedence
 }
 
+pub const PREC_MIN: Prec = Prec::Statement;
+pub const PREC_MAX: Prec = Prec::Atomic;
+
 // -----------------------------------------------------------------------------
 
 // TODO: Can this go away in favor of Op?
