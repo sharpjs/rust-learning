@@ -36,6 +36,7 @@ pub trait Op {
 // -----------------------------------------------------------------------------
 
 /// Operator associativity.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Assoc {
     /// Left-associative
     Left,
