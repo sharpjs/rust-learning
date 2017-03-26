@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{Assoc, Expr, Node, Op, Prec, Precedence};
+use aex::ast::{/*Assoc,*/ Expr, Fixity, Node, Prec, Precedence, UnaryOp};
 
 /// A unary operator expression.
 #[derive(Clone, Debug)]
@@ -84,107 +84,6 @@ impl<'a, A> Code for Unary<'a, A> {
     fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
         s.write_unary(f, self, p)
-    }
-}
-
-/// Unary operators
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum UnaryOp {
-    // Post-increment
-    PostInc,
-    // Post-decrement
-    PostDec,
-    // Pre-increment
-    PreInc,
-    // Pre-decrement
-    PreDec,
-    // Reference (address-of)
-    Ref,
-    // Clear
-    Clr,
-    // Bitwise Not (1's complement)
-    Not,
-    // Negate (2's complement)
-    Neg,
-    // Test (comparison with 0)
-    Tst,
-}
-
-impl Op for UnaryOp {
-    /// Gets the operator precedence level.
-    fn prec(&self) -> Prec {
-        self.precedence()
-    }
-
-    /// Gets the operator associativity.
-    fn assoc(&self) -> Assoc {
-        use self::UnaryOp::*;
-        use super::Assoc::*;
-
-        match *self {
-            PostInc => Left,
-            PostDec => Left,
-            PreInc  => Right,
-            PreDec  => Right,
-            Ref     => Right,
-            Clr     => Right,
-            Not     => Right,
-            Neg     => Right,
-            Tst     => Left,
-        }
-    }
-}
-
-/// Unary operator fixity (prefix or postfix)
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Fixity { Prefix, Postfix }
-
-impl UnaryOp {
-    /// Gets the fixity (prefix or postfix) of this operator.
-    #[inline]
-    pub fn fixity(&self) -> Fixity {
-        match self.precedence() {
-            Prec::Prefix => Fixity::Prefix,
-            _            => Fixity::Postfix,
-        }
-    }
-}
-
-impl Display for UnaryOp {
-    /// Formats the value using the given formatter.
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        use self::UnaryOp::*;
-
-        f.write_str(match *self {
-            PostInc => "++",
-            PostDec => "--",
-            PreInc  => "++",
-            PreDec  => "--",
-            Ref     => "&",
-            Clr     => "!",
-            Not     => "~",
-            Neg     => "-",
-            Tst     => "?",
-        })
-    }
-}
-
-impl Precedence for UnaryOp {
-    fn precedence(&self) -> Prec {
-        use self::UnaryOp::*;
-        use super::Prec::*;
-
-        match *self {
-            PostInc => Postfix,
-            PostDec => Postfix,
-            PreInc  => Prefix,
-            PreDec  => Prefix,
-            Ref     => Prefix,
-            Clr     => Prefix,
-            Not     => Prefix,
-            Neg     => Prefix,
-            Tst     => Comparison,
-        }
     }
 }
 

@@ -16,6 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+mod unary;
+mod binary;
+
+pub use self::unary::*;
+pub use self::binary::*;
+
 // -----------------------------------------------------------------------------
 
 /// Types that have operator metadata.
