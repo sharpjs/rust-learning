@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{/*Assoc,*/ Expr, Fixity, Node, Prec, Precedence, UnaryOp};
+use aex::ast::{Assoc, Expr, Node, Op, Prec, Precedence, UnaryOp};
 
 /// A unary operator expression.
 #[derive(Clone, Debug)]
@@ -70,11 +70,11 @@ impl<'a, A> Precedence for Unary<'a, A> {
 impl<'a, A> Display for Unary<'a, A> {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        use self::Fixity::*;
+        use self::Assoc::*;
 
-        match self.op.fixity() {
-            Prefix  => write!(f, "{}{}", self.op, self.expr),
-            Postfix => write!(f, "{}{}", self.expr, self.op),
+        match self.op.assoc() {
+            Right => write!(f, "{}{}", self.op, self.expr),
+            _     => write!(f, "{}{}", self.expr, self.op),
         }
     }
 }
@@ -110,16 +110,6 @@ mod tests {
     fn precedence() {
         let e = pre_dec();
         assert_eq!(e.precedence(), Prec::Prefix);
-    }
-
-    #[test]
-    fn fixity() {
-        let pre  = pre_dec();
-        let post = post_inc();
-        let test = Unary::new(UnaryOp::Tst, Expr::Id(Id::new("a")));
-        assert_eq!(pre .op.fixity(), Fixity::Prefix);
-        assert_eq!(post.op.fixity(), Fixity::Postfix);
-        assert_eq!(test.op.fixity(), Fixity::Postfix);
     }
 
     #[test]

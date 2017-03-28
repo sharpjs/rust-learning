@@ -110,7 +110,7 @@ pub trait Style<A> : Debug {
 
     /// Writes a unary expression to the given formatter in this code style.
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>, prec: Prec) -> fmt::Result {
-        use aex::ast::Fixity::*;
+        use aex::ast::Assoc::*;
 
         // _ + _    LEFT assoc
         //  \   \____ (-) would     need to be in parens
@@ -138,9 +138,9 @@ pub trait Style<A> : Debug {
         } else {
             let subexpr = expr.expr.styled(self, my_prec);
 
-            match expr.op.fixity() {
-                Prefix  => write!(f, "{}{}", expr.op, subexpr),
-                Postfix => write!(f, "{}{}", subexpr, expr.op),
+            match expr.op.assoc() {
+                Right => write!(f, "{}{}", expr.op, subexpr),
+                _     => write!(f, "{}{}", subexpr, expr.op),
             }
         }
     }

@@ -80,21 +80,6 @@ impl Op for UnaryOp {
     }
 }
 
-/// Unary operator fixity (prefix or postfix)
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Fixity { Prefix, Postfix }
-
-impl UnaryOp {
-    /// Gets the fixity (prefix or postfix) of this operator.
-    #[inline]
-    pub fn fixity(&self) -> Fixity {
-        match self.precedence() {
-            Prec::Prefix => Fixity::Prefix,
-            _            => Fixity::Postfix,
-        }
-    }
-}
-
 impl Display for UnaryOp {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
