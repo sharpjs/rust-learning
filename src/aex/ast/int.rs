@@ -80,7 +80,7 @@ impl<A> Code for Int<A> {
     /// Formats the value as code, using the given formatter and style.
     #[inline]
     fn fmt<S: Style<A> + ?Sized>
-          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
+          (&self, f: &mut Formatter, s: &S) -> fmt::Result {
         s.write_int(f, self)
     }
 }

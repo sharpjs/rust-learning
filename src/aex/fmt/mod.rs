@@ -31,38 +31,34 @@ pub use self::mit::*;
 
 /// Trait for types that are formattable as code.
 pub trait Code: Node {
-
     /// Formats the object as code in the given style.
     fn fmt<S: Style<Self::Ann> + ?Sized>
-          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result;
+          (&self, f: &mut Formatter, s: &S) -> fmt::Result;
 }
 
 // -----------------------------------------------------------------------------
 
-/// A code-formattable object with the additional data required for formatting.
+/// A code-formattable value paired with a code style.
 #[derive(Clone, Copy, Debug)]
 pub struct Styled<'a,
                   T: 'a + Code          + ?Sized,
                   S: 'a + Style<T::Ann> + ?Sized>(
 
-    /// Code-formattable object.
+    /// Code-formattable value.
     pub &'a T,
 
     /// Code style.
-    pub &'a S,
-
-    /// Surrounding precedence level.
-    pub Prec,
+    pub &'a S
 );
 
 impl<'a, T, S> Styled<'a, T, S>
 where T: Code          + ?Sized,
       S: Style<T::Ann> + ?Sized {
 
-    /// Formats the value using the given formatter and style.
+    /// Creates a new `Styled` with the given value and style.
     #[inline]
     pub fn new(value: &'a T, style: &'a S) -> Self {
-        Styled(value, style, Prec::Statement)
+        Styled(value, style)
     }
 }
 
@@ -73,17 +69,20 @@ where T: Code          + ?Sized,
     /// Formats the value using the given formatter.
     #[inline]
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        let Styled(value, style, prec) = *self;
-        value.fmt(f, style, prec)
+        let Styled(value, style) = *self;
+        value.fmt(f, style)
     }
 }
 
 // -----------------------------------------------------------------------------
 
 pub trait ToStyled: Code {
-    fn styled<'a, S>(&'a self, style: &'a S, prec: Prec) -> Styled<'a, Self, S>
+
+    /// Applies a code style to the given value.  The returned value is
+    /// ready for formatting.
+    fn styled<'a, S>(&'a self, style: &'a S) -> Styled<'a, Self, S>
     where S: Style<Self::Ann> + ?Sized {
-        Styled(self, style, prec)
+        Styled(self, style)
     }
 }
 
@@ -91,7 +90,7 @@ impl<T> ToStyled for T where T: Code + ?Sized {}
 
 // -----------------------------------------------------------------------------
 
-/// A code output style.
+/// A code formatting style.
 pub trait Style<A> : Debug {
     /// Writes an identifier to the given formatter in this code style.
     fn write_id(&self, f: &mut Formatter, id: &Id<A>) -> fmt::Result {
@@ -109,64 +108,81 @@ pub trait Style<A> : Debug {
     }
 
     /// Writes a unary expression to the given formatter in this code style.
-    fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>, prec: Prec) -> fmt::Result {
+    fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>) -> fmt::Result {
         use aex::ast::Assoc::*;
 
-        // _ + _    LEFT assoc
-        //  \   \____ (-) would     need to be in parens
-        //   \_______ (-) would NOT need to be in parens
-        //        ... (|) would     need to be in parens for either
-        //
-        //
-        // _ = _    RIGHT assoc
-        //  \   \____ (+=) would NOT need to be in parens
-        //   \_______ (+=) would     need to be in parens
-        //        ... (, ) would     need to be in parens for either
-        // 
-        // in C, prec P:
-        //
-        // for LA, LHS (_) when P <  C
-        //         RHS (_) when P <= C
-        //
-        // for RA, LHS (_) when P <= C
-        //         RHS (_) when P <  C
-        //
+        let outer_prec = expr     .precedence();
+        let inner_prec = expr.expr.precedence();
 
-        let (in_prec, my_prec) = (prec, expr.precedence());
-
-        if my_prec <= in_prec {
-            write!(f, "({})", expr.styled(self, PREC_MIN))
-        } else {
-            let subexpr = expr.expr.styled(self, my_prec);
-
-            match expr.op.assoc() {
-                Right => write!(f, "{}{}", expr.op, subexpr),
-                _     => write!(f, "{}{}", subexpr, expr.op),
-            }
+        match expr.op.assoc() {
+            Right => {
+                write!(f, "{}", expr.op)?;
+                write_grouped(f, &*expr.expr, self, inner_prec, outer_prec)
+            },
+            _ => {
+                write_grouped(f, &*expr.expr, self, inner_prec, outer_prec)?;
+                write!(f, "{}", expr.op)
+            },
         }
     }
 
     /// Writes a binary expression to the given formatter in this code style.
-    fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>, prec: Prec) -> fmt::Result {
+    fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>) -> fmt::Result {
         use aex::ast::Assoc::*;
 
-        let (in_prec, my_prec) = (prec, expr.precedence());
+        let     outer_prec = expr    .precedence();
+        let lhs_inner_prec = expr.lhs.precedence();
+        let rhs_inner_prec = expr.rhs.precedence();
 
-        let (pl, pr) = match expr.op.assoc() {
-            Left  => (my_prec.lower(), my_prec),
-            Right => (my_prec,         my_prec.lower()),
-            Non   => (my_prec,         my_prec),
+        let (lhs_outer_prec, rhs_outer_prec) = match expr.op.assoc() {
+            Left  => (outer_prec.lower(), outer_prec),
+            Right => (outer_prec,         outer_prec.lower()),
+            Non   => (outer_prec,         outer_prec),
         };
 
-        if my_prec <= in_prec {
-            write!(f, "({})", expr.styled(self, PREC_MIN))
-        } else {
-            let prec = expr.precedence();
-            let lhs  = expr.lhs.styled(self, pl);
-            let rhs  = expr.rhs.styled(self, pr);
+        write_grouped(f, &*expr.lhs, self, lhs_inner_prec, lhs_outer_prec)?;
+        write!(f, " {} ", expr.op)?;
+        write_grouped(f, &*expr.rhs, self, rhs_inner_prec, rhs_outer_prec)
+    }
+}
 
-            write!(f, "{} {} {}", lhs, expr.op, rhs)
-        }
+// _ + _    LEFT assoc
+//  \   \____ (-) would     need to be in parens
+//   \_______ (-) would NOT need to be in parens
+//        ... (|) would     need to be in parens for either
+//
+//
+// _ = _    RIGHT assoc
+//  \   \____ (+=) would NOT need to be in parens
+//   \_______ (+=) would     need to be in parens
+//        ... (, ) would     need to be in parens for either
+// 
+// in C, prec P:
+//
+// for LA, LHS (_) when P <  C
+//         RHS (_) when P <= C
+//
+// for RA, LHS (_) when P <= C
+//         RHS (_) when P <  C
+//
+
+fn write_grouped<T, S>(
+    f:          &mut Formatter,
+    code:       &T,
+    style:      &S,
+    inner_prec: Prec,
+    outer_prec: Prec,
+) -> fmt::Result
+where
+    T: Code + ?Sized,
+    S: Style<T::Ann> + ?Sized
+{
+    let value = code.styled(style);
+
+    if inner_prec <= outer_prec {
+        write!(f, "({})", value)
+    } else {
+        write!(f, "{}", value)
     }
 }
 
@@ -209,10 +225,7 @@ mod tests {
             Expr::Id(Id::new("b"))
         );
 
-        let s = format!("{}", e.styled(&DefaultStyle, Prec::Atomic));
-        assert_eq!(s, "(a + b)");
-
-        let s = format!("{}", e.styled(&DefaultStyle, Prec::Assignment));
+        let s = format!("{}", e.styled(&DefaultStyle));
         assert_eq!(s, "a + b");
     }
 
@@ -221,7 +234,7 @@ mod tests {
         let lhs = Binary::new(BinaryOp::Add, Expr::Id(Id::new("a")), Expr::Id(Id::new("b")));
         let rhs = Binary::new(BinaryOp::Add, Expr::Id(Id::new("c")), Expr::Id(Id::new("d")));
         let e   = Binary::new(BinaryOp::Add, Expr::Binary(lhs), Expr::Binary(rhs));
-        let s   = format!("{}", e.styled(&DefaultStyle, Prec::Statement));
+        let s   = format!("{}", e.styled(&DefaultStyle));
         assert_eq!(s, "a + b + (c + d)");
     }
 }

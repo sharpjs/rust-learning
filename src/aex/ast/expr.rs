@@ -84,13 +84,13 @@ impl<'a, A> Display for Expr<'a, A> {
 impl<'a, A> Code for Expr<'a, A> {
     /// Formats the value as code, using the given formatter and style.
     fn fmt<S: Style<A> + ?Sized>
-          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
+          (&self, f: &mut Formatter, s: &S) -> fmt::Result {
         match *self {
-            Expr::Id     (ref i) => Code::fmt(i, f, s, p),
-            Expr::Int    (ref i) => Code::fmt(i, f, s, p),
-            Expr::Reg    (ref r) => Code::fmt(r, f, s, p),
-            Expr::Unary  (ref u) => Code::fmt(u, f, s, p),
-            Expr::Binary (ref b) => Code::fmt(b, f, s, p),
+            Expr::Id     (ref i) => Code::fmt(i, f, s),
+            Expr::Int    (ref i) => Code::fmt(i, f, s),
+            Expr::Reg    (ref r) => Code::fmt(r, f, s),
+            Expr::Unary  (ref u) => Code::fmt(u, f, s),
+            Expr::Binary (ref b) => Code::fmt(b, f, s),
         }
     }
 }

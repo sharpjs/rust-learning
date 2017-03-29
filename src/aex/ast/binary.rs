@@ -82,8 +82,8 @@ impl<'a, A> Display for Binary<'a, A> {
 impl<'a, A> Code for Binary<'a, A> {
     /// Formats the value as code, using the given formatter and style.
     fn fmt<S: Style<A> + ?Sized>
-          (&self, f: &mut Formatter, s: &S, p: Prec) -> fmt::Result {
-        s.write_binary(f, self, p)
+          (&self, f: &mut Formatter, s: &S) -> fmt::Result {
+        s.write_binary(f, self)
     }
 }
 
