@@ -130,11 +130,12 @@ pub trait Style<A> : Debug {
         //
         // for RA, LHS (_) when P <= C
         //         RHS (_) when P <  C
+        //
 
         let (in_prec, my_prec) = (prec, expr.precedence());
 
-        if in_prec > my_prec {
-            write!(f, "({})", expr.styled(self, my_prec))
+        if my_prec <= in_prec {
+            write!(f, "({})", expr.styled(self, PREC_MIN))
         } else {
             let subexpr = expr.expr.styled(self, my_prec);
 
@@ -147,14 +148,22 @@ pub trait Style<A> : Debug {
 
     /// Writes a binary expression to the given formatter in this code style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>, prec: Prec) -> fmt::Result {
+        use aex::ast::Assoc::*;
+
         let (in_prec, my_prec) = (prec, expr.precedence());
 
-        if in_prec > my_prec {
-            write!(f, "({})", expr.styled(self, my_prec))
+        let (pl, pr) = match expr.op.assoc() {
+            Left  => (my_prec.lower(), my_prec),
+            Right => (my_prec,         my_prec.lower()),
+            Non   => (my_prec,         my_prec),
+        };
+
+        if my_prec <= in_prec {
+            write!(f, "({})", expr.styled(self, PREC_MIN))
         } else {
             let prec = expr.precedence();
-            let lhs  = expr.lhs.styled(self, my_prec);
-            let rhs  = expr.rhs.styled(self, my_prec);
+            let lhs  = expr.lhs.styled(self, pl);
+            let rhs  = expr.rhs.styled(self, pr);
 
             write!(f, "{} {} {}", lhs, expr.op, rhs)
         }
@@ -205,6 +214,15 @@ mod tests {
 
         let s = format!("{}", e.styled(&DefaultStyle, Prec::Assignment));
         assert_eq!(s, "a + b");
+    }
+
+    #[test]
+    fn write_binary_2() {
+        let lhs = Binary::new(BinaryOp::Add, Expr::Id(Id::new("a")), Expr::Id(Id::new("b")));
+        let rhs = Binary::new(BinaryOp::Add, Expr::Id(Id::new("c")), Expr::Id(Id::new("d")));
+        let e   = Binary::new(BinaryOp::Add, Expr::Binary(lhs), Expr::Binary(rhs));
+        let s   = format!("{}", e.styled(&DefaultStyle, Prec::Statement));
+        assert_eq!(s, "a + b + (c + d)");
     }
 }
 
