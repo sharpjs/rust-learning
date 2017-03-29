@@ -121,12 +121,12 @@ impl Op for BinaryOp {
             Xor => Left,
             Or  => Left,
             Cmp => Left,
-            Eq  => None,
-            Ne  => None,
-            Lt  => None,
-            Le  => None,
-            Gt  => None,
-            Ge  => None,
+            Eq  => Non,
+            Ne  => Non,
+            Lt  => Non,
+            Le  => Non,
+            Gt  => Non,
+            Ge  => Non,
             Mov => Right,
         }
     }
