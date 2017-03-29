@@ -75,6 +75,30 @@ pub enum Prec {
 pub const PREC_MIN: Prec = Prec::Statement;
 pub const PREC_MAX: Prec = Prec::Atomic;
 
+impl Prec {
+    /// Returns the next lower precedence level.
+    pub fn lower(self) -> Self {
+        use self::Prec::*;
+
+        match self {
+            Statement      => Statement,
+            Assignment     => Statement,
+            Conditional    => Assignment,
+            Comparison     => Conditional,
+            BitwiseOr      => Comparison,
+            BitwiseXor     => BitwiseOr,
+            BitwiseAnd     => BitwiseXor,
+            BitwiseShift   => BitwiseAnd,
+            Additive       => BitwiseShift,
+            Multiplicative => Additive,
+            Casting        => Multiplicative,
+            Prefix         => Casting,
+            Postfix        => Prefix,
+            Atomic         => Postfix,
+        }
+    }
+}
+
 // -----------------------------------------------------------------------------
 
 // TODO: Can this go away in favor of Op?
