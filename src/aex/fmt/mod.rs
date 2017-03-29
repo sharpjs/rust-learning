@@ -51,17 +51,6 @@ pub struct Styled<'a,
     pub &'a S
 );
 
-impl<'a, T, S> Styled<'a, T, S>
-where T: Code          + ?Sized,
-      S: Style<T::Ann> + ?Sized {
-
-    /// Creates a new `Styled` with the given value and style.
-    #[inline]
-    pub fn new(value: &'a T, style: &'a S) -> Self {
-        Styled(value, style)
-    }
-}
-
 impl<'a, T, S> Display for Styled<'a, T, S>
 where T: Code          + ?Sized,
       S: Style<T::Ann> + ?Sized {
@@ -199,21 +188,21 @@ mod tests {
     #[test]
     fn write_id() {
         let i = Id::new("a");
-        let s = format!("{}", Styled::new(&i, &DefaultStyle));
+        let s = format!("{}", i.styled(&DefaultStyle));
         assert_eq!(s, "a");
     }
 
     #[test]
     fn write_num() {
         let i = Int::from(42);
-        let s = format!("{}", Styled::new(&i, &DefaultStyle));
+        let s = format!("{}", i.styled(&DefaultStyle));
         assert_eq!(s, "42");
     }
 
     #[test]
     fn write_reg() {
         let i = Reg::new("a");
-        let s = format!("{}", Styled::new(&i, &DefaultStyle));
+        let s = format!("{}", i.styled(&DefaultStyle));
         assert_eq!(s, "a");
     }
 

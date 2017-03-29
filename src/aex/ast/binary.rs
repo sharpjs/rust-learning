@@ -91,7 +91,7 @@ impl<'a, A> Code for Binary<'a, A> {
 mod tests {
     use super::*;
     use super::super::Id;
-    use aex::fmt::{Styled, IntelStyle};
+    use aex::fmt::{ToStyled, IntelStyle};
 
     #[test]
     fn new() {
@@ -123,7 +123,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let b = binary();
-        let s = Styled::new(&b, &IntelStyle).to_string();
+        let s = b.styled(&IntelStyle).to_string();
         assert_eq!(s, "a + b");
     }
 

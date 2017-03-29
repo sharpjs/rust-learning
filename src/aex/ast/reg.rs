@@ -86,7 +86,7 @@ impl<'a, A> Code for Reg<'a, A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::fmt::{Styled, IntelStyle};
+    use aex::fmt::{ToStyled, IntelStyle};
     use aex::ast::Prec;
 
     #[test]
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let r = Reg { name: "a", ann: 42 };
-        let s = format!("{}", Styled::new(&r, &IntelStyle));
+        let s = format!("{}", r.styled(&IntelStyle));
         assert_eq!(s, "a");
     }
 }

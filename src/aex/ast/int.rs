@@ -88,7 +88,7 @@ impl<A> Code for Int<A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::fmt::{Styled, IntelStyle};
+    use aex::fmt::{ToStyled, IntelStyle};
     use aex::ast::Prec;
     use num::BigInt;
 
@@ -129,7 +129,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let i = Int { value: BigInt::from(42), ann: "a" };
-        let s = format!("{}", Styled::new(&i, &IntelStyle));
+        let s = format!("{}", i.styled(&IntelStyle));
         assert_eq!(s, "42");
     }
 }

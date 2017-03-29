@@ -91,7 +91,7 @@ impl<'a, A> Code for Unary<'a, A> {
 mod tests {
     use super::*;
     use super::super::Id;
-    use aex::fmt::{Styled, IntelStyle};
+    use aex::fmt::{ToStyled, IntelStyle};
 
     #[test]
     fn new() {
@@ -122,8 +122,8 @@ mod tests {
 
     #[test]
     fn fmt_asm() {
-        let pre  = Styled::new(&pre_dec(),  &IntelStyle).to_string();
-        let post = Styled::new(&post_inc(), &IntelStyle).to_string();
+        let pre  = pre_dec() .styled(&IntelStyle).to_string();
+        let post = post_inc().styled(&IntelStyle).to_string();
         assert_eq!(pre,  "--a");
         assert_eq!(post, "a++");
     }

@@ -86,7 +86,7 @@ impl<'a, A> Code for Id<'a, A> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::fmt::{Styled, IntelStyle};
+    use aex::fmt::{ToStyled, IntelStyle};
     use aex::ast::Prec;
 
     #[test]
@@ -126,7 +126,7 @@ mod tests {
     #[test]
     fn fmt_asm() {
         let i = Id { name: "a", ann: 42 };
-        let s = format!("{}", Styled::new(&i, &IntelStyle));
+        let s = format!("{}", i.styled(&IntelStyle));
         assert_eq!(s, "a");
     }
 }
