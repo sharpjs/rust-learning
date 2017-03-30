@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{Node, Prec, Precedence};
+use aex::ast::{Node, Prec, HasPrec};
 use num::BigInt;
 
 /// An integer literal.
@@ -63,10 +63,10 @@ impl<A> Node for Int<A> {
     fn ann(&self) -> &A { &self.ann }
 }
 
-impl<A> Precedence for Int<A> {
+impl<A> HasPrec for Int<A> {
     /// Gets the operator precedence level.
     #[inline(always)]
-    fn precedence(&self) -> Prec { Prec::Atomic }
+    fn prec(&self) -> Prec { Prec::Atomic }
 }
 
 impl<A> Display for Int<A> {
@@ -114,9 +114,9 @@ mod tests {
     }
 
     #[test]
-    fn precedence() {
+    fn prec() {
         let i = Int::new(42);
-        assert_eq!(i.precedence(), Prec::Atomic);
+        assert_eq!(i.prec(), Prec::Atomic);
     }
 
     #[test]

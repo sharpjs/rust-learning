@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use super::{Assoc, Op, Prec, Precedence};
+use super::*;
 
 /// Binary operators
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -68,7 +68,7 @@ pub enum BinaryOp {
     Mov,
 }
 
-impl Op for BinaryOp {
+impl HasPrec for BinaryOp {
     /// Gets the operator precedence level.
     fn prec(&self) -> Prec {
         use self::BinaryOp::*;
@@ -99,7 +99,9 @@ impl Op for BinaryOp {
             Mov => Assignment,
         }
     }
+}
 
+impl HasAssoc for BinaryOp {
     /// Gets the operator associativity.
     fn assoc(&self) -> Assoc {
         use self::BinaryOp::*;
@@ -132,6 +134,8 @@ impl Op for BinaryOp {
     }
 }
 
+impl Op for BinaryOp {}
+
 impl Display for BinaryOp {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -161,13 +165,6 @@ impl Display for BinaryOp {
             Ge  => ">=",
             Mov => "=",
         })
-    }
-}
-
-impl Precedence for BinaryOp {
-    fn precedence(&self) -> Prec {
-        #[inline]
-        self.prec()
     }
 }
 

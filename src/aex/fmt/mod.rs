@@ -100,8 +100,8 @@ pub trait Style<A> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>) -> fmt::Result {
         use aex::ast::Assoc::*;
 
-        let outer_prec = expr     .precedence();
-        let inner_prec = expr.expr.precedence();
+        let outer_prec = expr     .prec();
+        let inner_prec = expr.expr.prec();
 
         match expr.op.assoc() {
             Right => {
@@ -121,7 +121,7 @@ pub trait Style<A> : Debug {
 
         // Get L/R effective precedence
         let (l_eff_prec, r_eff_prec) = {
-            let prec = expr.precedence();
+            let prec = expr.prec();
 
             match expr.op.assoc() {
                 Left  => (prec.lower(), prec),
@@ -130,11 +130,11 @@ pub trait Style<A> : Debug {
             }
         };
 
-        write_grouped(f, &*expr.lhs, self, expr.lhs.precedence(), l_eff_prec)?;
+        write_grouped(f, &*expr.lhs, self, expr.lhs.prec(), l_eff_prec)?;
 
         write!(f, " {} ", expr.op)?;
 
-        write_grouped(f, &*expr.rhs, self, expr.rhs.precedence(), r_eff_prec)
+        write_grouped(f, &*expr.rhs, self, expr.rhs.prec(), r_eff_prec)
     }
 }
 

@@ -18,7 +18,8 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{Assoc, Expr, Node, Op, Prec, Precedence, UnaryOp};
+use aex::ast::{Node, Expr};
+use aex::ast::{UnaryOp, HasAssoc, HasPrec, Assoc, Prec};
 
 /// A unary operator expression.
 #[derive(Clone, Debug)]
@@ -58,12 +59,11 @@ impl<'a, A> Node for Unary<'a, A> {
     fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, A> Precedence for Unary<'a, A> {
+impl<'a, A> HasPrec for Unary<'a, A> {
     /// Gets the operator precedence level.
-    /// Higher values mean higher precendence.
     #[inline]
-    fn precedence(&self) -> Prec {
-        self.op.precedence()
+    fn prec(&self) -> Prec {
+        self.op.prec()
     }
 }
 
@@ -107,9 +107,9 @@ mod tests {
     }
 
     #[test]
-    fn precedence() {
+    fn prec() {
         let e = pre_dec();
-        assert_eq!(e.precedence(), Prec::Prefix);
+        assert_eq!(e.prec(), Prec::Prefix);
     }
 
     #[test]

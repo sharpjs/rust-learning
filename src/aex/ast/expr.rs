@@ -55,15 +55,15 @@ impl<'a, A> Node for Expr<'a, A> {
     }
 }
 
-impl<'a, A> Precedence for Expr<'a, A> {
+impl<'a, A> HasPrec for Expr<'a, A> {
     /// Gets the operator precedence level.
-    fn precedence(&self) -> Prec {
+    fn prec(&self) -> Prec {
         match *self {
-            Expr::Id     (ref i) => i.precedence(),
-            Expr::Int    (ref i) => i.precedence(),
-            Expr::Reg    (ref r) => r.precedence(),
-            Expr::Unary  (ref u) => u.precedence(),
-            Expr::Binary (ref b) => b.precedence(),
+            Expr::Id     (ref i) => i.prec(),
+            Expr::Int    (ref i) => i.prec(),
+            Expr::Reg    (ref r) => r.prec(),
+            Expr::Unary  (ref u) => u.prec(),
+            Expr::Binary (ref b) => b.prec(),
         }
     }
 }
@@ -100,13 +100,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn precedence() {
+    fn prec() {
         let e = Binary::new(
             BinaryOp::Add,
             Expr::Id(Id::new("a")),
             Expr::Id(Id::new("b"))
         );
-        assert_eq!(e.precedence(), Prec::Additive);
+        assert_eq!(e.prec(), Prec::Additive);
     }
 
     #[test]

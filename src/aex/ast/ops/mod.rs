@@ -1,4 +1,4 @@
-
+// Operators
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -24,35 +24,20 @@ pub use self::binary::*;
 
 // -----------------------------------------------------------------------------
 
-/// Types that have operator metadata.
-pub trait Op {
+/// Trait for operator types.
+pub trait Op: HasPrec + HasAssoc {}
+
+// -----------------------------------------------------------------------------
+
+/// Trait for types that expose operator precedence level.
+pub trait HasPrec {
     /// Gets the operator precedence level.
     fn prec(&self) -> Prec;
-
-    /// Gets the operator associativity.
-    fn assoc(&self) -> Assoc;
 }
-
-// -----------------------------------------------------------------------------
-
-/// Operator associativity.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Assoc {
-    /// Left-associative
-    Left,
-
-    /// Right-associative
-    Right,
-
-    /// Non-associative
-    Non,
-}
-
-// -----------------------------------------------------------------------------
 
 /// Operator precedence levels.
 ///
-/// Higher values indicate higher precedence.
+/// Higher values represent higher precedence.
 ///
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub enum Prec {
@@ -72,11 +57,14 @@ pub enum Prec {
     Atomic,             // Highest precedence
 }
 
+/// Minimum operator precedence level.
 pub const PREC_MIN: Prec = Prec::Statement;
+
+/// Maximum operator precedence level.
 pub const PREC_MAX: Prec = Prec::Atomic;
 
 impl Prec {
-    /// Returns the next lower precedence level.
+    /// Gets the next lower precedence level.
     pub fn lower(self) -> Self {
         use self::Prec::*;
 
@@ -101,11 +89,20 @@ impl Prec {
 
 // -----------------------------------------------------------------------------
 
-// TODO: Can this go away in favor of Op?
+/// Trait for types that expose operator associativity.
+pub trait HasAssoc {
+    /// Gets the operator associativity.
+    fn assoc(&self) -> Assoc;
+}
 
-/// Trait for types that have operator precedence.
-pub trait Precedence {
-    /// Gets the operator precedence level.
-    fn precedence(&self) -> Prec;
+/// Operator associativity.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Assoc {
+    /// Left-associative
+    Left,
+    /// Right-associative
+    Right,
+    /// Non-associative
+    Non,
 }
 

@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{Node, Prec, Precedence};
+use aex::ast::{Node, Prec, HasPrec};
 
 /// A register.
 #[derive(Clone, Copy, Debug)]
@@ -60,10 +60,10 @@ impl<'a, A> Node for Reg<'a, A> {
     fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, A> Precedence for Reg<'a, A> {
+impl<'a, A> HasPrec for Reg<'a, A> {
     /// Gets the operator precedence level.
     #[inline(always)]
-    fn precedence(&self) -> Prec { Prec::Atomic }
+    fn prec(&self) -> Prec { Prec::Atomic }
 }
 
 impl<'a, A> Display for Reg<'a, A> {
@@ -111,9 +111,9 @@ mod tests {
     }
 
     #[test]
-    fn precedence() {
+    fn prec() {
         let i = Reg::new("a");
-        assert_eq!(i.precedence(), Prec::Atomic);
+        assert_eq!(i.prec(), Prec::Atomic);
     }
 
     #[test]

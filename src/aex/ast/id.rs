@@ -18,7 +18,7 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{Node, Prec, Precedence};
+use aex::ast::{Node, Prec, HasPrec};
 
 /// An identifier.
 #[derive(Clone, Copy, Debug)]
@@ -60,10 +60,10 @@ impl<'a, A> Node for Id<'a, A> {
     fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, A> Precedence for Id<'a, A> {
+impl<'a, A> HasPrec for Id<'a, A> {
     /// Gets the operator precedence level.
     #[inline(always)]
-    fn precedence(&self) -> Prec { Prec::Atomic }
+    fn prec(&self) -> Prec { Prec::Atomic }
 }
 
 impl<'a, A> Display for Id<'a, A> {
@@ -111,9 +111,9 @@ mod tests {
     }
 
     #[test]
-    fn precedence() {
+    fn prec() {
         let i = Id::new("a");
-        assert_eq!(i.precedence(), Prec::Atomic);
+        assert_eq!(i.prec(), Prec::Atomic);
     }
 
     #[test]

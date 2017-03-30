@@ -18,7 +18,8 @@
 
 use std::fmt::{self, Display, Formatter};
 use aex::fmt::{Code, Style};
-use aex::ast::{/*Assoc,*/ BinaryOp, Expr, Node, Prec, Precedence};
+use aex::ast::{Node, Expr};
+use aex::ast::{BinaryOp, HasPrec, Prec};
 
 /// A binary operator expression.
 #[derive(Clone, Debug)]
@@ -63,12 +64,11 @@ impl<'a, A> Node for Binary<'a, A> {
     fn ann(&self) -> &A { &self.ann }
 }
 
-impl<'a, A> Precedence for Binary<'a, A> {
+impl<'a, A> HasPrec for Binary<'a, A> {
     /// Gets the operator precedence level.
-    /// Higher values mean higher precendence.
     #[inline]
-    fn precedence(&self) -> Prec {
-        self.op.precedence()
+    fn prec(&self) -> Prec {
+        self.op.prec()
     }
 }
 
@@ -107,9 +107,9 @@ mod tests {
     }
 
     #[test]
-    fn precedence() {
+    fn prec() {
         let b = binary();
-        let p = b.precedence();
+        let p = b.prec();
         assert_eq!(p, Prec::Additive);
     }
 

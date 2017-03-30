@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::fmt::{self, Display, Formatter};
-use super::{Assoc, Op, Prec, Precedence};
+use super::*;
 
 /// Unary operators
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -42,7 +42,7 @@ pub enum UnaryOp {
     Tst,
 }
 
-impl Op for UnaryOp {
+impl HasPrec for UnaryOp {
     /// Gets the operator precedence level.
     fn prec(&self) -> Prec {
         use self::UnaryOp::*;
@@ -60,7 +60,9 @@ impl Op for UnaryOp {
             Tst     => Comparison,
         }
     }
+}
 
+impl HasAssoc for UnaryOp {
     /// Gets the operator associativity.
     fn assoc(&self) -> Assoc {
         use self::UnaryOp::*;
@@ -80,6 +82,8 @@ impl Op for UnaryOp {
     }
 }
 
+impl Op for UnaryOp {}
+
 impl Display for UnaryOp {
     /// Formats the value using the given formatter.
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
@@ -96,13 +100,6 @@ impl Display for UnaryOp {
             Neg     => "-",
             Tst     => "?",
         })
-    }
-}
-
-impl Precedence for UnaryOp {
-    #[inline]
-    fn precedence(&self) -> Prec {
-        self.prec()
     }
 }
 
