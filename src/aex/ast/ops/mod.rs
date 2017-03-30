@@ -64,25 +64,18 @@ pub const PREC_MIN: Prec = Prec::Statement;
 pub const PREC_MAX: Prec = Prec::Atomic;
 
 impl Prec {
-    /// Gets the next lower precedence level.
-    pub fn lower(self) -> Self {
-        use self::Prec::*;
+    /// Returns whether an expression at this precedence level should appear
+    /// grouped (parenthesized) when inside the given outer precedence level.
+    ///
+    /// If this precedence level and `outer` are equal, returns `if_eq`.
+    ///
+    pub fn should_group(self, outer: Prec, if_eq: bool) -> bool {
+        use std::cmp::Ordering::*;
 
-        match self {
-            Statement      => Statement,
-            Assignment     => Statement,
-            Conditional    => Assignment,
-            Comparison     => Conditional,
-            BitwiseOr      => Comparison,
-            BitwiseXor     => BitwiseOr,
-            BitwiseAnd     => BitwiseXor,
-            BitwiseShift   => BitwiseAnd,
-            Additive       => BitwiseShift,
-            Multiplicative => Additive,
-            Casting        => Multiplicative,
-            Prefix         => Casting,
-            Postfix        => Prefix,
-            Atomic         => Postfix,
+        match self.cmp(&outer) {
+            Less    => true,
+            Equal   => if_eq,
+            Greater => false,
         }
     }
 }

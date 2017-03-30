@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::cmp::{Ordering};
 use std::fmt::{self, Debug, Display, Formatter};
 use aex::ast::*;
 
@@ -64,10 +63,24 @@ where T: Code          + ?Sized,
     }
 }
 
+impl<'a, T, S> Styled<'a, T, S>
+where T: Code + HasPrec + ?Sized,
+      S: Style<T::Ann>  + ?Sized {
+
+    /// Formats the value using the given formatter, grouped in parentheses if
+    /// required by operator precedence.
+    fn fmt_grouped(&self, f: &mut Formatter, outer: Prec, if_eq: bool) -> fmt::Result {
+        if self.0.prec().should_group(outer, if_eq) {
+            write!(f, "({})", self)
+        } else {
+            write!(f, "{}", self)
+        }
+    }
+}
+
 // -----------------------------------------------------------------------------
 
 pub trait ToStyled: Code {
-
     /// Applies a code style to the given value.  The returned value is
     /// ready for formatting.
     fn styled<'a, S>(&'a self, style: &'a S) -> Styled<'a, Self, S>
@@ -106,12 +119,7 @@ pub trait Style<A> : Debug {
 
         if prefix { write!(f, "{}", expr.op)?; }
 
-        write_grouped(
-            f,
-            &expr.expr.styled(self),
-            expr.expr.prec().cmp(&prec),
-            false
-        )?;
+        expr.expr.styled(self).fmt_grouped(f, prec, false)?;
 
         if !prefix { write!(f, "{}", expr.op)?; }
 
@@ -125,44 +133,11 @@ pub trait Style<A> : Debug {
         let prec  = expr.op.prec();
         let assoc = expr.op.assoc();
 
-        write_grouped(
-            f,
-            &expr.lhs.styled(self),
-            expr.lhs.prec().cmp(&prec),
-            assoc != Left
-        )?;
+        expr.lhs.styled(self).fmt_grouped(f, prec, assoc != Left)?;
 
         write!(f, " {} ", expr.op)?;
 
-        write_grouped(
-            f,
-            &expr.rhs.styled(self),
-            expr.rhs.prec().cmp(&prec),
-            assoc != Right
-        )
-    }
-}
-
-/// Writes a value to the given formatter, potentially grouped in parentheses
-/// as required by operator precedence.
-fn write_grouped<T: Display + ?Sized>(
-    f:        &mut Formatter,
-    value:    &T,
-    prec_chg: Ordering,     // change in precedence
-    group_eq: bool          // whether to group equal precedence
-) -> fmt::Result {
-    use self::Ordering::*;
-
-    let group = match prec_chg {
-        Less    => true,
-        Equal   => group_eq,
-        Greater => false,
-    };
-
-    if group {
-        write!(f, "({})", value)
-    } else {
-        write!(f, "{}", value)
+        expr.rhs.styled(self).fmt_grouped(f, prec, assoc != Right)
     }
 }
 
