@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::cmp::{Ordering};
 use std::fmt::{self, Debug, Display, Formatter};
 use aex::ast::*;
 
@@ -100,78 +101,65 @@ pub trait Style<A> : Debug {
     fn write_unary(&self, f: &mut Formatter, expr: &Unary<A>) -> fmt::Result {
         use aex::ast::Assoc::*;
 
-        let outer_prec = expr     .prec();
-        let inner_prec = expr.expr.prec();
+        let prec   = expr.op.prec();
+        let prefix = expr.op.assoc() == Right;
 
-        match expr.op.assoc() {
-            Right => {
-                write!(f, "{}", expr.op)?;
-                write_grouped(f, &*expr.expr, self, inner_prec, outer_prec)
-            },
-            _ => {
-                write_grouped(f, &*expr.expr, self, inner_prec, outer_prec)?;
-                write!(f, "{}", expr.op)
-            },
-        }
+        if prefix { write!(f, "{}", expr.op)?; }
+
+        write_grouped(
+            f,
+            &expr.expr.styled(self),
+            expr.expr.prec().cmp(&prec),
+            false
+        )?;
+
+        if !prefix { write!(f, "{}", expr.op)?; }
+
+        Ok(())
     }
 
     /// Writes a binary expression to the given formatter in this code style.
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>) -> fmt::Result {
         use aex::ast::Assoc::*;
 
-        // Get L/R effective precedence
-        let (l_eff_prec, r_eff_prec) = {
-            let prec = expr.prec();
+        let prec  = expr.op.prec();
+        let assoc = expr.op.assoc();
 
-            match expr.op.assoc() {
-                Left  => (prec.lower(), prec),
-                Right => (prec,         prec.lower()),
-                Non   => (prec,         prec),
-            }
-        };
-
-        write_grouped(f, &*expr.lhs, self, expr.lhs.prec(), l_eff_prec)?;
+        write_grouped(
+            f,
+            &expr.lhs.styled(self),
+            expr.lhs.prec().cmp(&prec),
+            assoc != Left
+        )?;
 
         write!(f, " {} ", expr.op)?;
 
-        write_grouped(f, &*expr.rhs, self, expr.rhs.prec(), r_eff_prec)
+        write_grouped(
+            f,
+            &expr.rhs.styled(self),
+            expr.rhs.prec().cmp(&prec),
+            assoc != Right
+        )
     }
 }
 
-// _ + _    LEFT assoc
-//  \   \____ (-) would     need to be in parens
-//   \_______ (-) would NOT need to be in parens
-//        ... (|) would     need to be in parens for either
-//
-//
-// _ = _    RIGHT assoc
-//  \   \____ (+=) would NOT need to be in parens
-//   \_______ (+=) would     need to be in parens
-//        ... (, ) would     need to be in parens for either
-// 
-// in C, prec P:
-//
-// for LA, LHS (_) when P <  C
-//         RHS (_) when P <= C
-//
-// for RA, LHS (_) when P <= C
-//         RHS (_) when P <  C
-//
+/// Writes a value to the given formatter, potentially grouped in parentheses
+/// as required by operator precedence.
+fn write_grouped<T: Display + ?Sized>(
+    f:        &mut Formatter,
+    value:    &T,
+    prec_chg: Ordering,     // change in precedence
+    group_eq: bool          // whether to group equal precedence
+) -> fmt::Result {
+    use self::Ordering::*;
 
-fn write_grouped<T, S>(
-    f:          &mut Formatter,
-    code:       &T,
-    style:      &S,
-    inner_prec: Prec,
-    outer_prec: Prec,
-) -> fmt::Result
-where
-    T: Code + ?Sized,
-    S: Style<T::Ann> + ?Sized
-{
-    let value = code.styled(style);
+    let group = match prec_chg {
+        Less    => true,
+        Equal   => group_eq,
+        Greater => false,
+    };
 
-    if inner_prec <= outer_prec {
+    if group {
         write!(f, "({})", value)
     } else {
         write!(f, "{}", value)
