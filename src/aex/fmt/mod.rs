@@ -119,19 +119,22 @@ pub trait Style<A> : Debug {
     fn write_binary(&self, f: &mut Formatter, expr: &Binary<A>) -> fmt::Result {
         use aex::ast::Assoc::*;
 
-        let     outer_prec = expr    .precedence();
-        let lhs_inner_prec = expr.lhs.precedence();
-        let rhs_inner_prec = expr.rhs.precedence();
+        // Get L/R effective precedence
+        let (l_eff_prec, r_eff_prec) = {
+            let prec = expr.precedence();
 
-        let (lhs_outer_prec, rhs_outer_prec) = match expr.op.assoc() {
-            Left  => (outer_prec.lower(), outer_prec),
-            Right => (outer_prec,         outer_prec.lower()),
-            Non   => (outer_prec,         outer_prec),
+            match expr.op.assoc() {
+                Left  => (prec.lower(), prec),
+                Right => (prec,         prec.lower()),
+                Non   => (prec,         prec),
+            }
         };
 
-        write_grouped(f, &*expr.lhs, self, lhs_inner_prec, lhs_outer_prec)?;
+        write_grouped(f, &*expr.lhs, self, expr.lhs.precedence(), l_eff_prec)?;
+
         write!(f, " {} ", expr.op)?;
-        write_grouped(f, &*expr.rhs, self, rhs_inner_prec, rhs_outer_prec)
+
+        write_grouped(f, &*expr.rhs, self, expr.rhs.precedence(), r_eff_prec)
     }
 }
 
