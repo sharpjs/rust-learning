@@ -1,4 +1,4 @@
-// AST: Integer Literals
+// Integer Literals
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
