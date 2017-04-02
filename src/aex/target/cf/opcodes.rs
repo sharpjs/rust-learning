@@ -16,19 +16,28 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use self::Words::*;
 use self::Arch::*;
+use self::Size::*;
+use self::Words::*;
 
 // Tabular approach, like that used in GNU binutils.
 
 #[derive(Clone, Copy, Debug)]
 pub struct Opcode {
     pub name: &'static str,
-    pub len:  usize,
+    pub size: Size,
     pub bits: Words,
     pub mask: Words,
     pub args: &'static [Arg],
     pub arch: Arch,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum Size {
+    Zero = 0,
+    Byte = 1,
+    Word = 2,
+    Long = 4,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -115,7 +124,7 @@ macro_rules! opcodes {
             $(
                 Opcode {
                     name: stringify!($($name).+),
-                    len:  0,
+                    size: size!($($name).+),
                     bits: words!($($bits),+),
                     mask: words!($($mask),+),
                     args: &[$(arg!($($arg):+)),*],
@@ -124,6 +133,17 @@ macro_rules! opcodes {
             )+
         ];
     };
+}
+
+macro_rules! size {
+    // Terminating cases
+    { $i:ident     } => { Zero };
+    { $i:ident . s } => { Byte };
+    { $i:ident . b } => { Byte };
+    { $i:ident . w } => { Word };
+    { $i:ident . l } => { Long };
+    // Recursive case
+    { $i:ident . $($s:ident).+ } => { size!($($s).+) };
 }
 
 macro_rules! words {
