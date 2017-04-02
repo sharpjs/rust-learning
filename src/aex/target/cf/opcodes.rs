@@ -192,5 +192,19 @@ mod tests {
         assert!(OPCODES.iter().any(|o| o.name == "move.b"));
         assert!(OPCODES.iter().any(|o| o.name == "nop"   ));
     }
+
+    #[test]
+    fn bits() {
+        assert_eq!(opcode("nop").bits, One(0x4E71));
+    }
+
+    #[test]
+    fn mask() {
+        assert_eq!(opcode("nop").mask, One(0xFFFF));
+    }
+
+    fn opcode(name: &str) -> &Opcode {
+        OPCODES.iter().find(|o| o.name == name).unwrap()
+    }
 }
 
