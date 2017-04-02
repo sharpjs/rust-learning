@@ -168,7 +168,7 @@ macro_rules! arg {
 
 macro_rules! arch {
     { $a:ident                 } => { $a.0 };
-    { $a:ident | $($x:ident)|+ } => { $a.0 | arch!($($x)|+) }
+    { $a:ident | $($x:ident)|+ } => { $a.0 | arch!($($x)|+) };
 }
 
 opcodes! {
