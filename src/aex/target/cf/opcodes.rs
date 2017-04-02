@@ -16,7 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use self::Arch::*;
 use self::Size::*;
 use self::Words::*;
 
@@ -117,10 +116,10 @@ pub const SRC:  Modes = Modes(DST.0 | I.0 | PID.0 | PIXD.0);
 // -----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
-pub enum Arch {
-    /// ColdFire ISA_A
-    CfIsaA,
-}
+pub struct Arch(u16);
+
+pub const RELAX: Arch = Arch(1 << 0); // relaxation mode
+pub const CF_A:  Arch = Arch(1 << 1); // ColdFire ISA_A
 
 // -----------------------------------------------------------------------------
 
@@ -128,7 +127,7 @@ macro_rules! opcodes {
     {
         $(
             $($name:ident).+ ( $($bits:expr),+ ) ( $($mask:expr),+ )
-                [ $( $($arg:tt):+ ),* ] $arch:expr ;
+                [ $( $($arg:tt):+ ),* ] $($arch:ident)|+ ;
         )+
     } =>
     {
@@ -140,7 +139,7 @@ macro_rules! opcodes {
                     bits: words!($($bits),+),
                     mask: words!($($mask),+),
                     args: &[$(arg!($($arg):+)),*],
-                    arch: $arch,
+                    arch: Arch(arch!($($arch)|+)),
                 },
             )+
         ];
@@ -169,15 +168,22 @@ macro_rules! arg {
     { data : $pos:expr } => { Arg::DataReg($pos)    };
 }
 
+macro_rules! arch {
+    { $a:ident                 } => { $a.0 };
+    { $a:ident | $($x:ident)|+ } => { $a.0 | arch!($($x)|+) }
+}
+
 opcodes! {
-//  MNEMONIC    WORDS             MASKS             OPERANDS          ARCHITECTURES
-    move.b      (0x1000)          (0xF000)          [src:0, dst:6]    CfIsaA;
-    move.w      (0x3000)          (0xF000)          [src:0, dst:6]    CfIsaA;
-    move.l      (0x2000)          (0xF000)          [src:0, dst:6]    CfIsaA;
+//  NAME        WORDS             MASKS             OPERANDS          ARCHITECTURES
+    move.b      (0x1000)          (0xF000)          [src:0, dst:6]    CF_A|RELAX;
+    move.w      (0x3000)          (0xF000)          [src:0, dst:6]    CF_A;
+    move.l      (0x2000)          (0xF000)          [src:0, dst:6]    CF_A;
 
-    muls.l      (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CfIsaA;
-    mulu.l      (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CfIsaA;
+    muls.l      (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CF_A;
+    mulu.l      (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CF_A;
 
-    nop         (0x4E71)          (0xFFFF)          []                CfIsaA;
+    nop         (0x4E71)          (0xFFFF)          []                CF_A; 
+}
+
 }
 
