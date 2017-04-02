@@ -104,16 +104,21 @@ pub enum Arch {
 }
 
 macro_rules! opcodes {
-    {$( $($name:ident).+ : $bits:tt $mask:tt [ $( $( $arg:tt ):+ ),* ] $arch:expr ; )+} =>
+    {
+        $(
+            $($name:ident).+ ( $($bits:expr),+ ) ( $($mask:expr),+ )
+                [ $( $($arg:tt):+ ),* ] $arch:expr ;
+        )+
+    } =>
     {
         static OPCODES: &'static [Opcode] = &[
             $(
                 Opcode {
                     name: stringify!($($name).+),
                     len:  0,
-                    bits: words!($bits),
-                    mask: words!($mask),
-                    args: &[$( arg!($( $arg ):+) ),*],
+                    bits: words!($($bits),+),
+                    mask: words!($($mask),+),
+                    args: &[$(arg!($($arg):+)),*],
                     arch: $arch,
                 },
             )+
@@ -122,8 +127,8 @@ macro_rules! opcodes {
 }
 
 macro_rules! words {
-    { ($a:expr         ) } => { One($a    ) };
-    { ($a:expr, $b:expr) } => { Two($a, $b) };
+    ($a:expr         ) => { One($a    ) };
+    ($a:expr, $b:expr) => { Two($a, $b) };
 }
 
 macro_rules! arg {
@@ -134,13 +139,13 @@ macro_rules! arg {
 
 opcodes! {
 //  MNEMONIC    WORDS             MASKS             OPERANDS          ARCHITECTURES
-    move.b :    (0x1000)          (0xF000)          [src:0, dst:6]    CfIsaA;
-    move.w :    (0x3000)          (0xF000)          [src:0, dst:6]    CfIsaA;
-    move.l :    (0x2000)          (0xF000)          [src:0, dst:6]    CfIsaA;
+    move.b      (0x1000)          (0xF000)          [src:0, dst:6]    CfIsaA;
+    move.w      (0x3000)          (0xF000)          [src:0, dst:6]    CfIsaA;
+    move.l      (0x2000)          (0xF000)          [src:0, dst:6]    CfIsaA;
 
-    muls.l :    (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CfIsaA;
-    mulu.l :    (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CfIsaA;
+    muls.l      (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CfIsaA;
+    mulu.l      (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CfIsaA;
 
-    nop    :    (0x4E71)          (0xFFFF)          []                CfIsaA;
+    nop         (0x4E71)          (0xFFFF)          []                CfIsaA;
 }
 
