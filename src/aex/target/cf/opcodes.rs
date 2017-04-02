@@ -94,32 +94,34 @@ pub enum Arg {
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Modes(u16);
+/// Addressing mode flags.
+pub type Modes = u16;
 
-pub const D:    Modes = Modes(1 <<  0); // data register direct
-pub const A:    Modes = Modes(1 <<  1); // address register direct
-pub const AI:   Modes = Modes(1 <<  2); // address register indirect
-pub const AIPI: Modes = Modes(1 <<  3); // address register indirect, auto-increment
-pub const AIPD: Modes = Modes(1 <<  4); // address register indirect, auto-decrement
-pub const AID:  Modes = Modes(1 <<  5); // address register indirect, displacedj
-pub const AIXD: Modes = Modes(1 <<  6); // address register indirect, indexed, displaced
-pub const M16:  Modes = Modes(1 <<  7); // absolute signed 16-bit
-pub const M32:  Modes = Modes(1 <<  8); // absolute unsigneed 32-bit
-pub const I:    Modes = Modes(1 <<  9); // immediate
-pub const PID:  Modes = Modes(1 << 10); // pc-relative, displaced
-pub const PIXD: Modes = Modes(1 << 11); // pc-relative, indexed, displaced
+pub const D:  Modes = 1 <<  0; // data reg direct
+pub const A:  Modes = 1 <<  1; // addr reg direct
+pub const AI: Modes = 1 <<  2; // addr reg indirect
+pub const AP: Modes = 1 <<  3; // addr reg indirect, auto-increment
+pub const AM: Modes = 1 <<  4; // addr reg indirect, auto-decrement
+pub const AD: Modes = 1 <<  5; // addr reg indirect, displaced
+pub const AX: Modes = 1 <<  6; // addr reg indirect, indexed, displaced
+pub const MS: Modes = 1 <<  7; // absolute short
+pub const ML: Modes = 1 <<  8; // absolute long
+pub const I:  Modes = 1 <<  9; // immediate
+pub const PD: Modes = 1 << 10; // pc-relative, displaced
+pub const PX: Modes = 1 << 11; // pc-relative, indexed, displaced
 
-pub const DST:  Modes = Modes(D.0 | A.0 | AI.0 | AIPI.0 | AIPD.0 | AIXD.0 | M16.0 | M32.0);
-pub const SRC:  Modes = Modes(DST.0 | I.0 | PID.0 | PIXD.0);
+pub const DST: Modes = D | A | AI | AP | AM | AD | AX | MS | ML;
+pub const SRC: Modes = DST | I | PD | PX;
+
+pub const DST_MEM: Modes = DST & !D & !A;
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Arch(u16);
+/// Architecture flags.
+pub type Arch = u16;
 
-pub const RELAX: Arch = Arch(1 << 0); // relaxation mode
-pub const CF_A:  Arch = Arch(1 << 1); // ColdFire ISA_A
+pub const RELAX: Arch = 1 << 0; // Relaxations enabled
+pub const CF_A:  Arch = 1 << 1; // ColdFire ISA_A
 
 // -----------------------------------------------------------------------------
 
@@ -128,7 +130,7 @@ macro_rules! opcodes {
         $(
             $name:ident $(. $suffix:ident )*
                 ( $($bits:expr),+ ) ( $($mask:expr),+ )
-                [ $( $($arg:tt):+ ),* ] $($arch:ident)|+ ;
+                [ $( $($arg:tt):+ ),* ] $arch:expr ;
         )+
     } =>
     {
@@ -140,7 +142,7 @@ macro_rules! opcodes {
                     bits: words!($($bits),+),
                     mask: words!($($mask),+),
                     args: &[$(arg!($($arg):+)),*],
-                    arch: Arch(arch!($($arch)|+)),
+                    arch: $arch,
                 },
             )+
         ];
@@ -166,14 +168,9 @@ macro_rules! arg {
     { data : $pos:expr } => { Arg::DataReg($pos)    };
 }
 
-macro_rules! arch {
-    { $a:ident                 } => { $a.0 };
-    { $a:ident | $($x:ident)|+ } => { $a.0 | arch!($($x)|+) };
-}
-
 opcodes! {
 //  NAME        WORDS             MASKS             OPERANDS          ARCHITECTURES
-    move.b      (0x1000)          (0xF000)          [src:0, dst:6]    CF_A|RELAX;
+    move.b      (0x1000)          (0xF000)          [src:0, dst:6]      CF_A;
     move.w      (0x3000)          (0xF000)          [src:0, dst:6]    CF_A;
     move.l      (0x2000)          (0xF000)          [src:0, dst:6]    CF_A;
 
