@@ -168,13 +168,16 @@ macro_rules! arg {
     { dstmem : $pos:expr } => { Arg::Modes(DST_MEM, $pos) };
     { modea  : $pos:expr } => { Arg::Modes(A,       $pos) };
     { data   : $pos:expr } => { Arg::DataReg($pos)        };
+    { addr   : $pos:expr } => { Arg::AddrReg($pos)        };
 }
 
 opcodes! {
 //  NAME        WORDS             MASKS             OPERANDS            ARCHITECTURES
+    adda.l      (0xD1C0)          (0xF1C0)          [src:0, addr:9]     CF_A;
+
+    add.l       (0xD1C0)          (0xF1C0)          [src:0, addr:9]     CF_A|RELAX; // -> adda.l
     add.l       (0xD080)          (0xF1C0)          [src:0, data:9]     CF_A;
     add.l       (0xD180)          (0xF1C0)          [data:9, dstmem:0]  CF_A;
-    add.l       (0xD180)          (0xF1C0)          [data:9, modea:0]   CF_A|RELAX;
 
     move.b      (0x1000)          (0xF000)          [src:0, dst:6]      CF_A;
     move.w      (0x3000)          (0xF000)          [src:0, dst:6]      CF_A;
