@@ -126,7 +126,8 @@ pub const CF_A:  Arch = Arch(1 << 1); // ColdFire ISA_A
 macro_rules! opcodes {
     {
         $(
-            $($name:ident).+ ( $($bits:expr),+ ) ( $($mask:expr),+ )
+            $name:ident $(. $suffix:ident )*
+                ( $($bits:expr),+ ) ( $($mask:expr),+ )
                 [ $( $($arg:tt):+ ),* ] $($arch:ident)|+ ;
         )+
     } =>
@@ -134,8 +135,8 @@ macro_rules! opcodes {
         static OPCODES: &'static [Opcode] = &[
             $(
                 Opcode {
-                    name: stringify!($($name).+),
-                    size: size!($($name).+),
+                    name: concat!(stringify!($name), $( ".", stringify!($suffix) )*),
+                    size: size!($($suffix).*),
                     bits: words!($($bits),+),
                     mask: words!($($mask),+),
                     args: &[$(arg!($($arg):+)),*],
@@ -147,14 +148,11 @@ macro_rules! opcodes {
 }
 
 macro_rules! size {
-    // Terminating cases
-    { $i:ident     } => { Zero };
-    { $i:ident . s } => { Byte };
-    { $i:ident . b } => { Byte };
-    { $i:ident . w } => { Word };
-    { $i:ident . l } => { Long };
-    // Recursive case
-    { $i:ident . $($s:ident).+ } => { size!($($s).+) };
+    {   } => { Zero };
+    { s } => { Byte };
+    { b } => { Byte };
+    { w } => { Word };
+    { l } => { Long };
 }
 
 macro_rules! words {
@@ -185,5 +183,13 @@ opcodes! {
     nop         (0x4E71)          (0xFFFF)          []                CF_A; 
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sdfdsf() {
+        assert_eq!(OPCODES[0].name, "move.b");
+    }
 }
 
