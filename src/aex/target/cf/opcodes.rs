@@ -163,21 +163,27 @@ macro_rules! words {
 }
 
 macro_rules! arg {
-    { src  : $pos:expr } => { Arg::Modes(SRC, $pos) };
-    { dst  : $pos:expr } => { Arg::Modes(DST, $pos) };
-    { data : $pos:expr } => { Arg::DataReg($pos)    };
+    { src    : $pos:expr } => { Arg::Modes(SRC,     $pos) };
+    { dst    : $pos:expr } => { Arg::Modes(DST,     $pos) };
+    { dstmem : $pos:expr } => { Arg::Modes(DST_MEM, $pos) };
+    { modea  : $pos:expr } => { Arg::Modes(A,       $pos) };
+    { data   : $pos:expr } => { Arg::DataReg($pos)        };
 }
 
 opcodes! {
-//  NAME        WORDS             MASKS             OPERANDS          ARCHITECTURES
+//  NAME        WORDS             MASKS             OPERANDS            ARCHITECTURES
+    add.l       (0xD080)          (0xF1C0)          [src:0, data:9]     CF_A;
+    add.l       (0xD180)          (0xF1C0)          [data:9, dstmem:0]  CF_A;
+    add.l       (0xD180)          (0xF1C0)          [data:9, modea:0]   CF_A|RELAX;
+
     move.b      (0x1000)          (0xF000)          [src:0, dst:6]      CF_A;
-    move.w      (0x3000)          (0xF000)          [src:0, dst:6]    CF_A;
-    move.l      (0x2000)          (0xF000)          [src:0, dst:6]    CF_A;
+    move.w      (0x3000)          (0xF000)          [src:0, dst:6]      CF_A;
+    move.l      (0x2000)          (0xF000)          [src:0, dst:6]      CF_A;
 
-    muls.l      (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CF_A;
-    mulu.l      (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [src:0, data:12]  CF_A;
+    muls.l      (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [src:0, data:12]    CF_A;
+    mulu.l      (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [src:0, data:12]    CF_A;
 
-    nop         (0x4E71)          (0xFFFF)          []                CF_A; 
+    nop         (0x4E71)          (0xFFFF)          []                  CF_A; 
 }
 
 #[cfg(test)]
