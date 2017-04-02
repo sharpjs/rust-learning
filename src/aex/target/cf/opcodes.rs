@@ -20,6 +20,8 @@ use self::Arch::*;
 use self::Size::*;
 use self::Words::*;
 
+// -----------------------------------------------------------------------------
+
 // Tabular approach, like that used in GNU binutils.
 
 #[derive(Clone, Copy, Debug)]
@@ -31,6 +33,8 @@ pub struct Opcode {
     pub args: &'static [Arg],
     pub arch: Arch,
 }
+
+// -----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
 pub enum Size {
@@ -47,6 +51,8 @@ pub enum Words {
 }
 
 pub type BitPos = u8;
+
+// -----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, Debug)]
 pub enum Arg {
@@ -87,6 +93,8 @@ pub enum Arg {
     Shift(BitPos),
 }
 
+// -----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug)]
 pub struct Modes(u16);
 
@@ -106,11 +114,15 @@ pub const PIXD: Modes = Modes(1 << 11); // pc-relative, indexed, displaced
 pub const DST:  Modes = Modes(D.0 | A.0 | AI.0 | AIPI.0 | AIPD.0 | AIXD.0 | M16.0 | M32.0);
 pub const SRC:  Modes = Modes(DST.0 | I.0 | PID.0 | PIXD.0);
 
+// -----------------------------------------------------------------------------
+
 #[derive(Clone, Copy, Debug)]
 pub enum Arch {
     /// ColdFire ISA_A
     CfIsaA,
 }
+
+// -----------------------------------------------------------------------------
 
 macro_rules! opcodes {
     {
