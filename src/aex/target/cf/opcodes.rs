@@ -188,8 +188,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn sdfdsf() {
-        assert_eq!(OPCODES[0].name, "move.b");
+    fn name() {
+        assert!(OPCODES.iter().any(|o| o.name == "move.b"));
+        assert!(OPCODES.iter().any(|o| o.name == "nop"   ));
     }
 }
 
