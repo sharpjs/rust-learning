@@ -147,8 +147,8 @@ macro_rules! size {
 }
 
 macro_rules! words {
-    ($a:expr         ) => { One($a    ) };
-    ($a:expr, $b:expr) => { Two($a, $b) };
+    { $a:expr          } => { One($a    ) };
+    { $a:expr, $b:expr } => { Two($a, $b) };
 }
 
 macro_rules! arg {
