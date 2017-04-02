@@ -35,7 +35,7 @@ pub struct Opcode {
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Size {
     Zero = 0,
     Byte = 1,
@@ -43,7 +43,7 @@ pub enum Size {
     Long = 4,
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Words {
     One(u16),
     Two(u16, u16),
@@ -53,7 +53,7 @@ pub type BitPos = u8;
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Arg {
     /// Addressing mode + register spec (6 bits).
     Modes(Modes, BitPos),
@@ -94,7 +94,7 @@ pub enum Arg {
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Modes(u16);
 
 pub const D:    Modes = Modes(1 <<  0); // data register direct
@@ -115,7 +115,7 @@ pub const SRC:  Modes = Modes(DST.0 | I.0 | PID.0 | PIXD.0);
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Arch(u16);
 
 pub const RELAX: Arch = Arch(1 << 0); // relaxation mode
