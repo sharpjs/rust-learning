@@ -110,11 +110,6 @@ pub const I:  Modes = 1 <<  9; // immediate
 pub const PD: Modes = 1 << 10; // pc-relative, displaced
 pub const PX: Modes = 1 << 11; // pc-relative, indexed, displaced
 
-pub const DST: Modes = D | A | AI | AP | AM | AD | AX | MS | ML;
-pub const SRC: Modes = DST | I | PD | PX;
-
-pub const DST_MEM: Modes = DST & !D & !A;
-
 // -----------------------------------------------------------------------------
 
 /// Architecture flags.
@@ -163,30 +158,30 @@ macro_rules! words {
 }
 
 macro_rules! arg {
-    { src    : $pos:expr } => { Arg::Modes(SRC,     $pos) };
-    { dst    : $pos:expr } => { Arg::Modes(DST,     $pos) };
-    { dstmem : $pos:expr } => { Arg::Modes(DST_MEM, $pos) };
-    { modea  : $pos:expr } => { Arg::Modes(A,       $pos) };
-    { data   : $pos:expr } => { Arg::DataReg($pos)        };
-    { addr   : $pos:expr } => { Arg::AddrReg($pos)        };
+    { daipmdxnfDXI : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML|PD|PX|I, $pos) };
+    { daipmdxnf___ : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML        , $pos) };
+    { __ipmdxnf___ : $pos:expr } => { Arg::Modes(    AI|AP|AM|AD|AX|MS|ML        , $pos) };
+
+    { data   : $pos:expr } => { Arg::DataReg($pos) };
+    { addr   : $pos:expr } => { Arg::AddrReg($pos) };
 }
 
 opcodes! {
-//  NAME        WORDS             MASKS             OPERANDS            ARCHITECTURES
-    adda.l      (0xD1C0)          (0xF1C0)          [src:0, addr:9]     CF_A;
+//  NAME      WORDS             MASKS             OPERANDS                          ARCHITECTURES
+    adda.l    (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A;
 
-    add.l       (0xD1C0)          (0xF1C0)          [src:0, addr:9]     CF_A|RELAX; // -> adda.l
-    add.l       (0xD080)          (0xF1C0)          [src:0, data:9]     CF_A;
-    add.l       (0xD180)          (0xF1C0)          [data:9, dstmem:0]  CF_A;
+    add.l     (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A|RELAX; // -> adda.l
+    add.l     (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
+    add.l     (0xD180)          (0xF1C0)          [data:9,         __ipmdxnf___:0]  CF_A;
 
-    move.b      (0x1000)          (0xF000)          [src:0, dst:6]      CF_A;
-    move.w      (0x3000)          (0xF000)          [src:0, dst:6]      CF_A;
-    move.l      (0x2000)          (0xF000)          [src:0, dst:6]      CF_A;
+    move.b    (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    move.w    (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    move.l    (0x2000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
 
-    muls.l      (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [src:0, data:12]    CF_A;
-    mulu.l      (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [src:0, data:12]    CF_A;
+    muls.l    (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
+    mulu.l    (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
 
-    nop         (0x4E71)          (0xFFFF)          []                  CF_A; 
+    nop       (0x4E71)          (0xFFFF)          []                                CF_A; 
 }
 
 #[cfg(test)]
