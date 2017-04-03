@@ -85,11 +85,14 @@ pub enum Arg {
     /// Cache (2 bits)
     Cache,
 
-    /// Quick immediate (8 bits, signed)
-    Quick(BitPos),
+    /// Immediate; 1 or 2 words after opwords
+    Immediate,
 
-    /// Shift immediate (3 bits, 0 => 8)
-    Shift(BitPos),
+    /// Quick immediate; 3 bits, 0 => 8
+    Quick3(BitPos),
+
+    /// Quick immediate; 8 bits, signed
+    Quick8(BitPos),
 }
 
 // -----------------------------------------------------------------------------
@@ -158,21 +161,33 @@ macro_rules! words {
 }
 
 macro_rules! arg {
+    // Addressing mode combinatinos
     { daipmdxnfDXI : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML|PD|PX|I, $pos) };
     { daipmdxnf___ : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML        , $pos) };
     { __ipmdxnf___ : $pos:expr } => { Arg::Modes(    AI|AP|AM|AD|AX|MS|ML        , $pos) };
 
-    { data   : $pos:expr } => { Arg::DataReg($pos) };
-    { addr   : $pos:expr } => { Arg::AddrReg($pos) };
+    // Other operand kinds
+    { data : $pos:expr } => { Arg::DataReg($pos) };
+    { addr : $pos:expr } => { Arg::AddrReg($pos) };
+    { imm              } => { Arg::Immediate     };
+    { q3   : $pos:expr } => { Arg::Quick3($pos)  };
 }
 
 opcodes! {
 //  NAME      WORDS             MASKS             OPERANDS                          ARCHITECTURES
     adda.l    (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A;
 
+    addi.l    (0x0680)          (0xFFF8)          [imm,            data:0]          CF_A;
+
+    addq.l    (0x5080)          (0xF1C0)          [q3:9,           daipmdxnf___:0]  CF_A;
+
+    add.l     (0x5080)          (0xF1C0)          [q3:9,           daipmdxnf___:0]  CF_A|RELAX; // -> addq.l
+    add.l     (0x0680)          (0xFFF8)          [imm,            data:0]          CF_A|RELAX; // -> addi.l
     add.l     (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A|RELAX; // -> adda.l
     add.l     (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
     add.l     (0xD180)          (0xF1C0)          [data:9,         __ipmdxnf___:0]  CF_A;
+
+    addx.l    (0xD180)          (0xF1F8)          [data:0,         data:9]          CF_A;
 
     move.b    (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
     move.w    (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
