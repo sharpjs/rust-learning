@@ -199,6 +199,25 @@ opcodes! {
     nop       (0x4E71)          (0xFFFF)          []                                CF_A; 
 }
 
+// First level trie:
+//
+// 0 -> ori|btst|bchg|bset|andi|subi|addi|eori|cmpi
+// 1 -> move.b
+// 2 -> move.l|movea.l
+// 3 -> move.w|movea.w
+// 4 -> (everything else!)
+// 5 -> addq|scc|subq|tpf
+// 6 -> bra|bsr|bcc
+// 7 -> moveq
+// 8 -> or|divu.w|divs.w
+// 9 -> sub|subx|suba
+// A -> (mac stuff)
+// B -> cmp|cmpa|eor
+// C -> and|mulu.w|muls.wA
+// D -> add|addx|adda
+// E -> asl|asr|lksl|lsr
+// F -> cpushl|wddata|wdebug|(fp stuff)
+
 #[cfg(test)]
 mod tests {
     use super::*;
