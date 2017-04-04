@@ -161,7 +161,7 @@ macro_rules! words {
 }
 
 macro_rules! arg {
-    // Addressing mode combinatinos
+    // Addressing mode combinations
     { daipmdxnfDXI : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML|PD|PX|I, $pos) };
     { daipmdxnf___ : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML        , $pos) };
     { __ipmdxnf___ : $pos:expr } => { Arg::Modes(    AI|AP|AM|AD|AX|MS|ML        , $pos) };
