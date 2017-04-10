@@ -21,19 +21,20 @@ use self::Words::*;
 
 // -----------------------------------------------------------------------------
 
-// Tabular approach, like that used in GNU binutils.
+#[derive(Clone, Copy, Debug)]
+pub struct Instruction {
+    pub name:  &'static str,
+    pub size:  Size,
+    pub forms: &'static [Opcode],
+}
 
 #[derive(Clone, Copy, Debug)]
 pub struct Opcode {
-    pub name: &'static str,
-    pub size: Size,
     pub bits: Words,
     pub mask: Words,
     pub args: &'static [Arg],
     pub arch: Arch,
 }
-
-// -----------------------------------------------------------------------------
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Size {
@@ -48,8 +49,6 @@ pub enum Words {
     One(u16),
     Two(u16, u16),
 }
-
-pub type BitPos = u8;
 
 // -----------------------------------------------------------------------------
 
@@ -95,6 +94,8 @@ pub enum Arg {
     Quick8(BitPos),
 }
 
+pub type BitPos = u8;
+
 // -----------------------------------------------------------------------------
 
 /// Addressing mode flags.
@@ -126,24 +127,33 @@ pub const CF_A:  Arch = 1 << 1; // ColdFire ISA_A
 macro_rules! opcodes {
     {
         $(
-            $name:ident $(. $suffix:ident )*
-                ( $($bits:expr),+ ) ( $($mask:expr),+ )
-                [ $( $($arg:tt):+ ),* ] $arch:expr ;
-        )+
+            $id:ident $name:ident $( . $suffix:ident )* {
+                $(
+                    ( $( $bits:expr   ),+ )
+                    ( $( $mask:expr   ),+ )
+                    [ $( $($arg:tt):+ ),* ]
+                    $arch:expr ;
+                )+
+            }
+        )*
     } =>
     {
-        static OPCODES: &'static [Opcode] = &[
-            $(
-                Opcode {
-                    name: concat!(stringify!($name), $( ".", stringify!($suffix) )*),
-                    size: size!($($suffix).*),
-                    bits: words!($($bits),+),
-                    mask: words!($($mask),+),
-                    args: &[$(arg!($($arg):+)),*],
-                    arch: $arch,
-                },
-            )+
-        ];
+        $(
+            static $id: Instruction = Instruction {
+                name: concat!(stringify!($name) $( , ".", stringify!($suffix) )*),
+                size: size!($($suffix).*),
+                forms: &[
+                    $(
+                        Opcode {
+                            bits: words!($($bits),+),
+                            mask: words!($($mask),+),
+                            args: &[ $( arg!($($arg):+) ),* ],
+                            arch: $arch,
+                        },
+                    )+
+                ],
+            };
+        )*
     };
 }
 
@@ -174,32 +184,72 @@ macro_rules! arg {
 }
 
 opcodes! {
-//  NAME      WORDS             MASKS             OPERANDS                          ARCHITECTURES
-    adda.l    (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A;
+    //  WORDS             MASKS             OPERANDS                          ARCHITECTURES
 
-    addi.l    (0x0680)          (0xFFF8)          [imm,            data:0]          CF_A;
+    ADDAL adda.l {
+        (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A;
+    }
 
-    addq.l    (0x5080)          (0xF1C0)          [q3:9,           daipmdxnf___:0]  CF_A;
+    ADDIL addi.l {
+        (0x0680)          (0xFFF8)          [imm, data:0]                     CF_A;
+    }
 
-    add.l     (0x5080)          (0xF1C0)          [q3:9,           daipmdxnf___:0]  CF_A|RELAX; // -> addq.l
-    add.l     (0x0680)          (0xFFF8)          [imm,            data:0]          CF_A|RELAX; // -> addi.l
-    add.l     (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A|RELAX; // -> adda.l
-    add.l     (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
-    add.l     (0xD180)          (0xF1C0)          [data:9,         __ipmdxnf___:0]  CF_A;
+    ADDQL addq.l {
+        (0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A;
+    }
 
-    addx.l    (0xD180)          (0xF1F8)          [data:0,         data:9]          CF_A;
+    ADDL add.l {
+      //use addq.l, addi.l, adda.l;
+      //(0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A | RELAX; // -> addq.l
+      //(0x0680)          (0xFFF8)          [imm, data:0]                     CF_A | RELAX; // -> addi.l
+      //(0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A | RELAX; // -> adda.l
+        (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
+        (0xD180)          (0xF1C0)          [data:9, __ipmdxnf___:0]          CF_A;
+    }
 
-    move.b    (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
-    move.w    (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
-    move.l    (0x2000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    ADDXL addx.l {
+        (0xD180)          (0xF1F8)          [data:0, data:9]                  CF_A;
+    }
 
-    muls.l    (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
-    mulu.l    (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
+    MOVEB move.b {
+        (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    }
 
-    nop       (0x4E71)          (0xFFFF)          []                                CF_A; 
+    MOVEW move.w {
+        (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    }
+
+    MOVEL move.l {
+        (0x2000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    }
+
+    MULSL muls.l {
+        (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
+    }
+
+    MULUL mulu.l {
+        (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
+    }
+
+    NOP nop {
+        (0x4E71)          (0xFFFF)          []                                CF_A; 
+    }
 }
 
-// First level trie:
+// For    assembly : name -> [opcode] -- use  first opcode that matches
+// For disassembly : [(opcode, name)] -- find first opcode that matches, then get name
+//
+//   "movea.l" -> [a]       -- a    is  the opcode  for movea.l
+//   "move.l"  -> [b, c]    -- b, c are the opcodes for move.l
+//
+// for 0x2...:
+//   [ (a, "movea.l")
+//   , (b, "move.l" )
+//   , (c, "move.l" )
+//   ]
+//
+
+// First level disasm trie:
 //
 // 0 -> ori|btst|bchg|bset|andi|subi|addi|eori|cmpi
 // 1 -> move.b
@@ -218,28 +268,34 @@ opcodes! {
 // E -> asl|asr|lksl|lsr
 // F -> cpushl|wddata|wdebug|(fp stuff)
 
+pub fn decode(value: u16) -> Option<&'static Instruction> {
+    match value >> 12 {
+        0x0 => Some(&ADDIL),
+        0x1 => Some(&MOVEB),
+        0x2 => Some(&MOVEL),
+        0x3 => Some(&MOVEW),
+        _   => None,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn name() {
-        assert!(OPCODES.iter().any(|o| o.name == "move.b"));
-        assert!(OPCODES.iter().any(|o| o.name == "nop"   ));
+        assert_eq!(MOVEB.name, "move.b");
+        assert_eq!(NOP  .name, "nop");
     }
 
     #[test]
     fn bits() {
-        assert_eq!(opcode("nop").bits, One(0x4E71));
+        assert_eq!(NOP.forms[0].bits, One(0x4E71));
     }
 
     #[test]
     fn mask() {
-        assert_eq!(opcode("nop").mask, One(0xFFFF));
-    }
-
-    fn opcode(name: &str) -> &Opcode {
-        OPCODES.iter().find(|o| o.name == name).unwrap()
+        assert_eq!(NOP.forms[0].mask, One(0xFFFF));
     }
 }
 
