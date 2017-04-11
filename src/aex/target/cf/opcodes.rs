@@ -198,11 +198,7 @@ opcodes! {
         (0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A;
     }
 
-    ADDL add.l {
-      //use addq.l, addi.l, adda.l;
-      //(0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A | RELAX; // -> addq.l
-      //(0x0680)          (0xFFF8)          [imm, data:0]                     CF_A | RELAX; // -> addi.l
-      //(0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A | RELAX; // -> adda.l
+    ADDL add.l /* : addq.l, addi.l, adda.l */ {
         (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
         (0xD180)          (0xF1C0)          [data:9, __ipmdxnf___:0]          CF_A;
     }
@@ -247,8 +243,13 @@ opcodes! {
 //   , (b, "move.l" )
 //   , (c, "move.l" )
 //   ]
-//
 
+// Trie in structure, or ad-hoc trie in code (bunch o'matches)?
+//   - code: does not require mask in opcodes table any more
+//   - code: uses I cache instead of D cache
+//   - data: automatic generation
+//   - data: easier evolution
+//
 // First level disasm trie:
 //
 // 0 -> ori|btst|bchg|bset|andi|subi|addi|eori|cmpi
