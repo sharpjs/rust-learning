@@ -16,103 +16,188 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use self::Mnemonic::*;
+use self::Operands::*;
+use self::Operand::*;
 use self::Size::*;
-use self::Words::*;
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, Debug)]
-pub struct Instruction {
-    pub name:  &'static str,
-    pub size:  Size,
-    pub forms: &'static [Opcode],
-}
-
+/// An entry in the opcodes table.
+///
+/// Describes how to assemble or disassemble an instruction, along with the
+/// supported argument types and architectures.
+///
 #[derive(Clone, Copy, Debug)]
 pub struct Opcode {
-    pub bits: Words,
-    pub mask: Words,
-    pub args: &'static [Arg],
-    pub arch: Arch,
-}
+    /// Instruction name.
+    pub name: Mnemonic,                     // 1 byte (why not padded?)
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Size {
-    Zero = 0,
-    Byte = 1,
-    Word = 2,
-    Long = 4,
-}
+    /// Operation size.
+    pub size: Size,                         // 1 byte (why not padded?)
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Words {
-    One(u16),
-    Two(u16, u16),
+    /// Opcode bits.
+    pub bits: (u16, u16),                   // 4 bytes
+
+    /// Mask of significant opcode bits.
+    pub mask: (u16, u16),                   // 4 bytes
+
+    /// Supported operands.
+    pub args: Operands,                     // 7 bytes + 1 pad
+
+    /// Supporting architectures.
+    pub arch: Arch,                         // 2 bytes
 }
 
 // -----------------------------------------------------------------------------
 
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Arg {
-    /// Addressing mode + register spec (6 bits).
-    Modes(Modes, BitPos),
-
-    /// Data register (3 bits)
-    DataReg(BitPos),
-
-    /// Address register (3 bits)
-    AddrReg(BitPos),
-
-    /// Data or address register (4 bits)
-    NormalReg(BitPos),
-
-    /// Condition code register (not stored)
-    Ccr,
-
-    /// Condition code register (not stored)
-    Sr,
-
-    /// Control register (12 bits)
-    CtlReg(BitPos),
-
-    /// Debug control register (5 bits)
-    DbgReg(BitPos),
-
-    /// List of data and address registers (extension word)
-    RegList,
-
-    /// Cache (2 bits)
-    Cache,
-
-    /// Immediate; 1 or 2 words after opwords
-    Immediate,
-
-    /// Quick immediate; 3 bits, 0 => 8
-    Quick3(BitPos),
-
-    /// Quick immediate; 8 bits, signed
-    Quick8(BitPos),
+/// Instruction names.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Mnemonic {
+    Add, Adda, Addi, Addq, Addx,
+    Move,
+    Muls, Mulu,
+    Nop,
 }
 
+impl Mnemonic {
+    /// Returns the string representation of the instruction name.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Add  => "add",
+            Adda => "adda",
+            Addi => "addi",
+            Addq => "addq",
+            Addx => "addx",
+            Move => "move",
+            Muls => "muls",
+            Mulu => "mulu",
+            Nop  => "nop",
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+
+/// Operation sizes.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Size {
+    /// No associated size.
+    Zero,
+
+    /// Byte
+    Byte,
+
+    /// Word (2 bytes)
+    Word,
+
+    /// Longword (4 bytes)
+    Long,
+}
+
+// -----------------------------------------------------------------------------
+
+/// Operand combinations.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Operands {
+    /// No operands.
+    Nullary,
+
+    /// One operand.
+    Unary([(Operand, BitPos); 1]),
+
+    /// Two operands.
+    Binary([(Operand, BitPos); 2]),
+
+    /// Three operands.
+    Ternary([(Operand, BitPos); 3]),
+
+    // Special forms (e.g. MAC instruction)
+    // SpecialA,
+    // SpecialB,
+}
+
+// -----------------------------------------------------------------------------
+
+/// Operand forms.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Operand {
+    /// Modes daipmdxDXnfI (any) (6 bits)
+    AnyMode,
+
+    /// Modes d_ipmdxDXnfI (any except addr reg) (6 bits)
+    DataMode,
+
+    /// Modes daipmdx__nf_ (mutable) (6 bits)
+    MutMode,
+
+    /// Modes __ipmdx__nf_ (mutable memory) (6 bits)
+    MutMemMode,
+
+    /// Data register (3 bits)
+    DataReg,
+
+    /// Address register (3 bits)
+    AddrReg,
+
+    /// Data or address register (4 bits)
+    NormalReg,
+
+    /// Control register (12 bits)
+    CtlReg,
+
+    /// Debug control register (5 bits)
+    DbgReg,
+
+    /// Condition code register (implicit)
+    Ccr,
+
+    /// Condition code register (implicit)
+    Sr,
+
+    /// Data/address register list (16 bits in extension word)
+    RegList,
+
+    /// Condition code (4 bits),
+    Cond,
+
+    /// Cache selector (2 bits)
+    CacheSel,
+
+    /// Immediate (16 or 32 bits in extension words)
+    Immediate,
+
+    /// Quick immediate (3 bits; 0 => 8)
+    Quick3,
+
+    /// Quick immediate (8 bits signed)
+    Quick8,
+}
+
+// -----------------------------------------------------------------------------
+
+/// A bit position.
 pub type BitPos = u8;
 
+/*
 // -----------------------------------------------------------------------------
 
 /// Addressing mode flags.
 pub type Modes = u16;
 
-pub const D:  Modes = 1 <<  0; // data reg direct
-pub const A:  Modes = 1 <<  1; // addr reg direct
-pub const AI: Modes = 1 <<  2; // addr reg indirect
-pub const AP: Modes = 1 <<  3; // addr reg indirect, auto-increment
-pub const AM: Modes = 1 <<  4; // addr reg indirect, auto-decrement
-pub const AD: Modes = 1 <<  5; // addr reg indirect, displaced
-pub const AX: Modes = 1 <<  6; // addr reg indirect, indexed, displaced
-pub const MS: Modes = 1 <<  7; // absolute short
-pub const ML: Modes = 1 <<  8; // absolute long
-pub const I:  Modes = 1 <<  9; // immediate
-pub const PD: Modes = 1 << 10; // pc-relative, displaced
-pub const PX: Modes = 1 << 11; // pc-relative, indexed, displaced
+pub const DR: Modes = 1 <<  0; // 0.*: data reg direct
+pub const AR: Modes = 1 <<  1; // 1.*: addr reg direct
+pub const AI: Modes = 1 <<  2; // 2.*: addr reg indirect
+pub const AP: Modes = 1 <<  3; // 3.*: addr reg indirect, auto-increment (plus)
+pub const AM: Modes = 1 <<  4; // 4.*: addr reg indirect, auto-decrement (minus)
+pub const AD: Modes = 1 <<  5; // 5.*: addr reg indirect, displaced
+pub const AX: Modes = 1 <<  6; // 6.*: addr reg indirect, indexed, displaced
+pub const MS: Modes = 1 <<  7; // 7.0: absolute short
+pub const ML: Modes = 1 <<  8; // 7.1: absolute long
+pub const PD: Modes = 1 <<  9; // 7.2: pc-relative, displaced
+pub const PX: Modes = 1 << 10; // 7.3: pc-relative, indexed, displaced
+pub const IM: Modes = 1 << 11; // 7.4: immediate
+*/
 
 // -----------------------------------------------------------------------------
 
@@ -127,109 +212,96 @@ pub const CF_A:  Arch = 1 << 1; // ColdFire ISA_A
 macro_rules! opcodes {
     {
         $(
-            $id:ident $name:ident $( . $suffix:ident )* {
-                $(
-                    ( $( $bits:expr   ),+ )
-                    ( $( $mask:expr   ),+ )
-                    [ $( $($arg:tt):+ ),* ]
-                    $arch:expr ;
-                )+
-            }
+            $name:ident $size:tt
+                ( $( $bits:expr   ),+ )
+                ( $( $mask:expr   ),+ )
+                [ $( $($arg:tt):+ ),* ]
+                $arch:expr ;
         )*
     } =>
     {
-        $(
-            static $id: Instruction = Instruction {
-                name: concat!(stringify!($name) $( , ".", stringify!($suffix) )*),
-                size: size!($($suffix).*),
-                forms: &[
-                    $(
-                        Opcode {
-                            bits: words!($($bits),+),
-                            mask: words!($($mask),+),
-                            args: &[ $( arg!($($arg):+) ),* ],
-                            arch: $arch,
-                        },
-                    )+
-                ],
-            };
-        )*
+        static OPCODES: &'static [Opcode] = &[
+            $(
+                Opcode {
+                    name: $name,
+                    size: size!  (       $size         ),
+                    bits: words! ( $(    $bits     ),+ ),
+                    mask: words! ( $(    $mask     ),+ ),
+                    args: args!  ( $( $( $arg  ):+ ),* ),
+                    arch: $arch,
+                },
+            )*
+        ];
     };
 }
 
 macro_rules! size {
-    {   } => { Zero };
-    { s } => { Byte };
-    { b } => { Byte };
-    { w } => { Word };
-    { l } => { Long };
+    { - } => { Zero };
+    { S } => { Byte };
+    { B } => { Byte };
+    { W } => { Word };
+    { L } => { Long };
 }
 
 macro_rules! words {
-    { $a:expr          } => { One($a    ) };
-    { $a:expr, $b:expr } => { Two($a, $b) };
+    { $a:expr          } => { ($a,  0) };
+    { $a:expr, $b:expr } => { ($a, $b) };
+}
+
+macro_rules! args {
+    { }                      => { Nullary };
+
+    { $k0:ident : $p0:expr } => { Unary   ([ (arg!($k0), $p0) ]) };
+
+    { $k0:ident : $p0:expr , 
+      $k1:ident : $p1:expr } => { Binary  ([ (arg!($k0), $p0) ,
+                                             (arg!($k1), $p1) ]) };
+
+    { $k0:ident : $p0:expr , 
+      $k1:ident : $p1:expr ,
+      $k2:ident : $p2:expr } => { Ternary ([ (arg!($k0), $p0) ,
+                                             (arg!($k1), $p1) ,
+                                             (arg!($k2), $p2) ]) };
 }
 
 macro_rules! arg {
     // Addressing mode combinations
-    { daipmdxnfDXI : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML|PD|PX|I, $pos) };
-    { daipmdxnf___ : $pos:expr } => { Arg::Modes(D|A|AI|AP|AM|AD|AX|MS|ML        , $pos) };
-    { __ipmdxnf___ : $pos:expr } => { Arg::Modes(    AI|AP|AM|AD|AX|MS|ML        , $pos) };
+    { daipmdxnfDXI } => { AnyMode };
+    { daipmdxnf___ } => { MutMode };
+    { __ipmdxnf___ } => { MutMemMode };
 
     // Other operand kinds
-    { data : $pos:expr } => { Arg::DataReg($pos) };
-    { addr : $pos:expr } => { Arg::AddrReg($pos) };
-    { imm              } => { Arg::Immediate     };
-    { q3   : $pos:expr } => { Arg::Quick3($pos)  };
+    { data } => { DataReg   };
+    { addr } => { AddrReg   };
+    { imm  } => { Immediate };
+    { q3   } => { Quick3    };
 }
 
 opcodes! {
-    //  WORDS             MASKS             OPERANDS                          ARCHITECTURES
+//  NAME    S  WORDS             MASKS             OPERANDS                          ARCHITECTURES
+//  ------  -  ----------------  ----------------  --------------------------------  -------------
+    Adda    L  (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A;
 
-    ADDAL adda.l {
-        (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A;
-    }
+    Addi    L  (0x0680)          (0xFFF8)          [imm:0, data:0]                   CF_A;
 
-    ADDIL addi.l {
-        (0x0680)          (0xFFF8)          [imm, data:0]                     CF_A;
-    }
+    Addq    L  (0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A;
 
-    ADDQL addq.l {
-        (0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A;
-    }
+    Add     L  (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
+    Add     L  (0xD180)          (0xF1C0)          [data:9, __ipmdxnf___:0]          CF_A;
 
-    ADDL add.l /* : addq.l, addi.l, adda.l */ {
-        (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
-        (0xD180)          (0xF1C0)          [data:9, __ipmdxnf___:0]          CF_A;
-    }
+    Addx    L  (0xD180)          (0xF1F8)          [data:0, data:9]                  CF_A;
 
-    ADDXL addx.l {
-        (0xD180)          (0xF1F8)          [data:0, data:9]                  CF_A;
-    }
+    Move    B  (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
 
-    MOVEB move.b {
-        (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
-    }
+    Move    W  (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
 
-    MOVEW move.w {
-        (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
-    }
+    Move    L  (0x2000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
 
-    MOVEL move.l {
-        (0x2000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
-    }
+    Muls    L  (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
 
-    MULSL muls.l {
-        (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
-    }
+    Mulu    L  (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
 
-    MULUL mulu.l {
-        (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
-    }
-
-    NOP nop {
-        (0x4E71)          (0xFFFF)          []                                CF_A; 
-    }
+    Nop     -  (0x4E71)          (0xFFFF)          []                                CF_A; 
 }
 
 // For    assembly : name -> [opcode] -- use  first opcode that matches
@@ -268,35 +340,4 @@ opcodes! {
 // D -> add|addx|adda
 // E -> asl|asr|lksl|lsr
 // F -> cpushl|wddata|wdebug|(fp stuff)
-
-pub fn decode(value: u16) -> Option<&'static Instruction> {
-    match value >> 12 {
-        0x0 => Some(&ADDIL),
-        0x1 => Some(&MOVEB),
-        0x2 => Some(&MOVEL),
-        0x3 => Some(&MOVEW),
-        _   => None,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn name() {
-        assert_eq!(MOVEB.name, "move.b");
-        assert_eq!(NOP  .name, "nop");
-    }
-
-    #[test]
-    fn bits() {
-        assert_eq!(NOP.forms[0].bits, One(0x4E71));
-    }
-
-    #[test]
-    fn mask() {
-        assert_eq!(NOP.forms[0].mask, One(0xFFFF));
-    }
-}
 
