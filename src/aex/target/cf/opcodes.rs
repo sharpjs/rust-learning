@@ -42,11 +42,11 @@ pub struct Opcode {
     /// Mask of significant opcode bits.
     pub mask: (u16, u16),                   // 4 bytes
 
-    /// Supported operands.
+    /// Operand set.
     pub args: Operands,                     // 7 bytes + 1 pad
 
-    /// Supporting architectures.
-    pub arch: Arch,                         // 2 bytes
+    /// Flags: architectures, etc.
+    pub flags: Flags,                       // 2 bytes
 }
 
 // -----------------------------------------------------------------------------
@@ -201,34 +201,42 @@ pub const IM: Modes = 1 << 11; // 7.4: immediate
 
 // -----------------------------------------------------------------------------
 
-/// Architecture flags.
-pub type Arch = u16;
+/// Opcode flags.
+pub type Flags = u16;
 
-pub const RELAX: Arch = 1 << 0; // Relaxations enabled
-pub const CF_A:  Arch = 1 << 1; // ColdFire ISA_A
+pub const EXT_WORD:  Flags = 1 << 0; // Has extension word
+pub const CF_A:      Flags = 1 << 1; // Appears in ColdFire ISA_A
+pub const CF_A2:     Flags = 1 << 2; // Appears in ColdFire ISA_A+
+pub const CF_B:      Flags = 1 << 3; // Appears in ColdFire ISA_B
+pub const CF_C:      Flags = 1 << 4; // Appears in ColdFire ISA_C
+pub const CF_FPU:    Flags = 1 << 5; // Appears in ColdFire FPU
+pub const CF_MAC:    Flags = 1 << 6; // Appears in ColdFire MAC
+pub const CF_EMAC:   Flags = 1 << 7; // Appears in ColdFire EMAC
+pub const CF_EMAC_B: Flags = 1 << 8; // Appears in ColdFire EMAC_B
+
+pub const CF_A_UP:   Flags = CF_A | CF_A2 | CF_B | CF_C;
+pub const CF_A2_UP:  Flags =        CF_A2 | CF_B | CF_C;
+pub const CF_B_UP:   Flags =                CF_B | CF_C;
 
 // -----------------------------------------------------------------------------
 
 macro_rules! opcodes {
     {
         $(
-            $name:ident $size:tt
-                ( $( $bits:expr   ),+ )
-                ( $( $mask:expr   ),+ )
-                [ $( $($arg:tt):+ ),* ]
-                $arch:expr ;
+            $name:ident $size:tt ( $($bits:expr),+ ) ( $($mask:expr),+ )
+                [ $( $($arg:tt):+ ),* ] $flags:expr ;
         )*
     } =>
     {
         static OPCODES: &'static [Opcode] = &[
             $(
                 Opcode {
-                    name: $name,
-                    size: size!  (       $size         ),
-                    bits: words! ( $(    $bits     ),+ ),
-                    mask: words! ( $(    $mask     ),+ ),
-                    args: args!  ( $( $( $arg  ):+ ),* ),
-                    arch: $arch,
+                    name:  $name,
+                    size:  size!($size),
+                    bits:  words!($($bits),+),
+                    mask:  words!($($mask),+),
+                    args:  args!($( $($arg):+ ),*),
+                    flags: $flags | ext!($($bits),+),
                 },
             )*
         ];
@@ -246,6 +254,11 @@ macro_rules! size {
 macro_rules! words {
     { $a:expr          } => { ($a,  0) };
     { $a:expr, $b:expr } => { ($a, $b) };
+}
+
+macro_rules! ext {
+    { $a:expr          } => { 0        };
+    { $a:expr, $b:expr } => { EXT_WORD };
 }
 
 macro_rules! args {
@@ -278,30 +291,30 @@ macro_rules! arg {
 }
 
 opcodes! {
-//  NAME    S  WORDS             MASKS             OPERANDS                          ARCHITECTURES
-//  ------  -  ----------------  ----------------  --------------------------------  -------------
-    Adda    L  (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A;
+//  NAME    S  WORDS             MASKS             OPERANDS                          FLAGS
+//  ------  -  ----------------  ----------------  --------------------------------  -----
+    Adda    L  (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A_UP;
 
-    Addi    L  (0x0680)          (0xFFF8)          [imm:0, data:0]                   CF_A;
+    Addi    L  (0x0680)          (0xFFF8)          [imm:0, data:0]                   CF_A_UP;
 
-    Addq    L  (0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A;
+    Addq    L  (0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A_UP;
 
-    Add     L  (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A;
-    Add     L  (0xD180)          (0xF1C0)          [data:9, __ipmdxnf___:0]          CF_A;
+    Add     L  (0xD080)          (0xF1C0)          [daipmdxnfDXI:0, data:9]          CF_A_UP;
+    Add     L  (0xD180)          (0xF1C0)          [data:9, __ipmdxnf___:0]          CF_A_UP;
 
-    Addx    L  (0xD180)          (0xF1F8)          [data:0, data:9]                  CF_A;
+    Addx    L  (0xD180)          (0xF1F8)          [data:0, data:9]                  CF_A_UP;
 
-    Move    B  (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    Move    B  (0x1000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A_UP;
 
-    Move    W  (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    Move    W  (0x3000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A_UP;
 
-    Move    L  (0x2000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A;
+    Move    L  (0x2000)          (0xF000)          [daipmdxnfDXI:0, daipmdxnf___:6]  CF_A_UP;
 
-    Muls    L  (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
+    Muls    L  (0x4C00, 0x0400)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A_UP;
 
-    Mulu    L  (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A;
+    Mulu    L  (0x4C00, 0x0000)  (0xFFC0, 0x8FFF)  [daipmdxnfDXI:0, data:12]         CF_A_UP;
 
-    Nop     -  (0x4E71)          (0xFFFF)          []                                CF_A; 
+    Nop     -  (0x4E71)          (0xFFFF)          []                                CF_A_UP; 
 }
 
 // For    assembly : name -> [opcode] -- use  first opcode that matches
