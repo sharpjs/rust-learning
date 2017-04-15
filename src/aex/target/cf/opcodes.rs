@@ -17,12 +17,11 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use super::{Mnemonic, Operands, Size};
+
 use super::Mnemonic::*;
 use super::Operands::*;
 use super::Operand::*;
 use super::Size::*;
-
-// -----------------------------------------------------------------------------
 
 /// An entry in the opcodes table.
 ///
@@ -50,8 +49,6 @@ pub struct Opcode {
     pub flags: Flags,                       // 2 bytes
 }
 
-// -----------------------------------------------------------------------------
-
 /// Opcode flags.
 pub type Flags = u16;
 
@@ -68,8 +65,6 @@ pub const CF_EMAC_B: Flags = 1 << 8; // Appears in ColdFire EMAC_B
 pub const CF_A_UP:   Flags = CF_A | CF_A2 | CF_B | CF_C;
 pub const CF_A2_UP:  Flags =        CF_A2 | CF_B | CF_C;
 pub const CF_B_UP:   Flags =                CF_B | CF_C;
-
-// -----------------------------------------------------------------------------
 
 macro_rules! opcodes {
     {
