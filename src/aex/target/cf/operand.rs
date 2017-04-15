@@ -25,13 +25,13 @@ pub enum Operands {
     Nullary,
 
     /// One operand.
-    Unary([(Operand, BitPos); 1]),
+    Unary([Operand; 1]),
 
     /// Two operands.
-    Binary([(Operand, BitPos); 2]),
+    Binary([Operand; 2]),
 
     /// Three operands.
-    Ternary([(Operand, BitPos); 3]),
+    Ternary([Operand; 3]),
 
     // SpecialFormA,
     // SpecialFormB,
@@ -42,31 +42,31 @@ pub enum Operands {
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Operand {
     /// Modes daipmdxDXnfI (any) (6 bits)
-    AnyMode,
+    AnyMode(BitPos),
 
     /// Modes d_ipmdxDXnfI (any except addr reg) (6 bits)
-    DataMode,
+    DataMode(BitPos),
 
     /// Modes daipmdx__nf_ (mutable) (6 bits)
-    MutMode,
+    MutMode(BitPos),
 
     /// Modes __ipmdx__nf_ (mutable memory) (6 bits)
-    MutMemMode,
+    MutMemMode(BitPos),
 
     /// Data register (3 bits)
-    DataReg,
+    DataReg(BitPos),
 
     /// Address register (3 bits)
-    AddrReg,
+    AddrReg(BitPos),
 
     /// Data or address register (4 bits)
-    NormalReg,
+    NormalReg(BitPos),
 
     /// Control register (12 bits)
-    CtlReg,
+    CtlReg(BitPos),
 
     /// Debug control register (5 bits)
-    DbgReg,
+    DbgReg(BitPos),
 
     /// Condition code register (implicit)
     Ccr,
@@ -78,19 +78,19 @@ pub enum Operand {
     RegList,
 
     /// Condition code (4 bits),
-    Cond,
+    Cond(BitPos),
 
     /// Cache selector (2 bits)
-    CacheSel,
+    CacheSel(BitPos),
 
     /// Immediate (16 or 32 bits in extension words)
     Immediate,
 
     /// Quick immediate (3 bits; 0 => 8)
-    Quick3,
+    Quick3(BitPos),
 
     /// Quick immediate (8 bits signed)
-    Quick8,
+    Quick8(BitPos),
 }
 
 /// Addressing mode flags.

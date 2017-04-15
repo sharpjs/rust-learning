@@ -51,17 +51,17 @@ fn match_operands<R: BufRead>
 {
     match spec {
         Nullary    => true,
-        Unary(p)   => match_operand(word, p[0].0, p[0].1, c),
-        Binary(p)  => match_operand(word, p[0].0, p[0].1, c)
-                   && match_operand(word, p[1].0, p[1].1, c),
-        Ternary(p) => match_operand(word, p[0].0, p[0].1, c)
-                   && match_operand(word, p[1].0, p[1].1, c)
-                   && match_operand(word, p[2].0, p[2].1, c),
+        Unary(p)   => match_operand(word, p[0], c),
+        Binary(p)  => match_operand(word, p[0], c)
+                   && match_operand(word, p[1], c),
+        Ternary(p) => match_operand(word, p[0], c)
+                   && match_operand(word, p[1], c)
+                   && match_operand(word, p[2], c),
     }
 }
 
 fn match_operand<R: BufRead>
-    (word: u16, spec: Operand, pos: u8, c: &mut DecodeContext<R>)
+    (word: u16, spec: Operand, c: &mut DecodeContext<R>)
     -> bool
 {
     // TODO

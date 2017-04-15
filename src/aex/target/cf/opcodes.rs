@@ -108,32 +108,31 @@ macro_rules! ext {
 }
 
 macro_rules! args {
-    { }                      => { Nullary };
+    { } => { Nullary };
 
-    { $k0:ident : $p0:expr } => { Unary   ([ (arg!($k0), $p0) ]) };
+    { $($a:tt):+ }
+        => { Unary([ arg!($($a):+) ]) };
 
-    { $k0:ident : $p0:expr , 
-      $k1:ident : $p1:expr } => { Binary  ([ (arg!($k0), $p0) ,
-                                             (arg!($k1), $p1) ]) };
+    { $($a:tt):+, $($b:tt):+ }
+        => { Binary([ arg!($($a):+), arg!($($b):+) ]) };
 
-    { $k0:ident : $p0:expr , 
-      $k1:ident : $p1:expr ,
-      $k2:ident : $p2:expr } => { Ternary ([ (arg!($k0), $p0) ,
-                                             (arg!($k1), $p1) ,
-                                             (arg!($k2), $p2) ]) };
+    { $($a:tt):+, $($b:tt):+, $($c:tt):+ }
+        => { Ternary([ arg!($($a):+), arg!($($b):+), arg!($($c):+) ]) };
+
+    // ...
 }
 
 macro_rules! arg {
     // Addressing mode combinations
-    { daipmdxnfDXI } => { AnyMode };
-    { daipmdxnf___ } => { MutMode };
-    { __ipmdxnf___ } => { MutMemMode };
+    { daipmdxnfDXI : $pos:expr } => { AnyMode($pos) };
+    { daipmdxnf___ : $pos:expr } => { MutMode($pos) };
+    { __ipmdxnf___ : $pos:expr } => { MutMemMode($pos) };
 
     // Other operand kinds
-    { data } => { DataReg   };
-    { addr } => { AddrReg   };
-    { imm  } => { Immediate };
-    { q3   } => { Quick3    };
+    { data : $pos:expr } => { DataReg($pos) };
+    { addr : $pos:expr } => { AddrReg($pos) };
+    { imm              } => { Immediate };
+    { q3   : $pos:expr } => { Quick3($pos) };
 }
 
 opcodes! {
@@ -141,7 +140,7 @@ opcodes! {
 //  ------  -  ----------------  ----------------  --------------------------------  -----
     Adda    L  (0xD1C0)          (0xF1C0)          [daipmdxnfDXI:0, addr:9]          CF_A_UP;
 
-    Addi    L  (0x0680)          (0xFFF8)          [imm:0, data:0]                   CF_A_UP;
+    Addi    L  (0x0680)          (0xFFF8)          [imm, data:0]                     CF_A_UP;
 
     Addq    L  (0x5080)          (0xF1C0)          [q3:9, daipmdxnf___:0]            CF_A_UP;
 
