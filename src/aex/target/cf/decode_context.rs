@@ -19,6 +19,8 @@
 use std::io::{self, BufRead, Cursor};
 use byteorder::{BigEndian as BE, ReadBytesExt};
 
+use super::Size;
+
 #[derive(Debug)]
 pub struct DecodeContext<'a, R: BufRead + 'a> {
     op_word: u16,               // operation word
@@ -28,8 +30,8 @@ pub struct DecodeContext<'a, R: BufRead + 'a> {
     offset:  u64,               // offset within stream
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Size { Byte, Word, Long }
+//#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+//pub enum Size { Byte, Word, Long }
 
 static EMPTY: [u8; 0] = [];
 

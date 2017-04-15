@@ -16,14 +16,20 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+mod decode;
+mod decode_context;
+mod opcodes;
+
+pub use self::decode::*;
+pub use self::decode_context::*;
+pub use self::opcodes::*;
+
 //mod addr_disp;
 //mod addr_disp_idx;
 //mod addr_reg;
 //mod data_reg;
-//mod decode_context;
 //mod index;
 //mod misc_regs;
-mod opcodes;
 //mod pc_disp;
 //mod pc_disp_idx;
 //mod scale;
@@ -33,7 +39,6 @@ mod opcodes;
 //pub use self::addr_disp_idx::*;
 //pub use self::addr_reg::*;
 //pub use self::data_reg::*;
-//pub use self::decode_context::*;
 //pub use self::index::*;
 //pub use self::misc_regs::*;
 //pub use self::pc_disp::*;

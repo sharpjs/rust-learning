@@ -228,7 +228,7 @@ macro_rules! opcodes {
         )*
     } =>
     {
-        static OPCODES: &'static [Opcode] = &[
+        pub static OPCODES: &'static [Opcode] = &[
             $(
                 Opcode {
                     name:  $name,
