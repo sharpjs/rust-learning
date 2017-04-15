@@ -19,10 +19,12 @@
 mod decode;
 mod decode_context;
 mod opcodes;
+mod operand;
 
 pub use self::decode::*;
 pub use self::decode_context::*;
 pub use self::opcodes::*;
+pub use self::operand::*;
 
 //mod addr_disp;
 //mod addr_disp_idx;
