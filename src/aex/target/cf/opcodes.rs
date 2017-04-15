@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{Mnemonic, Operands};
+use super::{Mnemonic, Operands, Size};
 use super::Mnemonic::*;
 use super::Operands::*;
 use super::Operand::*;
@@ -48,24 +48,6 @@ pub struct Opcode {
 
     /// Flags: architectures, etc.
     pub flags: Flags,                       // 2 bytes
-}
-
-// -----------------------------------------------------------------------------
-
-/// Operation sizes.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Size {
-    /// No associated size.
-    Zero,
-
-    /// Byte
-    Byte,
-
-    /// Word (2 bytes)
-    Word,
-
-    /// Longword (4 bytes)
-    Long,
 }
 
 /*

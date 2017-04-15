@@ -50,3 +50,19 @@ pub use self::operand::*;
 //pub use self::scale::*;
 //pub use self::value::*;
 
+/// Operation sizes.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Size {
+    /// No associated size.
+    Zero,
+
+    /// Byte
+    Byte,
+
+    /// Word (2 bytes)
+    Word,
+
+    /// Longword (4 bytes)
+    Long,
+}
+
