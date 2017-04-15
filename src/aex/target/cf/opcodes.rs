@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::Operands;
+use super::{Mnemonic, Operands};
 use super::Mnemonic::*;
 use super::Operands::*;
 use super::Operand::*;
@@ -48,34 +48,6 @@ pub struct Opcode {
 
     /// Flags: architectures, etc.
     pub flags: Flags,                       // 2 bytes
-}
-
-// -----------------------------------------------------------------------------
-
-/// Instruction names.
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-pub enum Mnemonic {
-    Add, Adda, Addi, Addq, Addx,
-    Move,
-    Muls, Mulu,
-    Nop,
-}
-
-impl Mnemonic {
-    /// Returns the string representation of the instruction name.
-    pub fn as_str(self) -> &'static str {
-        match self {
-            Add  => "add",
-            Adda => "adda",
-            Addi => "addi",
-            Addq => "addq",
-            Addx => "addx",
-            Move => "move",
-            Muls => "muls",
-            Mulu => "mulu",
-            Nop  => "nop",
-        }
-    }
 }
 
 // -----------------------------------------------------------------------------

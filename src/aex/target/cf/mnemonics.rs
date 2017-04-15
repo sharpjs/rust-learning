@@ -1,4 +1,4 @@
-// ColdFire Target
+// ColdFire Instruction Names
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -16,37 +16,31 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod decode;
-mod decode_context;
-mod mnemonics;
-mod opcodes;
-mod operand;
+use self::Mnemonic::*;
 
-pub use self::decode::*;
-pub use self::decode_context::*;
-pub use self::mnemonics::*;
-pub use self::opcodes::*;
-pub use self::operand::*;
+/// Instruction names.
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+pub enum Mnemonic {
+    Add, Adda, Addi, Addq, Addx,
+    Move,
+    Muls, Mulu,
+    Nop,
+}
 
-//mod addr_disp;
-//mod addr_disp_idx;
-//mod addr_reg;
-//mod data_reg;
-//mod index;
-//mod misc_regs;
-//mod pc_disp;
-//mod pc_disp_idx;
-//mod scale;
-//mod value;
-
-//pub use self::addr_disp::*;
-//pub use self::addr_disp_idx::*;
-//pub use self::addr_reg::*;
-//pub use self::data_reg::*;
-//pub use self::index::*;
-//pub use self::misc_regs::*;
-//pub use self::pc_disp::*;
-//pub use self::pc_disp_idx::*;
-//pub use self::scale::*;
-//pub use self::value::*;
+impl Mnemonic {
+    /// Returns the string representation of the instruction name.
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Add  => "add",
+            Adda => "adda",
+            Addi => "addi",
+            Addq => "addq",
+            Addx => "addx",
+            Move => "move",
+            Muls => "muls",
+            Mulu => "mulu",
+            Nop  => "nop",
+        }
+    }
+}
 
