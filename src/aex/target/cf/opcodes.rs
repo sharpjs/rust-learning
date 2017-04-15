@@ -16,6 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use aex::util::BitPos;
 use self::Mnemonic::*;
 use self::Operands::*;
 use self::Operand::*;
@@ -173,11 +174,6 @@ pub enum Operand {
     /// Quick immediate (8 bits signed)
     Quick8,
 }
-
-// -----------------------------------------------------------------------------
-
-/// A bit position.
-pub type BitPos = u8;
 
 /*
 // -----------------------------------------------------------------------------

@@ -18,7 +18,12 @@
 
 /*
 use std::io::{self, Error, ErrorKind};
+*/
 
+/// A bit position.
+pub type BitPos = u8;
+
+/*
 #[inline]
 pub fn invalid<T>() -> io::Result<T> {
     Err(Error::from(ErrorKind::InvalidData))
