@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
-use aex::fmt::{Code, Style};
+//use std::fmt::{self, Formatter};
+//use aex::fmt::{Code, Style};
 
 pub use self::AddrReg::*;
 
@@ -55,17 +55,19 @@ impl AddrReg {
     }
 }
 
+/*
 impl Code for AddrReg {
     #[inline]
     fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
         s.write_reg(f, self.name())
     }
 }
+*/
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::fmt::*;
+    //use aex::fmt::*;
 
     #[test]
     fn with_num() {
@@ -82,9 +84,11 @@ mod tests {
         assert_eq!( A5.name(), "a5" );
     }
 
+    /*
     #[test]
     fn display() {
         assert_eq!( format!("{0}", Asm(&A3, &GAS_STYLE)), "%a3" );
     }
+    */
 }
 
