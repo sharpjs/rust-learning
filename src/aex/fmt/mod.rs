@@ -38,6 +38,17 @@ pub trait Code: Node {
 
 // -----------------------------------------------------------------------------
 
+/// Trait for types that can be converted to something code-formattable.
+pub trait ToCode<A=()> {
+    /// Type of the code-formattable value.
+    type Output: Code<Ann=A>;
+
+    /// Converts to a code-formattable value with the given annotation.
+    fn to_code(&self, ann: A) -> Self::Output;
+}
+
+// -----------------------------------------------------------------------------
+
 /// A code-formattable value paired with a code style.
 #[derive(Clone, Copy, Debug)]
 pub struct Styled<'a,
