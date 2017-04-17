@@ -23,7 +23,6 @@ pub use self::AddrReg::*;
 
 /// ColdFire address registers.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
-#[repr(u8)]
 pub enum AddrReg {
     A0, A1, A2, A3, A4, A5, FP, SP
 }
