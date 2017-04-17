@@ -16,8 +16,8 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::fmt::{self, Formatter};
-//use aex::fmt::{Code, Style};
+use aex::ast::Reg;
+use aex::fmt::ToCode;
 
 pub use self::AddrReg::*;
 
@@ -58,14 +58,15 @@ impl AddrReg {
     }
 }
 
-/*
-impl Code for AddrReg {
+impl<A> ToCode<A> for AddrReg {
+    type Output = Reg<'static, A>;
+
+    /// Converts to a code-formattable value with the given annotation.
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
-        s.write_reg(f, self.name())
+    fn to_code(&self, ann: A) -> Self::Output {
+        Reg::new_with_ann(self.name(), ann)
     }
 }
-*/
 
 #[cfg(test)]
 mod tests {
@@ -86,11 +87,12 @@ mod tests {
         assert_eq!( A5.name(), "a5" );
     }
 
-    /*
     #[test]
-    fn display() {
-        assert_eq!( format!("{0}", Asm(&A3, &GAS_STYLE)), "%a3" );
+    fn to_code() {
+        let c = A0.to_code(42);
+
+        assert_eq!(c.name, "a0");
+        assert_eq!(c.ann,  42  );
     }
-    */
 }
 
