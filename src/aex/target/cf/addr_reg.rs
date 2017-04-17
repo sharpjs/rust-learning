@@ -21,6 +21,7 @@
 
 pub use self::AddrReg::*;
 
+/// ColdFire address registers.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum AddrReg {
@@ -39,16 +40,19 @@ pub const A6: AddrReg = FP;
 pub const A7: AddrReg = SP;
 
 impl AddrReg {
+    /// Returns the address register with the given number.
     #[inline]
     pub fn with_num(n: u8) -> Self {
         ADDR_REGS[n as usize]
     }
 
+    /// Returns the number of the address register.
     #[inline]
     pub fn num(self) -> u8 {
         self as u8
     }
 
+    /// Returns the name of the address register.
     #[inline]
     pub fn name(self) -> &'static str {
         ADDR_REG_NAMES[self as usize]
@@ -67,7 +71,6 @@ impl Code for AddrReg {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use aex::fmt::*;
 
     #[test]
     fn with_num() {
