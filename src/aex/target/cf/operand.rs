@@ -1,4 +1,4 @@
-// ColdFire Operands
+// ColdFire Operand Forms
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -16,31 +16,51 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
+use std::io::BufRead;
 use aex::util::BitPos;
 
-/// Operand combinations.
+use super::DecodeContext;
+
+use super::OperandForms::*;
+use super::OperandForm::*;
+
+/// Operand form combinations.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Operands {
+pub enum OperandForms {
     /// No operands.
     Nullary,
 
     /// One operand.
-    Unary([Operand; 1]),
+    Unary([OperandForm; 1]),
 
     /// Two operands.
-    Binary([Operand; 2]),
+    Binary([OperandForm; 2]),
 
     /// Three operands.
-    Ternary([Operand; 3]),
+    Ternary([OperandForm; 3]),
 
     // SpecialFormA,
     // SpecialFormB,
     // ...
 }
 
+impl OperandForms {
+    pub fn decode<R: BufRead>(self, c: &mut DecodeContext<R>) -> bool {
+        match self {
+            Nullary       => true,
+            Unary(opds)   => opds[0].decode(c),
+            Binary(opds)  => opds[0].decode(c) &&
+                             opds[1].decode(c),
+            Ternary(opds) => opds[0].decode(c) &&
+                             opds[1].decode(c) &&
+                             opds[2].decode(c),
+        }
+    }
+}
+
 /// Operand forms.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Operand {
+pub enum OperandForm {
     /// Modes daipmdxDXnfI (any) (6 bits)
     AnyMode(BitPos),
 
@@ -108,4 +128,22 @@ pub const ML: Modes = 1 <<  8; // 7.1: absolute long
 pub const PD: Modes = 1 <<  9; // 7.2: pc-relative, displaced
 pub const PX: Modes = 1 << 10; // 7.3: pc-relative, indexed, displaced
 pub const IM: Modes = 1 << 11; // 7.4: immediate
+
+
+impl OperandForm {
+    pub fn decode<R: BufRead>(self, c: &mut DecodeContext<R>) -> bool {
+        match self {
+            AnyMode(pos) => {
+                true
+            },
+            DataMode(pos) => {
+                // decode mode
+                // check if mode allowed here
+                // return expr
+                true
+            },
+            _ => false,
+        }
+    }
+}
 

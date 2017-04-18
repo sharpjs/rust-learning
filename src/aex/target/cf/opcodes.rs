@@ -16,11 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use super::{Mnemonic, Operands, Size};
+use super::{Mnemonic, OperandForms, Size};
 
 use super::Mnemonic::*;
-use super::Operands::*;
-use super::Operand::*;
+use super::OperandForms::*;
+use super::OperandForm::*;
 use super::Size::*;
 
 /// An entry in the opcodes table.
@@ -42,8 +42,8 @@ pub struct Opcode {
     /// Mask of significant opcode bits.
     pub mask: (u16, u16),                   // 4 bytes
 
-    /// Operand set.
-    pub args: Operands,                     // 7 bytes + 1 pad
+    /// Operand form combination.
+    pub args: OperandForms,                 // 7 bytes + 1 pad
 
     /// Flags: architectures, etc.
     pub flags: Flags,                       // 2 bytes

@@ -17,55 +17,27 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::{self, BufRead};
-use super::{DecodeContext, OPCODES, Operand, Operands};
-
-//use super::Mnemonic::*;
-use super::Operands::*;
-//use super::Operand::*;
-//use super::Size::*;
+use super::{DecodeContext, Opcode};
 
 pub fn decode<R: BufRead>
-    (c: &mut DecodeContext<R>)
+    (opcodes: &[Opcode], c: &mut DecodeContext<R>)
     -> io::Result<Option<usize>>
 {
     let word = c.next()?;
 
-    for (i, o) in OPCODES.iter().enumerate() {
+    for (i, o) in opcodes.iter().enumerate() {
 
         // Word must match discriminant bits of opcode
         if word & o.mask.0 != o.bits.0 { continue; }
 
         // Word must match valid operand set
-        if !match_operands(word, o.args, c) { continue; }
+        if !o.args.decode(c) { continue; }
 
         // Use this opcode
         return Ok(Some(i))
     }
 
     Ok(None)
-}
-
-fn match_operands<R: BufRead>
-    (word: u16, spec: Operands, c: &mut DecodeContext<R>)
-    -> bool
-{
-    match spec {
-        Nullary    => true,
-        Unary(p)   => match_operand(word, p[0], c),
-        Binary(p)  => match_operand(word, p[0], c)
-                   && match_operand(word, p[1], c),
-        Ternary(p) => match_operand(word, p[0], c)
-                   && match_operand(word, p[1], c)
-                   && match_operand(word, p[2], c),
-    }
-}
-
-fn match_operand<R: BufRead>
-    (word: u16, spec: Operand, c: &mut DecodeContext<R>)
-    -> bool
-{
-    // TODO
-    true
 }
 
 // For    assembly : name -> [opcode] -- use  first opcode that matches
