@@ -22,15 +22,18 @@ mod mnemonics;
 mod opcodes;
 mod operand;
 
+mod addr_reg; // mode 1
+
 pub use self::decode::*;
 pub use self::decode_context::*;
 pub use self::mnemonics::*;
 pub use self::opcodes::*;
 pub use self::operand::*;
 
+pub use self::addr_reg::*; // mode 1
+
 //mod addr_disp;
 //mod addr_disp_idx;
-mod addr_reg;
 //mod data_reg;
 //mod index;
 //mod misc_regs;
@@ -41,7 +44,6 @@ mod addr_reg;
 
 //pub use self::addr_disp::*;
 //pub use self::addr_disp_idx::*;
-pub use self::addr_reg::*;
 //pub use self::data_reg::*;
 //pub use self::index::*;
 //pub use self::misc_regs::*;
