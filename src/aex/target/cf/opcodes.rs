@@ -31,10 +31,10 @@ use super::Size::*;
 #[derive(Clone, Copy, Debug)]
 pub struct Opcode {
     /// Instruction name.
-    pub name: Mnemonic,                     // 1 byte (why not padded?)
+    pub name: Mnemonic,                     // 1 byte
 
     /// Operation size.
-    pub size: Size,                         // 1 byte (why not padded?)
+    pub size: Size,                         // 1 byte
 
     /// Opcode bits.
     pub bits: (u16, u16),                   // 4 bytes
