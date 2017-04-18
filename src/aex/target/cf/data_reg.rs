@@ -16,11 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
-use aex::fmt::{Code, Style};
+use aex::ast::Reg;
+use aex::fmt::ToCode;
 
 pub use self::DataReg::*;
 
+/// ColdFire data registers.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 #[repr(u8)]
 pub enum DataReg {
@@ -36,33 +37,38 @@ static DATA_REG_NAMES: [&'static str; 8] = [
 ];
 
 impl DataReg {
+    /// Returns the data register with the given number.
     #[inline]
     pub fn with_num(n: u8) -> Self {
         DATA_REGS[n as usize]
     }
 
+    /// Returns the number of the data register.
     #[inline]
     pub fn num(self) -> u8 {
         self as u8
     }
 
+    /// Returns the name of the data register.
     #[inline]
     pub fn name(self) -> &'static str {
         DATA_REG_NAMES[self as usize]
     }
 }
 
-impl Code for DataReg {
+impl<A> ToCode<A> for DataReg {
+    type Output = Reg<'static, A>;
+
+    /// Converts to a code-formattable value with the given annotation.
     #[inline]
-    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
-        s.write_reg(f, self.name())
+    fn to_code(&self, ann: A) -> Self::Output {
+        Reg::new_with_ann(self.name(), ann)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use aex::fmt::*;
 
     #[test]
     fn with_num() {
@@ -80,8 +86,11 @@ mod tests {
     }
 
     #[test]
-    fn display() {
-        assert_eq!( format!("{0}", Asm(&D3, &GAS_STYLE)), "%d3" );
+    fn to_code() {
+        let c = D0.to_code(42);
+
+        assert_eq!(c.name, "d0");
+        assert_eq!(c.ann,  42  );
     }
 }
 
