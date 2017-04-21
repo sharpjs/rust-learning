@@ -69,5 +69,11 @@ pub enum Size {
 
     /// Longword (4 bytes)
     Long,
+
+    /// Single-precision floating-point (4 bytes)
+    Single,
+
+    /// Double-precision floating-point (8 bytes)
+    Double,
 }
 
