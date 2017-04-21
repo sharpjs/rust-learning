@@ -32,7 +32,7 @@ pub enum Index {
 }
 
 impl Index {
-    /// Decodes the index register from the given instruction bits.
+    /// Decodes an index register from the given instruction bits.
     pub fn decode(word: u16, pos: u8) -> Self {
         let reg = (word >> pos     & 0b111) as u8;
         let da  = (word >> pos + 3 & 0b__1) as u8;
