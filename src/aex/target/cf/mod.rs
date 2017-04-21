@@ -19,7 +19,7 @@
 // Operand Representations
 
 mod index;
-//mod scale;
+mod scale;
 mod data_reg;       // mode  0
 mod addr_reg;       // modes 1, 2, 3, 4
 //mod addr_disp;      // mode  5
@@ -30,7 +30,7 @@ mod addr_reg;       // modes 1, 2, 3, 4
 //mod value;          //
 
 pub use self::index::*;
-//pub use self::scale::*;
+pub use self::scale::*;
 pub use self::data_reg::*; // mode 0
 pub use self::addr_reg::*; // mode 1
 //pub use self::addr_disp::*;
