@@ -16,44 +16,44 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod decode;
-mod decode_context;
-mod mnemonics;
-mod opcodes;
-mod operand;
+// Operand Representations
 
 mod index;
-
-mod data_reg; // mode 0
-mod addr_reg; // mode 1
-
-pub use self::decode::*;
-pub use self::decode_context::*;
-pub use self::mnemonics::*;
-pub use self::opcodes::*;
-pub use self::operand::*;
+//mod scale;
+mod data_reg;       // mode  0
+mod addr_reg;       // modes 1, 2, 3, 4
+//mod addr_disp;      // mode  5
+//mod addr_disp_idx;  // mode  6
+//mod misc_regs;      //
+//mod pc_disp;        //
+//mod pc_disp_idx;    //
+//mod value;          //
 
 pub use self::index::*;
-
+//pub use self::scale::*;
 pub use self::data_reg::*; // mode 0
 pub use self::addr_reg::*; // mode 1
-
-//mod addr_disp;
-//mod addr_disp_idx;
-//mod misc_regs;
-//mod pc_disp;
-//mod pc_disp_idx;
-//mod scale;
-//mod value;
-
 //pub use self::addr_disp::*;
 //pub use self::addr_disp_idx::*;
 //pub use self::data_reg::*;
 //pub use self::misc_regs::*;
 //pub use self::pc_disp::*;
 //pub use self::pc_disp_idx::*;
-//pub use self::scale::*;
 //pub use self::value::*;
+
+// Encoding / Decoding
+
+mod decode;
+mod decode_context;
+mod mnemonics;
+mod opcodes;
+mod operand;
+
+pub use self::decode::*;
+pub use self::decode_context::*;
+pub use self::mnemonics::*;
+pub use self::opcodes::*;
+pub use self::operand::*;
 
 /// Operation sizes.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
