@@ -90,7 +90,7 @@ mod tests {
         let c = D0.to_code(42);
 
         assert_eq!(c.name, "d0");
-        assert_eq!(c.ann,  42  );
+        assert_eq!(c.ann,   42 );
     }
 }
 
