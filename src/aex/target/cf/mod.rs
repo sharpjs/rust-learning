@@ -22,6 +22,8 @@ mod mnemonics;
 mod opcodes;
 mod operand;
 
+mod index;
+
 mod data_reg; // mode 0
 mod addr_reg; // mode 1
 
@@ -31,12 +33,13 @@ pub use self::mnemonics::*;
 pub use self::opcodes::*;
 pub use self::operand::*;
 
+pub use self::index::*;
+
 pub use self::data_reg::*; // mode 0
 pub use self::addr_reg::*; // mode 1
 
 //mod addr_disp;
 //mod addr_disp_idx;
-//mod index;
 //mod misc_regs;
 //mod pc_disp;
 //mod pc_disp_idx;
@@ -46,7 +49,6 @@ pub use self::addr_reg::*; // mode 1
 //pub use self::addr_disp::*;
 //pub use self::addr_disp_idx::*;
 //pub use self::data_reg::*;
-//pub use self::index::*;
 //pub use self::misc_regs::*;
 //pub use self::pc_disp::*;
 //pub use self::pc_disp_idx::*;

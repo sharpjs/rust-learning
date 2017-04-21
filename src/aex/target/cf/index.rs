@@ -16,10 +16,11 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
+use aex::ast::Reg;
+use aex::fmt::ToCode;
 
-use aex::fmt::{Code, Style};
 use super::{AddrReg, DataReg};
+use self::Index::*;
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Index {
@@ -33,17 +34,21 @@ impl Index {
         let da  = (word >> pos + 3 & 0b__1) as u8;
 
         match da {
-            0 => Index::Data(DataReg::with_num(reg)),
-            _ => Index::Addr(AddrReg::with_num(reg)),
+            0 => Data(DataReg::with_num(reg)),
+            _ => Addr(AddrReg::with_num(reg)),
         }
     }
 }
 
-impl Code for Index {
-    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
+impl<A> ToCode<A> for Index {
+    type Output = Reg<'static, A>;
+
+    /// Converts to a code-formattable value with the given annotation.
+    #[inline]
+    fn to_code(&self, ann: A) -> Self::Output {
         match *self {
-            Index::Data(ref r) => r.fmt(f, s),
-            Index::Addr(ref r) => r.fmt(f, s),
+            Data(ref r) => r.to_code(ann),
+            Addr(ref r) => r.to_code(ann),
         }
     }
 }
@@ -56,13 +61,21 @@ mod tests {
     #[test]
     fn decode_data() {
         let index = Index::decode(0b_0_101_00000, 5);
-        assert_eq!(index, Index::Data(D5));
+        assert_eq!(index, Data(D5));
     }
 
     #[test]
     fn decode_addr() {
         let index = Index::decode(0b_1_011_00000, 5);
-        assert_eq!(index, Index::Addr(A3));
+        assert_eq!(index, Addr(A3));
+    }
+
+    #[test]
+    fn to_code() {
+        let c = Addr(A3).to_code(42);
+
+        assert_eq!(c.name, "a3");
+        assert_eq!(c.ann,   42 );
     }
 }
 
