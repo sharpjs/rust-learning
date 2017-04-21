@@ -22,13 +22,17 @@ use aex::fmt::ToCode;
 use super::{AddrReg, DataReg};
 use self::Index::*;
 
+/// ColdFire index registers.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Index {
+    /// Data register used as an index register.
     Data(DataReg),
+    /// Address register used as an index register.
     Addr(AddrReg),
 }
 
 impl Index {
+    /// Decodes the index register from the given instruction bits.
     pub fn decode(word: u16, pos: u8) -> Self {
         let reg = (word >> pos     & 0b111) as u8;
         let da  = (word >> pos + 3 & 0b__1) as u8;
