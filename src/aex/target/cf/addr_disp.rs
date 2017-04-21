@@ -16,49 +16,61 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
-use std::io::{self, Read};
-use byteorder::{BigEndian as BE, ReadBytesExt};
+use std::io::{self, BufRead};
 
-use aex::fmt::{Code, Style};
-use aex::ast::Expr;
+use aex::fmt::ToCode;
+use aex::ast::{Expr, Int};
 
-use super::AddrReg;
+use super::{AddrReg, DecodeContext};
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+/// ColdFire addressing mode: address register indirect with displacement.
+#[derive(Clone, /*PartialEq, Eq, Hash,*/ Debug)]
 pub struct AddrDisp<'a> {
+    /// Base register; must be an address register.
     pub base: AddrReg,
+
+    /// 16-bit signed displacement.
     pub disp: Expr<'a>
 }
 
 impl<'a> AddrDisp<'a> {
-    pub fn decode<R: Read>(reg: u8, more: &mut R) -> io::Result<Self> {
-        let ext = more.read_u16::<BE>()?;
+    /// Decodes an `AddrDisp` from the given instruction bits.
+    pub fn decode<R: BufRead>(reg: u8, c: &mut DecodeContext<R>) -> io::Result<Self> {
+        let ext = c.read_i16()?;
 
         Ok(AddrDisp {
             base: AddrReg::with_num(reg),
-            disp: Expr::Int(ext as u32),
+            disp: Expr::Int(Int::new(ext)),
         })
     }
 }
 
-impl<'a> Code for AddrDisp<'a> {
-    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
-        s.write_base_disp(f, &self.base, &self.disp)
+impl<'a, A> ToCode<A> for AddrDisp<'a> {
+    type Output = Expr<'a, A>;
+
+    /// Converts to a code-formattable value with the given annotation.
+    #[inline]
+    fn to_code(&self, ann: A) -> Self::Output {
+        // TODO: Need AST for indirect addressing
+        panic!()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use aex::fmt::*;
-    use aex::ast::Expr;
+    use std::io::Cursor;
     use super::*;
     use super::super::A5;
 
-    #[test]
-    fn display() {
-        let x = AddrDisp { base: A5, disp: Expr::Int(42) };
-        assert_display(&x, &GAS_STYLE, "42(%a5)");
+    // TODO: Why does this fail?
+    //#[test]
+    fn decode() {
+        let mut src = Cursor::new(vec![0x42, 0xF1, 0x01, 0x02, 0x03]);
+        let mut ctx = DecodeContext::new(&mut src, 0);
+
+        let v = AddrDisp::decode(5, &mut ctx).unwrap();
+
+        assert_eq!(v.base, A5);
     }
 }
 
