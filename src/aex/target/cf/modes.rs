@@ -16,12 +16,13 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::io::{self, BufRead};
+use std::io::{self, BufRead};
 
 //use aex::fmt::ToCode;
 use aex::ast::Expr;
+use aex::util::BitPos;
 
-use super::{AddrReg, DataReg, Scale};
+use super::{AddrReg, DataReg, DecodeContext, Scale};
 
 /// ColdFire addressing modes bitfield.
 pub type Modes = u16;
@@ -96,6 +97,12 @@ pub enum IndexReg {
     Data(DataReg),
     /// Address register used as an index register.
     Addr(AddrReg),
+}
+
+impl<'a> Mode<'a> {
+    pub fn decode<R: BufRead>(pos: BitPos, c: &mut DecodeContext<R>) -> io::Result<Self> {
+        panic!()
+    }
 }
 
 /*
