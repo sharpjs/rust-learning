@@ -18,28 +18,28 @@
 
 // Operand Representations
 
-mod index;
+//mod index;
 mod scale;
-mod data_reg;       // mode  0
-mod addr_reg;       // modes 1, 2, 3, 4
-mod addr_disp;      // mode  5
-//mod addr_disp_idx;  // mode  6
-//mod misc_regs;      //
-//mod pc_disp;        //
-//mod pc_disp_idx;    //
-//mod value;          //
+mod data_reg;
+mod addr_reg;
+//mod addr_disp;
+//mod addr_disp_idx;
+//mod misc_regs;
+//mod pc_disp;
+//mod pc_disp_idx;
+mod modes;
 
-pub use self::index::*;
+//pub use self::index::*;
 pub use self::scale::*;
 pub use self::data_reg::*; // mode 0
 pub use self::addr_reg::*; // mode 1
-pub use self::addr_disp::*;
+//pub use self::addr_disp::*;
 //pub use self::addr_disp_idx::*;
 //pub use self::data_reg::*;
 //pub use self::misc_regs::*;
 //pub use self::pc_disp::*;
 //pub use self::pc_disp_idx::*;
-//pub use self::value::*;
+pub use self::modes::*;
 
 // Encoding / Decoding
 

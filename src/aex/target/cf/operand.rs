@@ -113,22 +113,6 @@ pub enum OperandForm {
     Quick8(BitPos),
 }
 
-/// Addressing mode flags.
-pub type Modes = u16;
-
-pub const DR: Modes = 1 <<  0; // 0.*: data reg direct
-pub const AR: Modes = 1 <<  1; // 1.*: addr reg direct
-pub const AI: Modes = 1 <<  2; // 2.*: addr reg indirect
-pub const AP: Modes = 1 <<  3; // 3.*: addr reg indirect, auto-increment (plus)
-pub const AM: Modes = 1 <<  4; // 4.*: addr reg indirect, auto-decrement (minus)
-pub const AD: Modes = 1 <<  5; // 5.*: addr reg indirect, displaced
-pub const AX: Modes = 1 <<  6; // 6.*: addr reg indirect, indexed, displaced
-pub const MS: Modes = 1 <<  7; // 7.0: absolute short
-pub const ML: Modes = 1 <<  8; // 7.1: absolute long
-pub const PD: Modes = 1 <<  9; // 7.2: pc-relative, displaced
-pub const PX: Modes = 1 << 10; // 7.3: pc-relative, indexed, displaced
-pub const IM: Modes = 1 << 11; // 7.4: immediate
-
 
 impl OperandForm {
     pub fn decode<R: BufRead>(self, c: &mut DecodeContext<R>) -> bool {

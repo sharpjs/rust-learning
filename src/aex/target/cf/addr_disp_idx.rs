@@ -16,41 +16,58 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Formatter};
-use std::io::{self, Read};
-use byteorder::{BigEndian as BE, ReadBytesExt};
 
-use aex::fmt::{Code, Style};
-use aex::ast::Expr;
-use super::{AddrReg, Index, Scale};
+use std::io::{self, BufRead};
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+use aex::fmt::ToCode;
+use aex::ast::{Expr, Int};
+
+use super::{AddrReg, DecodeContext, Index, Scale};
+
+/// ColdFire addressing mode: address register indirect with scaled index and
+/// displacement.
+///
+#[derive(Clone, /*PartialEq, Eq, Hash,*/ Debug)]
 pub struct AddrDispIdx<'a> {
+    /// Base register: an address register.
     pub base:  AddrReg,
+
+    /// 8-bit signed displacement.
     pub disp:  Expr<'a>,
+
+    /// Index register: either an address register or data register.
     pub index: Index,
+
+    /// Index scaling factor.
     pub scale: Scale,
 }
 
 impl<'a> AddrDispIdx<'a> {
-    pub fn decode<R: Read>(reg: u8, more: &mut R) -> io::Result<Self> {
-        let ext = more.read_u16::<BE>()?;
+    /// Decodes an `AddrDispIdx` from the given instruction bits.
+    pub fn decode<R: BufRead>(reg: u8, c: &mut DecodeContext<R>) -> io::Result<Self> {
+        let ext = c.read_u16()?;
 
         Ok(AddrDispIdx {
             base:  AddrReg::with_num(reg),
-            disp:  Expr::Int(ext as u8 as u32),
+            disp:  Expr::Int(Int::from(ext as u8 as u32)),
             index: Index::decode(ext, 12),
-            scale: Scale::decode(ext, 9)?,
+            scale: Scale::decode(ext,  9),
         })
     }
 }
 
-impl<'a> Code for AddrDispIdx<'a> {
-    fn fmt(&self, f: &mut Formatter, s: &Style) -> fmt::Result {
-        s.write_base_disp_idx(f, &self.base, &self.disp, &self.index, &self.scale)
+impl<'a, A> ToCode<A> for AddrDispIdx<'a> {
+    type Output = Expr<'a, A>;
+
+    /// Converts to a code-formattable value with the given annotation.
+    #[inline]
+    fn to_code(&self, ann: A) -> Self::Output {
+        // TODO: Need AST for indirect addressing
+        panic!()
     }
 }
 
+/*
 #[cfg(test)]
 mod tests {
     use aex::fmt::*;
@@ -69,4 +86,5 @@ mod tests {
         assert_display(&x, &GAS_STYLE, "42(%a5, %d3*2)");
     }
 }
+*/
 
