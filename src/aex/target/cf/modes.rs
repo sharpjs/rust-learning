@@ -95,11 +95,13 @@ pub struct Index {
 pub enum IndexReg {
     /// Data register used as an index register.
     Data(DataReg),
+
     /// Address register used as an index register.
     Addr(AddrReg),
 }
 
 impl<'a> Mode<'a> {
+    /// Decodes a `Mode` from the given instruction bits.
     pub fn decode<R: BufRead>(pos: BitPos, c: &mut DecodeContext<R>) -> io::Result<Self> {
         panic!()
     }
