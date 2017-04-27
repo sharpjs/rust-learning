@@ -21,6 +21,7 @@ pub mod util;
 
 pub mod ast;
 pub mod fmt;
+pub mod io;
 //pub mod source;
 pub mod target;
 //pub mod types;
