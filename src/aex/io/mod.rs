@@ -26,35 +26,37 @@
 ///     consumed   unconsumed   future
 ///     ...........*************????????>
 ///                |<---------->|
-///                |      |     |_ end_pos/end_addr
+///                |      |     |_ end
 ///                |      |_______ len
-///                |______________ pos/addr
+///                |______________ start
 ///
 pub trait ReadAhead {
-    /// Returns the position of the next consumable byte.
-    fn consumed_pos(&self) -> u64;
+    /// Returns the position of the first byte in the current read-ahead.
+    fn start(&self) -> u64;
 
-    /// Returns the count of read-ahead bytes.
-    fn read_ahead_len(&self) -> u64;
+    /// Returns the count of bytes in the current read-ahead.
+    fn len(&self) -> u64;
 
-    /// Returns the position of the next read-ahead byte.
-    fn read_ahead_pos(&self) -> u64 {
-        self.consumed_pos() + self.read_ahead_len()
+    /// Returns the position of the first unread byte.
+    fn end(&self) -> u64 {
+        self.start() + self.len()
     }
 
     /// Consumes the current read-ahead and advances the cursor to the first
     /// unread byte.
     ///
-    /// `pos` advances by `len`.
-    /// `len` becomes `0`.
+    /// * `start` advances by `len` and becomes equal to `end`.
+    /// * `end` remains unchanged.
+    /// * `len` becomes `0`.
     ///
     fn consume(&mut self);
 
     /// Forgets the current read-ahead and rewinds the cursor to the first
     /// unconsumed byte.
     ///
-    /// `pos` remains unchanged.
-    /// `len` becomes `0`.
+    /// * `start` remains unchanged.
+    /// * `end` rewinds by `len` and becomes equal to `start`.
+    /// * `len` becomes `0`.
     ///
     fn rewind(&mut self);
 }
