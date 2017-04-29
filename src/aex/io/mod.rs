@@ -84,11 +84,12 @@ pub struct DecodeCursor<R: Read> {
     //           |   |       ______ fetch space, left aligned
     //           |   |       |        bytes fetched from the source
     //           |   |       |
-    //           |   |       |       ___ BUF_SIZE
+    //           |   |       |       BUF_SIZE
     //           |   |       |       |
     //       |<----->|<------------->|
     // buf:  ....rrrrFFFFFFFFFFFF....
-    //           |<----->|<----->|____ tail
+    //           |<----->|<----->|
+    //           |   |   |   |   |____ tail
     //           |   |   |   |________   unread bytes
     //           |   |   |____________ idx
     //           |   |________________   unconsumed bytes
