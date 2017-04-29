@@ -36,7 +36,10 @@ use std::ptr::copy_nonoverlapping;
 ///                |______________ start
 ///
 pub trait ReadAhead {
-    /// Reads `n` bytes from the stream.
+    /// Reads exactly `n` bytes from the stream.
+    ///
+    /// Returns a slice containing the read bytes.
+    ///
     fn read_exact(&mut self, n: usize) -> Result<&[u8]>;
 
     /*
@@ -121,7 +124,7 @@ impl<R: Read> DecodeCursor<R> {
         assert!(FETCH_IDX <= self.head);
         assert!(self.head <= self.idx);
         assert!(self.idx  <= self.tail);
-        assert!(self.tail == BUF_SIZE);
+        //assert!(self.tail == BUF_SIZE);
 
         let unconsumed = self.tail - self.head;
 
@@ -209,10 +212,10 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
                 return Err(E::new(InvalidInput, "read size exceeded internal buffer size"));
             }
 
-            // Prior read might have reached end-of-file
-            if self.tail < BUF_SIZE {
-                return Err(E::new(UnexpectedEof, "unexpected end-of-file"));
-            }
+            //// Prior read might have reached end-of-file
+            //if self.tail < BUF_SIZE {
+            //    return Err(E::new(UnexpectedEof, "unexpected end-of-file"));
+            //}
 
             // No problems, just buffer exhausted
             self.shift_unconsumed();
@@ -267,5 +270,31 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
     ///
     fn rewind(&mut self) { panic!() }
     */
+}
+
+#[cfg(test)]
+mod tests {
+    use std::fs::File;
+    use std::io::{Cursor, Read};
+    use super::*;
+
+    #[test]
+    fn foo() {
+        let mut bytes: Box<[u8]> = Box::new([0; 17000]);
+        File::open("/dev/urandom").unwrap()
+            .read_exact(&mut *bytes).unwrap();
+
+        let mut src = Cursor::new(&*bytes);
+
+        let mut c = DecodeCursor::new(src);
+
+        let read = c.read_exact(4).unwrap();
+
+        assert_eq!(read.len(), 4);
+        assert_eq!(read[0], bytes[0]);
+        assert_eq!(read[1], bytes[1]);
+        assert_eq!(read[2], bytes[2]);
+        assert_eq!(read[3], bytes[3]);
+    }
 }
 
