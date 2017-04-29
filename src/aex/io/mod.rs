@@ -79,16 +79,20 @@ pub struct DecodeCursor<R: Read> {
     //
     //           __________________ rewind space, right aligned
     //           |                    unconsumed bytes are moved here before
-    //           |   FETCH_IDX        fetching the next chunk from the source
-    //           |   |
-    //           |   |      _______ fetch space, left aligned
-    //           |   |      |         chunk of bytes fetched from the source
-    //           |   |      |
-    //       |<----->|<------------>|
+    //           |   FETCH_IDX        fetching more bytes from the source
+    //           |   REWIND_CAP
+    //           |   |       ______ fetch space, left aligned
+    //           |   |       |        bytes fetched from the source
+    //           |   |       |
+    //           |   |       |       ___ BUF_SIZE
+    //           |   |       |       |
+    //       |<----->|<------------->|
     // buf:  ....rrrrFFFFFFFFFFFF....
-    //           |       |       |_ tail
-    //           |       |_________ idx
-    //           |_________________ head
+    //           |<----->|<----->|____ tail
+    //           |   |   |   |________   unread bytes
+    //           |   |   |____________ idx
+    //           |   |________________   unconsumed bytes
+    //           |____________________ head
     //
     buf:  Box<[u8]>,    // buffer: rewind space + fetch space
     idx:  usize,        // buffer index at next readable byte
@@ -124,7 +128,7 @@ impl<R: Read> DecodeCursor<R> {
         assert!(FETCH_IDX <= self.head);
         assert!(self.head <= self.idx);
         assert!(self.idx  <= self.tail);
-        //assert!(self.tail == BUF_SIZE);
+        assert!(self.tail <= BUF_SIZE);
 
         let unconsumed = self.tail - self.head;
 
@@ -211,11 +215,6 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
             if n > FETCH_SIZE {
                 return Err(E::new(InvalidInput, "read size exceeded internal buffer size"));
             }
-
-            //// Prior read might have reached end-of-file
-            //if self.tail < BUF_SIZE {
-            //    return Err(E::new(UnexpectedEof, "unexpected end-of-file"));
-            //}
 
             // No problems, just buffer exhausted
             self.shift_unconsumed();
