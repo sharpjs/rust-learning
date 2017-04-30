@@ -21,14 +21,10 @@ use std::io::ErrorKind::*;
 //use std::ops::Range;
 use std::ptr::copy;
 
-/// A forward-only, read-only cursor with rewindable read-ahead.
+/// A reader optimized for instruction decodding.
 ///
-/// Read bytes remain unconsumed until `consume` is called, upon which the
-/// bytes become irrevocably consumed.  If `rewind` is called instead, the
-/// reader resets to the first unconsumed position, and the unconsumed bytes
-/// can be read again.
-///   
-///     consumed   unconsumed   future
+///                rewindable/
+///     consumed   unconsumed   unread
 ///     ...........*************????????>
 ///                |<---------->|
 ///                |      |     |_ end
@@ -51,6 +47,15 @@ pub trait DecodeRead {
     ///
     fn consume(&mut self);
 
+    /// Forgets the current read-ahead and rewinds the reader to the first
+    /// unconsumed byte.
+    ///
+    /// * `start` remains unchanged.
+    /// * `end` rewinds by `len` and becomes equal to `start`.
+    /// * `len` becomes `0`.
+    ///
+    fn rewind(&mut self);
+
     /*
     /// Returns the position of the first byte in the current read-ahead.
     fn start(&self) -> u64;
@@ -62,15 +67,6 @@ pub trait DecodeRead {
     fn end(&self) -> u64 {
         self.start() + self.len()
     }
-
-    /// Forgets the current read-ahead and rewinds the reader to the first
-    /// unconsumed byte.
-    ///
-    /// * `start` remains unchanged.
-    /// * `end` rewinds by `len` and becomes equal to `start`.
-    /// * `len` becomes `0`.
-    ///
-    fn rewind(&mut self);
     */
 }
 
@@ -252,6 +248,17 @@ impl<R: Read> DecodeRead for DecodeReader<R> {
         self.head = self.idx;
     }
 
+    /// Forgets the current read-ahead and rewinds the reader to the first
+    /// unconsumed byte.
+    ///
+    /// * `start` remains unchanged.
+    /// * `end` rewinds by `len` and becomes equal to `start`.
+    /// * `len` becomes `0`.
+    ///
+    fn rewind(&mut self) {
+        self.idx = self.head;
+    }
+
     /*
     /// Returns the position of the first byte in the current read-ahead.
     #[inline]
@@ -348,6 +355,29 @@ mod tests {
 
             assert!(n < 17000);
             n += 1;
+        }
+    }
+
+    #[test]
+    fn rewind() {
+        let mut c = reader();
+
+        {
+            let bytes = c.read_exact(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 0);
+            assert_eq!(bytes[1], 1);
+        }
+
+        c.rewind();
+
+        {
+            let bytes = c.read_exact(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 0);
+            assert_eq!(bytes[1], 1);
         }
     }
 
