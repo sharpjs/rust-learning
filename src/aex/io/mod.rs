@@ -76,58 +76,72 @@ pub trait DecodeRead {
         self.start() + self.len()
     }
 
+    #[inline]
     fn read_u8(&mut self) -> Result<u8> {
         unsafe { Ok(*self.read_exact(1)?.get_unchecked(0)) }
     }
 
+    #[inline]
     fn read_i8(&mut self) -> Result<i8> {
         Ok(self.read_u8()? as i8)
     }
 
+    #[inline]
     fn read_u16_be(&mut self) -> Result<u16> {
         read_int!(self, u16, to_be)
     }
 
+    #[inline]
     fn read_u32_be(&mut self) -> Result<u32> {
         read_int!(self, u32, to_be)
     }
 
+    #[inline]
     fn read_u64_be(&mut self) -> Result<u64> {
         read_int!(self, u64, to_be)
     }
 
+    #[inline]
     fn read_i16_be(&mut self) -> Result<i16> {
         Ok(self.read_u16_be()? as i16)
     }
 
+    #[inline]
     fn read_i32_be(&mut self) -> Result<i32> {
         Ok(self.read_u32_be()? as i32)
     }
 
+    #[inline]
     fn read_i64_be(&mut self) -> Result<i64> {
         Ok(self.read_u64_be()? as i64)
     }
 
+    #[inline]
     fn read_u16_le(&mut self) -> Result<u16> {
         read_int!(self, u16, to_le)
     }
 
+    #[inline]
     fn read_u32_le(&mut self) -> Result<u32> {
         read_int!(self, u32, to_le)
     }
 
+    #[inline]
     fn read_u64_le(&mut self) -> Result<u64> {
         read_int!(self, u64, to_le)
     }
 
+    #[inline]
     fn read_i16_le(&mut self) -> Result<i16> {
         Ok(self.read_u16_le()? as i16)
     }
 
+    #[inline]
     fn read_i32_le(&mut self) -> Result<i32> {
         Ok(self.read_u32_le()? as i32)
     }
 
+    #[inline]
     fn read_i64_le(&mut self) -> Result<i64> {
         Ok(self.read_u64_le()? as i64)
     }
