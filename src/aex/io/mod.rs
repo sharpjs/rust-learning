@@ -19,7 +19,7 @@
 use std::io::{Error as E, Read, Result};
 use std::io::ErrorKind::*;
 //use std::ops::Range;
-use std::ptr::copy_nonoverlapping;
+use std::ptr::copy;
 
 /// A forward-only, read-only cursor with rewindable read-ahead.
 ///
@@ -122,34 +122,40 @@ impl<R: Read> DecodeCursor<R> {
         }
     }
 
-    // Check if there are unconsumed (rewindable) bytes.  If so, shift them
-    // to the rewind space to make room for the incoming chunk.
-    //
-    fn shift_unconsumed(&mut self) {
-        assert!(FETCH_IDX <= self.head);
-        assert!(self.head <= self.idx);
-        assert!(self.idx  <= self.tail);
-        assert!(self.tail <= BUF_SIZE);
+    // Shift rewindable and unread bytes from wherever they are into the
+    // carryover space preceding the fetch space.
+    fn shift_carryover(&mut self) {
+        debug_assert!(self.head <= self.idx);
+        debug_assert!(self.idx  <= self.tail);
+        debug_assert!(FETCH_IDX <= self.tail);
+        debug_assert!(self.tail <= BUF_SIZE);
 
-        let unconsumed = self.tail - self.head;
+        // Bytes might be completely within the carryover space already.
+        // In that case, there is nothing to do.
+        if self.tail == FETCH_IDX { return; }
 
-        if unconsumed == 0 {
-            self.head = FETCH_IDX;
-            self.idx  = FETCH_IDX;
-            self.tail = FETCH_IDX;
-        } else {
-            assert!(unconsumed <= REWIND_CAP);
+        match self.tail - self.head {
+            0 => {
+                // No bytes need to be shifted, but buffer indexes still must
+                // be normalized in preparation for an upcoming fetch.
+                self.head = FETCH_IDX;
+                self.idx  = FETCH_IDX;
+                self.tail = FETCH_IDX;
+            },
+            carryover => {
+                debug_assert!(carryover <= REWIND_CAP);
 
-            let src = self.buf[self.head..self.tail].as_ptr() as *const u8;
+                let src = self.buf[self.head..self.tail].as_ptr() as *const u8;
 
-            let unread = self.tail - self.idx;
-            self.head  = FETCH_IDX - unconsumed;
-            self.idx   = FETCH_IDX - unread;
-            self.tail  = FETCH_IDX;
+                let unread = self.tail - self.idx;
+                self.head  = FETCH_IDX - carryover;
+                self.idx   = FETCH_IDX - unread;
+                self.tail  = FETCH_IDX;
 
-            let dst = self.buf[self.head..self.tail].as_ptr() as *mut u8;
+                let dst = self.buf[self.head..self.tail].as_ptr() as *mut u8;
 
-            unsafe { copy_nonoverlapping(src, dst, unconsumed); }
+                unsafe { copy(src, dst, carryover); }
+            },
         }
     }
 
@@ -168,15 +174,13 @@ impl<R: Read> DecodeCursor<R> {
                     break;
                 },
                 Ok(n) => {
-                    // Read some bytes, possibly not all requested
-                    let tmp   = buf;
-                        buf   = &mut tmp[n..];
-                        tail += n;
+                    // Got some bytes, possibly not all requested
+                    let tmp = buf;
+                    buf = &mut tmp[n..];
+                    tail += n;
 
-                    if buf.is_empty() {
-                        // Read all requested bytes
-                        break;
-                    }
+                    // Check if got all requested bytes
+                    if buf.is_empty() { break; }
                 },
                 Err(ref e) if e.kind() == Interrupted => {
                     // Read interrupted; retry
@@ -202,33 +206,35 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
         assert!(FETCH_IDX <= self.tail);
         assert!(self.tail <= BUF_SIZE);
 
+        // Validate read size
+        if n > FETCH_SIZE {
+            return Err(E::new(InvalidInput, "read would overflow internal buffer"));
+        }
+
+        // Compute read range
         let mut beg = self.idx;
         let mut end = beg + n;
 
-        // Disallow a read causing unconsumed bytes to exceed rewind capacity
+        // Verify that read would not cause rewindable bytes to exceed capacity
         if end - self.head > REWIND_CAP {
             return Err(E::new(Other, "rewind capacity exceeded"));
         }
 
-        // Handle when buffer has too few bytes
+        // Check if buffer has too few bytes to fulfill read
         if end > self.tail {
-            // Read might have requested more bytes than supported
-            if n > FETCH_SIZE {
-                return Err(E::new(InvalidInput, "read size exceeded internal buffer size"));
-            }
+            // Shift rewindable and unread bytes into carryover space to make
+            // room for a fetch.  Verified above to be <=REWIND_CAP bytes.
+            self.shift_carryover();
 
-            // No problems, just buffer exhausted
-            self.shift_unconsumed();
-            self.fetch()?;
-
-            // Fetch invalidates the previous buffer indexes
+            // Shifting changes indexes; recompute read range
             beg = self.idx;
             end = beg + n;
 
+            // Try to get more bytes
+            self.fetch()?;
+
             // Fetch might have reached end-of-file
             if end > self.tail {
-                // Not enough bytes to satisfy the read request
-                // OR: Read request bigger than our buffer! TODO
                 return Err(E::new(UnexpectedEof, "unexpected end-of-file"));
             }
         }
