@@ -18,8 +18,17 @@
 
 use std::io::{Error as E, Read, Result};
 use std::io::ErrorKind::*;
-//use std::ops::Range;
+use std::mem::size_of;
 use std::ptr::copy;
+
+macro_rules! read_int {
+    ($r:expr, $t:ty, $f:ident) => {{
+        let n = size_of::<$t>();
+        let p = $r.read_exact(n)?.as_ptr() as *const $t;
+        let v = unsafe { *p };
+        Ok(v.$f())
+    }};
+}
 
 /// Reader interface suitable for instruction decodding.
 ///
@@ -65,6 +74,62 @@ pub trait DecodeRead {
     /// Returns the position of the first unread byte.
     fn end(&self) -> u64 {
         self.start() + self.len()
+    }
+
+    fn read_u8(&mut self) -> Result<u8> {
+        unsafe { Ok(*self.read_exact(1)?.get_unchecked(0)) }
+    }
+
+    fn read_i8(&mut self) -> Result<i8> {
+        Ok(self.read_u8()? as i8)
+    }
+
+    fn read_u16_be(&mut self) -> Result<u16> {
+        read_int!(self, u16, to_be)
+    }
+
+    fn read_u32_be(&mut self) -> Result<u32> {
+        read_int!(self, u32, to_be)
+    }
+
+    fn read_u64_be(&mut self) -> Result<u64> {
+        read_int!(self, u64, to_be)
+    }
+
+    fn read_i16_be(&mut self) -> Result<i16> {
+        Ok(self.read_u16_be()? as i16)
+    }
+
+    fn read_i32_be(&mut self) -> Result<i32> {
+        Ok(self.read_u32_be()? as i32)
+    }
+
+    fn read_i64_be(&mut self) -> Result<i64> {
+        Ok(self.read_u64_be()? as i64)
+    }
+
+    fn read_u16_le(&mut self) -> Result<u16> {
+        read_int!(self, u16, to_le)
+    }
+
+    fn read_u32_le(&mut self) -> Result<u32> {
+        read_int!(self, u32, to_le)
+    }
+
+    fn read_u64_le(&mut self) -> Result<u64> {
+        read_int!(self, u64, to_le)
+    }
+
+    fn read_i16_le(&mut self) -> Result<i16> {
+        Ok(self.read_u16_le()? as i16)
+    }
+
+    fn read_i32_le(&mut self) -> Result<i32> {
+        Ok(self.read_u32_le()? as i32)
+    }
+
+    fn read_i64_le(&mut self) -> Result<i64> {
+        Ok(self.read_u64_le()? as i64)
     }
 }
 
@@ -415,6 +480,76 @@ mod tests {
             assert!(n < 17000);
             n += 1;
         }
+    }
+
+    #[test]
+    fn read_u8() {
+        assert_eq!(reader().read_u8().unwrap(), 0x00);
+    }
+
+    #[test]
+    fn read_i8() {
+        assert_eq!(reader().read_i8().unwrap(), 0x00);
+    }
+
+    #[test]
+    fn read_u16_be() {
+        assert_eq!(reader().read_u16_be().unwrap(), 0x0001);
+    }
+
+    #[test]
+    fn read_u32_be() {
+        assert_eq!(reader().read_u32_be().unwrap(), 0x00010203);
+    }
+
+    #[test]
+    fn read_u64_be() {
+        assert_eq!(reader().read_u64_be().unwrap(), 0x0001020304050607);
+    }
+
+    #[test]
+    fn read_i16_be() {
+        assert_eq!(reader().read_i16_be().unwrap(), 0x0001);
+    }
+
+    #[test]
+    fn read_i32_be() {
+        assert_eq!(reader().read_i32_be().unwrap(), 0x00010203);
+    }
+
+    #[test]
+    fn read_i64_be() {
+        assert_eq!(reader().read_i64_be().unwrap(), 0x0001020304050607);
+    }
+
+    #[test]
+    fn read_u16_le() {
+        assert_eq!(reader().read_u16_le().unwrap(), 0x0100);
+    }
+
+    #[test]
+    fn read_u32_le() {
+        assert_eq!(reader().read_u32_le().unwrap(), 0x03020100);
+    }
+
+    #[test]
+    fn read_u64_le() {
+        assert_eq!(reader().read_u64_le().unwrap(), 0x0706050403020100);
+    }
+
+    #[test]
+    fn read_i16_le() {
+        assert_eq!(reader().read_i16_le().unwrap(), 0x0100);
+    }
+
+    #[test]
+    fn read_i32_le() {
+        assert_eq!(reader().read_i32_le().unwrap(), 0x03020100);
+    }
+
+    #[test]
+    fn read_i64_le() {
+        assert_eq!(reader().read_i64_le().unwrap(), 0x0706050403020100);
     }
 
     fn reader() -> DecodeReader<Cursor<Vec<u8>>> {
