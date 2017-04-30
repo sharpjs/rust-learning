@@ -56,7 +56,6 @@ pub trait DecodeRead {
     ///
     fn rewind(&mut self);
 
-    /*
     /// Returns the position of the first byte in the current read-ahead.
     fn start(&self) -> u64;
 
@@ -67,7 +66,6 @@ pub trait DecodeRead {
     fn end(&self) -> u64 {
         self.start() + self.len()
     }
-    */
 }
 
 /// Implementation of `DecodeRead` over any reader.
@@ -243,8 +241,8 @@ impl<R: Read> DecodeRead for DecodeReader<R> {
     /// * `end` remains unchanged.
     /// * `len` becomes `0`.
     ///
-    #[inline]
     fn consume(&mut self) {
+        self.pos += self.len();
         self.head = self.idx;
     }
 
@@ -255,43 +253,22 @@ impl<R: Read> DecodeRead for DecodeReader<R> {
     /// * `end` rewinds by `len` and becomes equal to `start`.
     /// * `len` becomes `0`.
     ///
+    #[inline]
     fn rewind(&mut self) {
         self.idx = self.head;
     }
 
-    /*
     /// Returns the position of the first byte in the current read-ahead.
     #[inline]
-    fn start(&self) -> u64 { self.start }
+    fn start(&self) -> u64 {
+        self.pos
+    }
 
     /// Returns the count of bytes in the current read-ahead.
     #[inline]
-    fn len(&self) -> u64 { self.more.position() }
-
-    #[inline]
-    fn get(&mut self, range: Range<usize>) -> &[u8] {
-      //self.len = cmp::max(self.len, range.end);
-        &self.more.get_ref()[range]
+    fn len(&self) -> u64 {
+        (self.idx - self.head) as u64
     }
-
-    /// Consumes the current read-ahead and advances the reader to the first
-    /// unread byte.
-    ///
-    /// * `start` advances by `len` and becomes equal to `end`.
-    /// * `end` remains unchanged.
-    /// * `len` becomes `0`.
-    ///
-    fn consume(&mut self) { panic!() }
-
-    /// Forgets the current read-ahead and rewinds the reader to the first
-    /// unconsumed byte.
-    ///
-    /// * `start` remains unchanged.
-    /// * `end` rewinds by `len` and becomes equal to `start`.
-    /// * `len` becomes `0`.
-    ///
-    fn rewind(&mut self) { panic!() }
-    */
 }
 
 #[cfg(test)]
@@ -301,23 +278,107 @@ mod tests {
     use super::*;
 
     #[test]
+    fn initial() {
+        let c = reader();
+
+        assert_eq!(c.end(),   0);
+        assert_eq!(c.start(), 0);
+        assert_eq!(c.len(),   0);
+    }
+
+    #[test]
     fn read_oversized() {
         let mut c = reader();
 
-        let result = c.read_exact(BUF_SIZE + 1);
+        {
+            let result = c.read_exact(BUF_SIZE + 1);
 
-        assert!(result.is_err());
+            assert!(result.is_err());
+        }
+
+        // After error, indexes should be unchanged
+        assert_eq!(c.start(), 0);
+        assert_eq!(c.len(),   0);
+        assert_eq!(c.end(),   0);
     }
 
     #[test]
     fn read_once() {
         let mut c = reader();
 
-        let bytes = c.read_exact(2).unwrap();
+        {
+            let bytes = c.read_exact(2).unwrap();
 
-        assert_eq!(bytes.len(), 2);
-        assert_eq!(bytes[0], 0);
-        assert_eq!(bytes[1], 1);
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 0);
+            assert_eq!(bytes[1], 1);
+        }
+
+        assert_eq!(c.start(), 0);
+        assert_eq!(c.len(),   2);
+        assert_eq!(c.end(),   2);
+    }
+
+    #[test]
+    fn read_and_consume() {
+        let mut c = reader();
+
+        {
+            let bytes = c.read_exact(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 0);
+            assert_eq!(bytes[1], 1);
+        }
+
+        c.consume();
+
+        assert_eq!(c.start(), 2);
+        assert_eq!(c.len(),   0);
+        assert_eq!(c.end(),   2);
+
+        {
+            let bytes = c.read_exact(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 2);
+            assert_eq!(bytes[1], 3);
+        }
+
+        assert_eq!(c.start(), 2);
+        assert_eq!(c.len(),   2);
+        assert_eq!(c.end(),   4);
+    }
+
+    #[test]
+    fn read_and_rewind() {
+        let mut c = reader();
+
+        {
+            let bytes = c.read_exact(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 0);
+            assert_eq!(bytes[1], 1);
+        }
+
+        c.rewind();
+
+        assert_eq!(c.end(),   0);
+        assert_eq!(c.start(), 0);
+        assert_eq!(c.len(),   0);
+
+        {
+            let bytes = c.read_exact(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 0);
+            assert_eq!(bytes[1], 1);
+        }
+
+        assert_eq!(c.start(), 0);
+        assert_eq!(c.len(),   2);
+        assert_eq!(c.end(),   2);
     }
 
     #[test]
@@ -332,7 +393,7 @@ mod tests {
     }
 
     #[test]
-    fn read_to_eof() {
+    fn read_until_eof() {
         let mut c = reader();
         let mut n = 0;
 
@@ -355,29 +416,6 @@ mod tests {
 
             assert!(n < 17000);
             n += 1;
-        }
-    }
-
-    #[test]
-    fn rewind() {
-        let mut c = reader();
-
-        {
-            let bytes = c.read_exact(2).unwrap();
-
-            assert_eq!(bytes.len(), 2);
-            assert_eq!(bytes[0], 0);
-            assert_eq!(bytes[1], 1);
-        }
-
-        c.rewind();
-
-        {
-            let bytes = c.read_exact(2).unwrap();
-
-            assert_eq!(bytes.len(), 2);
-            assert_eq!(bytes[0], 0);
-            assert_eq!(bytes[1], 1);
         }
     }
 
