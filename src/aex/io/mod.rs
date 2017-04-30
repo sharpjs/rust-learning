@@ -25,7 +25,7 @@ use std::ptr::copy;
 ///
 /// Read bytes remain unconsumed until `consume` is called, upon which the
 /// bytes become irrevocably consumed.  If `rewind` is called instead, the
-/// cursor resets to the first unconsumed position, and the unconsumed bytes
+/// reader resets to the first unconsumed position, and the unconsumed bytes
 /// can be read again.
 ///   
 ///     consumed   unconsumed   future
@@ -35,7 +35,7 @@ use std::ptr::copy;
 ///                |      |_______ len
 ///                |______________ start
 ///
-pub trait ReadAhead {
+pub trait DecodeRead {
     /// Reads exactly `n` bytes from the stream.
     ///
     /// Returns a slice containing the read bytes.
@@ -43,7 +43,7 @@ pub trait ReadAhead {
     fn read_exact(&mut self, n: usize) -> Result<&[u8]>;
 
     /// Consumes any rewindable bytes and moves the rewind bookmark to the
-    /// current cursor position.
+    /// current reader position.
     ///
     /// * `start` advances by `len` and becomes equal to `end`.
     /// * `end` remains unchanged.
@@ -63,7 +63,7 @@ pub trait ReadAhead {
         self.start() + self.len()
     }
 
-    /// Forgets the current read-ahead and rewinds the cursor to the first
+    /// Forgets the current read-ahead and rewinds the reader to the first
     /// unconsumed byte.
     ///
     /// * `start` remains unchanged.
@@ -74,8 +74,9 @@ pub trait ReadAhead {
     */
 }
 
+/// Implementation of `DecodeRead` over any reader.
 #[derive(Debug)]
-pub struct DecodeCursor<R: Read> {
+pub struct DecodeReader<R: Read> {
     //
     //           __________________ rewind space, right aligned
     //           |                    unconsumed bytes are moved here before
@@ -110,7 +111,7 @@ const FETCH_SIZE: usize = 8 * 1024; // bytes
 const FETCH_IDX:  usize = REWIND_CAP;
 const BUF_SIZE:   usize = REWIND_CAP + FETCH_SIZE;
 
-impl<R: Read> DecodeCursor<R> {
+impl<R: Read> DecodeReader<R> {
     pub fn new(src: R) -> Self {
         Self {
             buf:   Box::new([0; BUF_SIZE]),
@@ -195,7 +196,7 @@ impl<R: Read> DecodeCursor<R> {
     }
 }
 
-impl<R: Read> ReadAhead for DecodeCursor<R> {
+impl<R: Read> DecodeRead for DecodeReader<R> {
     /// Reads exactly `n` bytes from the stream.
     ///
     /// Returns a slice containing the read bytes.
@@ -240,7 +241,7 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
     }
 
     /// Consumes any rewindable bytes and moves the rewind bookmark to the
-    /// current cursor position.
+    /// current reader position.
     ///
     /// * `start` advances by `len` and becomes equal to `end`.
     /// * `end` remains unchanged.
@@ -266,7 +267,7 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
         &self.more.get_ref()[range]
     }
 
-    /// Consumes the current read-ahead and advances the cursor to the first
+    /// Consumes the current read-ahead and advances the reader to the first
     /// unread byte.
     ///
     /// * `start` advances by `len` and becomes equal to `end`.
@@ -275,7 +276,7 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
     ///
     fn consume(&mut self) { panic!() }
 
-    /// Forgets the current read-ahead and rewinds the cursor to the first
+    /// Forgets the current read-ahead and rewinds the reader to the first
     /// unconsumed byte.
     ///
     /// * `start` remains unchanged.
@@ -294,7 +295,7 @@ mod tests {
 
     #[test]
     fn read_oversized() {
-        let mut c = cursor();
+        let mut c = reader();
 
         let result = c.read_exact(BUF_SIZE + 1);
 
@@ -303,7 +304,7 @@ mod tests {
 
     #[test]
     fn read_once() {
-        let mut c = cursor();
+        let mut c = reader();
 
         let bytes = c.read_exact(2).unwrap();
 
@@ -314,7 +315,7 @@ mod tests {
 
     #[test]
     fn read_until_rewind_exceeded() {
-        let mut c = cursor();
+        let mut c = reader();
 
         c.read_exact(REWIND_CAP).unwrap();
         let result = c.read_exact(1);
@@ -325,7 +326,7 @@ mod tests {
 
     #[test]
     fn read_to_eof() {
-        let mut c = cursor();
+        let mut c = reader();
         let mut n = 0;
 
         loop {
@@ -350,10 +351,10 @@ mod tests {
         }
     }
 
-    fn cursor() -> DecodeCursor<Cursor<Vec<u8>>> {
+    fn reader() -> DecodeReader<Cursor<Vec<u8>>> {
         let nums = (0..).take(17000).map(|n| n as u8).collect();
         let src  = Cursor::new(nums);
-        DecodeCursor::new(src)
+        DecodeReader::new(src)
     }
 }
 
