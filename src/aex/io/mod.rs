@@ -21,15 +21,15 @@ use std::io::ErrorKind::*;
 //use std::ops::Range;
 use std::ptr::copy;
 
-/// A reader optimized for instruction decodding.
+/// Reader interface suitable for instruction decodding.
 ///
 ///                rewindable/
-///     consumed   unconsumed   unread
-///     ...........*************????????>
-///                |<---------->|
-///                |      |     |_ end
-///                |      |_______ len
-///                |______________ start
+///     consumed   unconsumed    unread
+///     ...........**************????????>
+///                |<----------->|
+///                |      |      |__ end
+///                |      |_________ len
+///                |________________ start
 ///
 pub trait DecodeRead {
     /// Reads exactly `n` bytes from the stream.
@@ -68,37 +68,37 @@ pub trait DecodeRead {
     }
 }
 
-/// Implementation of `DecodeRead` over any reader.
+/// Adapts any reader to an interface suitable for decoding.
 #[derive(Debug)]
 pub struct DecodeReader<R: Read> {
     //
-    //           __________________ rewind space, right aligned
-    //           |                    unconsumed bytes are moved here before
-    //           |   FETCH_IDX        fetching more bytes from the source
-    //           |   REWIND_CAP
-    //           |   |       ______ fetch space, left aligned
-    //           |   |       |        bytes fetched from the source
+    //           ___________________ carryover space, right aligned
+    //           |                     rewindable or unread bytes are moved
+    //           |                     here before fetching more bytes from
+    //           |                     the source
+    //           |   FETCH_IDX
+    //           |   |       _______ fetch space, left aligned
+    //           |   |       |         bytes fetched from the source are
+    //           |   |       |         placed here
     //           |   |       |
-    //           |   |       |       BUF_SIZE
-    //           |   |       |       |
+    //       0   |   |       |       BUF_SIZE
+    //       |   |   |       |       |
     //       |<----->|<------------->|
     // buf:  ....rrrrFFFFFFFFFFFF....
     //           |<----->|<----->|
     //           |   |   |   |   |____ tail
     //           |   |   |   |________   unread bytes
     //           |   |   |____________ idx
-    //           |   |________________   unconsumed bytes
+    //           |   |________________   rewindable bytes
     //           |____________________ head
     //
-    buf:  Box<[u8]>,    // buffer: rewind space + fetch space
-    idx:  usize,        // buffer index at next readable byte
+    buf:  Box<[u8]>,    // buffer: carryover space + fetch space
+    head: usize,        // buffer index of rewind bookmark
+    idx:  usize,        // buffer index of next readable byte
     tail: usize,        // buffer index after last fetched byte
-    head: usize,        // buffer index    at first byte of current read op
-    pos:  u64,          // stream position at first byte of current read op
+    pos:  u64,          // source stream position of rewind bookmark
     src:  R,            // source stream
 }
-
-static EMPTY: [u8; 0] = [];
 
 const REWIND_CAP: usize =      256; // bytes
 const FETCH_SIZE: usize = 8 * 1024; // bytes
@@ -106,19 +106,20 @@ const FETCH_IDX:  usize = REWIND_CAP;
 const BUF_SIZE:   usize = REWIND_CAP + FETCH_SIZE;
 
 impl<R: Read> DecodeReader<R> {
+    /// Creates a new reader for the given source.
     pub fn new(src: R) -> Self {
         Self {
-            buf:   Box::new([0; BUF_SIZE]),
-            idx:   FETCH_IDX,
-            tail:  FETCH_IDX,
-            head:  FETCH_IDX,
-            pos:   0,
-            src:   src,
+            buf:  Box::new([0; BUF_SIZE]),
+            idx:  FETCH_IDX,
+            tail: FETCH_IDX,
+            head: FETCH_IDX,
+            pos:  0,
+            src:  src,
         }
     }
 
-    // Shift rewindable and unread bytes from wherever they are into the
-    // carryover space preceding the fetch space.
+    /// Shifts rewindable and unread bytes into the carryover space, so that
+    /// the fetch space is ready to accept another fetch.
     fn shift_carryover(&mut self) {
         debug_assert!(self.head <= self.idx);
         debug_assert!(self.idx  <= self.tail);
@@ -154,7 +155,7 @@ impl<R: Read> DecodeReader<R> {
         }
     }
 
-    // Fill the fetch space from the source stream.
+    /// Fills the fetch space from the source stream.
     fn fetch(&mut self) -> Result<()> {
         assert!(self.tail == FETCH_IDX);
 
@@ -191,10 +192,7 @@ impl<R: Read> DecodeReader<R> {
 }
 
 impl<R: Read> DecodeRead for DecodeReader<R> {
-    /// Reads exactly `n` bytes from the stream.
-    ///
-    /// Returns a slice containing the read bytes.
-    ///
+    /// Reads exactly `n` bytes.
     fn read_exact(&mut self, n: usize) -> Result<&[u8]> {
         assert!(self.head <= self.idx);
         assert!(self.idx  <= self.tail);
