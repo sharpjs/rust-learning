@@ -42,6 +42,15 @@ pub trait ReadAhead {
     ///
     fn read_exact(&mut self, n: usize) -> Result<&[u8]>;
 
+    /// Consumes any rewindable bytes and moves the rewind bookmark to the
+    /// current cursor position.
+    ///
+    /// * `start` advances by `len` and becomes equal to `end`.
+    /// * `end` remains unchanged.
+    /// * `len` becomes `0`.
+    ///
+    fn consume(&mut self);
+
     /*
     /// Returns the position of the first byte in the current read-ahead.
     fn start(&self) -> u64;
@@ -53,15 +62,6 @@ pub trait ReadAhead {
     fn end(&self) -> u64 {
         self.start() + self.len()
     }
-
-    /// Consumes the current read-ahead and advances the cursor to the first
-    /// unread byte.
-    ///
-    /// * `start` advances by `len` and becomes equal to `end`.
-    /// * `end` remains unchanged.
-    /// * `len` becomes `0`.
-    ///
-    fn consume(&mut self);
 
     /// Forgets the current read-ahead and rewinds the cursor to the first
     /// unconsumed byte.
@@ -206,14 +206,9 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
         assert!(FETCH_IDX <= self.tail);
         assert!(self.tail <= BUF_SIZE);
 
-        // Validate read size
-        if n > FETCH_SIZE {
-            return Err(E::new(InvalidInput, "read would overflow internal buffer"));
-        }
-
         // Compute read range
         let mut beg = self.idx;
-        let mut end = beg + n;
+        let mut end = beg.saturating_add(n);
 
         // Verify that read would not cause rewindable bytes to exceed capacity
         if end - self.head > REWIND_CAP {
@@ -240,7 +235,20 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
         }
 
         // Return a view into the buffer
+        self.idx = end;
         Ok(&self.buf[beg..end])
+    }
+
+    /// Consumes any rewindable bytes and moves the rewind bookmark to the
+    /// current cursor position.
+    ///
+    /// * `start` advances by `len` and becomes equal to `end`.
+    /// * `end` remains unchanged.
+    /// * `len` becomes `0`.
+    ///
+    #[inline]
+    fn consume(&mut self) {
+        self.head = self.idx;
     }
 
     /*
@@ -280,27 +288,72 @@ impl<R: Read> ReadAhead for DecodeCursor<R> {
 
 #[cfg(test)]
 mod tests {
-    use std::fs::File;
-    use std::io::{Cursor, Read};
+    use std::io::Cursor;
+    use std::io::ErrorKind::*;
     use super::*;
 
     #[test]
-    fn foo() {
-        let mut bytes: Box<[u8]> = Box::new([0; 17000]);
-        File::open("/dev/urandom").unwrap()
-            .read_exact(&mut *bytes).unwrap();
+    fn read_oversized() {
+        let mut c = cursor();
 
-        let mut src = Cursor::new(&*bytes);
+        let result = c.read_exact(BUF_SIZE + 1);
 
-        let mut c = DecodeCursor::new(src);
+        assert!(result.is_err());
+    }
 
-        let read = c.read_exact(4).unwrap();
+    #[test]
+    fn read_once() {
+        let mut c = cursor();
 
-        assert_eq!(read.len(), 4);
-        assert_eq!(read[0], bytes[0]);
-        assert_eq!(read[1], bytes[1]);
-        assert_eq!(read[2], bytes[2]);
-        assert_eq!(read[3], bytes[3]);
+        let bytes = c.read_exact(2).unwrap();
+
+        assert_eq!(bytes.len(), 2);
+        assert_eq!(bytes[0], 0);
+        assert_eq!(bytes[1], 1);
+    }
+
+    #[test]
+    fn read_until_rewind_exceeded() {
+        let mut c = cursor();
+
+        c.read_exact(REWIND_CAP).unwrap();
+        let result = c.read_exact(1);
+
+        assert!(result.is_err());
+        assert_eq!(result.err().unwrap().kind(), Other);
+    }
+
+    #[test]
+    fn read_to_eof() {
+        let mut c = cursor();
+        let mut n = 0;
+
+        loop {
+            match c.read_exact(3) {
+                Ok(bytes) => {
+                    assert_eq!(bytes.len(), 3);
+                    assert_eq!(bytes[0], (n * 3 + 0) as u8);
+                    assert_eq!(bytes[1], (n * 3 + 1) as u8);
+                    assert_eq!(bytes[2], (n * 3 + 2) as u8);
+                },
+                Err(ref e) => {
+                    assert!(n > 0);
+                    assert_eq!(e.kind(), UnexpectedEof);
+                    break;
+                }
+            }
+
+            c.consume();
+
+            assert!(n < 17000);
+            n += 1;
+        }
+    }
+
+    fn cursor() -> DecodeCursor<Cursor<Vec<u8>>> {
+        let nums = (0..).take(17000).map(|n| n as u8).collect();
+        let src  = Cursor::new(nums);
+        DecodeCursor::new(src)
     }
 }
 
