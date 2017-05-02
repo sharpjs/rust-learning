@@ -1,4 +1,4 @@
-// Input/Output Helpers
+// Byte Order Conversion
 //
 // This file is part of AEx.
 // Copyright (C) 2017 Jeffrey Sharp
@@ -15,10 +15,4 @@
 //
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
-
-mod decode;
-mod endian;
-
-pub use self::decode::*;
-pub use self::endian::*;
 
