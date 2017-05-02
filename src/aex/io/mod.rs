@@ -16,9 +16,65 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-mod decode;
-mod endian;
+//mod decode;
+//mod endian;
 
-pub use self::decode::*;
-pub use self::endian::*;
+//pub use self::decode::*;
+//pub use self::endian::*;
+
+use std::io::{Error as E, Read, Result};
+use std::io::ErrorKind::*;
+
+pub trait ReadToBuf: Read {
+    /// Read enough bytes to fill `buf`, returning how many bytes were read.
+    ///
+    /// This function is equivalent to `std::io::Read::read_exact()` except for
+    /// its behavior at end of file.  If this function encounters EOF before
+    /// completely filling `buf`, it returns the number of bytes read, which
+    /// will be less than the requested amount.
+    ///
+    fn read_to_buf(&mut self, mut buf: &mut [u8]) -> Result<usize> {
+        let mut total = 0;
+
+        while !buf.is_empty() {
+            let n = match self.read(buf) {
+                Ok(0) => break,
+                Ok(n) => n,
+                Err(ref e) if e.kind() == Interrupted => continue,
+                Err(e) => return Err(e),
+            };
+
+            total += n;
+
+            let tmp = buf;
+            buf = &mut tmp[n..];
+        }
+
+        Ok(total)
+    }
+}
+
+#[derive(Debug)]
+pub struct DecodeCursor<R: ReadToBuf> {
+    vec: Vec<u8>,
+    src: R,
+}
+
+impl<R: ReadToBuf> DecodeCursor<R> {
+    pub fn read_bytes(&mut self, n: usize) -> Result<&[u8]> {
+        let beg = self.vec.len();
+        let end = beg + n;
+        self.vec.resize(end, 0);
+
+        let actual = self.src.read_to_buf(&mut self.vec[beg..end])?;
+
+        if actual != n {
+            let unread = n - actual;
+            self.vec.resize(end - unread, 0);
+            return Err(E::new(UnexpectedEof, "failed to read requested bytes"));
+        }
+
+        Ok(&self.vec[beg..end])
+    }
+}
 
