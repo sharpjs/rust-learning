@@ -25,6 +25,7 @@
 use std::io::{Error as E, Read, Result};
 use std::io::ErrorKind::*;
 
+/// Extends `std::io::Read` with the `read_to_buf` method.
 pub trait ReadToBuf: Read {
     /// Read enough bytes to fill `buf`, returning how many bytes were read.
     ///
@@ -54,6 +55,8 @@ pub trait ReadToBuf: Read {
     }
 }
 
+/// TODO
+///
 #[derive(Debug)]
 pub struct DecodeCursor<R: ReadToBuf> {
     vec: Vec<u8>,
@@ -62,18 +65,22 @@ pub struct DecodeCursor<R: ReadToBuf> {
 
 impl<R: ReadToBuf> DecodeCursor<R> {
     pub fn read_bytes(&mut self, n: usize) -> Result<&[u8]> {
+        // Enlarge vector to make room for the read
         let beg = self.vec.len();
         let end = beg + n;
         self.vec.resize(end, 0);
 
+        // Read into the new vector elements
         let actual = self.src.read_to_buf(&mut self.vec[beg..end])?;
 
+        // Handle short read
         if actual != n {
             let unread = n - actual;
             self.vec.resize(end - unread, 0);
             return Err(E::new(UnexpectedEof, "failed to read requested bytes"));
         }
 
+        // Return view into the vector
         Ok(&self.vec[beg..end])
     }
 }
