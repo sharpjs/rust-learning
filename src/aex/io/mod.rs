@@ -63,23 +63,56 @@ impl<R: Read> ReadToBuf for R { }
 pub struct DecodeCursor<R: ReadToBuf> {
     vec: Vec<u8>,
     src: R,
+    len: usize, // length of virtually-read elements
+    pos: usize, // pos in src of vec[0]
 }
 
 impl<R: ReadToBuf> DecodeCursor<R> {
+    pub fn new(src: R) -> Self {
+        Self { vec: vec![0; 64], src, len: 0, pos: 0 }
+    }
+
+    pub fn current_read(&self) -> &[u8] {
+        &self.vec[..self.len]
+    }
+
+    pub fn current_read_len(&self) -> usize {
+        self.len
+    }
+
+    pub fn start_pos(&self) -> usize {
+        self.pos
+    }
+
+    pub fn end_pos(&self) -> usize {
+        self.pos + self.len
+    }
+
+    pub fn consume(&mut self) {
+        self.pos += self.len;
+        self.vec.drain(..self.len);
+    }
+
     pub fn read_bytes(&mut self, n: usize) -> Result<&[u8]> {
         // Enlarge vector to make room for the read
-        let beg = self.vec.len();
-        let end = beg + n;
-        self.vec.resize(end, 0);
+        //
+        let beg  = self.len;
+        let end  = beg + n;
 
-        // Read into the new vector elements
-        let actual = self.src.read_to_buf(&mut self.vec[beg..end])?;
+        let have = self.vec.len();
+        let need = end - have;
 
-        // Handle short read
-        if actual != n {
-            let unread = n - actual;
-            self.vec.resize(end - unread, 0);
-            return Err(E::new(UnexpectedEof, "failed to read requested bytes"));
+        if need > 0 {
+            self.vec.reserve(need);
+
+            // Read into the new vector elements
+            let read = self.src.read_to_buf(&mut self.vec[have..end])?;
+
+            // Handle short read
+            if read != need {
+                self.vec.truncate(have + read);
+                return Err(E::new(UnexpectedEof, "failed to read requested bytes"));
+            }
         }
 
         // Return view into the vector
