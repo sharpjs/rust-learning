@@ -55,6 +55,8 @@ pub trait ReadToBuf: Read {
     }
 }
 
+impl<R: Read> ReadToBuf for R { }
+
 /// TODO
 ///
 #[derive(Debug)]
