@@ -57,10 +57,12 @@ pub trait ReadToBuf: Read {
 
 impl<R: Read> ReadToBuf for R { }
 
+use std::fmt::Debug;
+
 /// TODO
 ///
 #[derive(Debug)]
-pub struct DecodeCursor<R: ReadToBuf> {
+pub struct DecodeCursor<R: ReadToBuf + Debug> {
     vec:     Vec<u8>,   // pending bytes + unread rewound bytes
     src:     R,         // source stream
     vec_pos: usize,     // position in vec of next read; pending byte count
@@ -69,9 +71,9 @@ pub struct DecodeCursor<R: ReadToBuf> {
 
 const BUF_CAP: usize = 64;
 
-impl<R: ReadToBuf> DecodeCursor<R> {
+impl<R: ReadToBuf + Debug> DecodeCursor<R> {
     pub fn new(src: R) -> Self {
-        Self { vec: vec![0; BUF_CAP], src, vec_pos: 0, src_pos: 0 }
+        Self { vec: Vec::with_capacity(BUF_CAP), src, vec_pos: 0, src_pos: 0 }
     }
 
     #[inline]
@@ -95,12 +97,12 @@ impl<R: ReadToBuf> DecodeCursor<R> {
     }
 
     pub fn consume(&mut self) {
+        // Forget pending bytes
+        self.vec.drain(..self.vec_pos);
+
         // Consider pending bytes consumed
         self.src_pos += self.vec_pos;
         self.vec_pos  = 0;
-
-        // Forget pending bytes
-        self.vec.drain(..self.vec_pos);
     }
 
     #[inline]
@@ -113,7 +115,7 @@ impl<R: ReadToBuf> DecodeCursor<R> {
         // Compute vector indexes of the read
         let beg = self.vec_pos;
         let end = match beg.checked_add(n) {
-            Some(n) => n,
+            Some(x) => x,
             None    => panic!("read_bytes: would overflow buffer"),
         };
 
@@ -197,8 +199,8 @@ mod tests {
             let bytes = c.read_bytes(2).unwrap();
 
             assert_eq!(bytes.len(), 2);
-            assert_eq!(bytes[0], 2);
-            assert_eq!(bytes[1], 3);
+            assert_eq!(bytes[0],    2);
+            assert_eq!(bytes[1],    3);
         }
 
         assert_eq!(c.consumed_pos(), 2);
@@ -265,7 +267,7 @@ mod tests {
     }
 
     fn cursor() -> DecodeCursor<Cursor<Vec<u8>>> {
-        let nums = (0..).take(BUF_CAP * 2 + 2).map(|n| n as u8).collect();
+        let nums = (0u8..).take(BUF_CAP * 2 + 2).collect();
         let src  = Cursor::new(nums);
         DecodeCursor::new(src)
     }
