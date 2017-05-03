@@ -61,51 +61,64 @@ impl<R: Read> ReadToBuf for R { }
 ///
 #[derive(Debug)]
 pub struct DecodeCursor<R: ReadToBuf> {
-    vec: Vec<u8>,
-    src: R,
-    len: usize, // length of virtually-read elements
-    pos: usize, // pos in src of vec[0]
+    vec:     Vec<u8>,   // pending bytes + unread rewound bytes
+    src:     R,         // source stream
+    vec_pos: usize,     // position in vec of next read; pending byte count
+    src_pos: usize,     // position in src of vec[0]; consumed byte count
 }
 
 impl<R: ReadToBuf> DecodeCursor<R> {
     pub fn new(src: R) -> Self {
-        Self { vec: vec![0; 64], src, len: 0, pos: 0 }
+        Self { vec: vec![0; 64], src, vec_pos: 0, src_pos: 0 }
     }
 
-    pub fn current_read(&self) -> &[u8] {
-        &self.vec[..self.len]
+    #[inline]
+    pub fn consumed_pos(&self) -> usize {
+        self.src_pos
     }
 
-    pub fn current_read_len(&self) -> usize {
-        self.len
+    #[inline]
+    pub fn pending_len(&self) -> usize {
+        self.vec_pos
     }
 
-    pub fn start_pos(&self) -> usize {
-        self.pos
+    #[inline]
+    pub fn pending_pos(&self) -> usize {
+        self.src_pos + self.vec_pos
     }
 
-    pub fn end_pos(&self) -> usize {
-        self.pos + self.len
+    #[inline]
+    pub fn pending_bytes(&self) -> &[u8] {
+        &self.vec[..self.vec_pos]
     }
 
     pub fn consume(&mut self) {
-        self.pos += self.len;
-        self.vec.drain(..self.len);
+        // Consider pending bytes consumed
+        self.src_pos += self.vec_pos;
+        self.vec_pos  = 0;
+
+        // Forget pending bytes
+        self.vec.drain(..self.vec_pos);
     }
 
     pub fn read_bytes(&mut self, n: usize) -> Result<&[u8]> {
-        // Enlarge vector to make room for the read
-        //
-        let beg  = self.len;
-        let end  = beg + n;
+        // Compute vector indexes of the read
+        let beg = self.vec_pos;
+        let end = match beg.checked_add(n) {
+            OK(n) => n,
+            None  => panic!("read_bytes: would overflow buffer"),
+        };
 
+        // Compute bytes needed from source vs. already buffered in vector
         let have = self.vec.len();
-        let need = end - have;
+        let need = end.saturating_sub(have);
 
-        if need > 0 {
-            self.vec.reserve(need);
+        // Read bytes from source, if required
+        if need != 0 {
+            // Enlarge vector to make room for the read
+            self.vec.resize(end, 0);
 
-            // Read into the new vector elements
+            // Read into the new vector space
             let read = self.src.read_to_buf(&mut self.vec[have..end])?;
 
             // Handle short read
@@ -114,6 +127,9 @@ impl<R: ReadToBuf> DecodeCursor<R> {
                 return Err(E::new(UnexpectedEof, "failed to read requested bytes"));
             }
         }
+
+        // Consider bytes pending
+        self.vec_pos += end - beg;
 
         // Return view into the vector
         Ok(&self.vec[beg..end])
