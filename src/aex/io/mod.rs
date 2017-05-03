@@ -67,9 +67,11 @@ pub struct DecodeCursor<R: ReadToBuf> {
     src_pos: usize,     // position in src of vec[0]; consumed byte count
 }
 
+const BUF_CAP: usize = 64;
+
 impl<R: ReadToBuf> DecodeCursor<R> {
     pub fn new(src: R) -> Self {
-        Self { vec: vec![0; 64], src, vec_pos: 0, src_pos: 0 }
+        Self { vec: vec![0; BUF_CAP], src, vec_pos: 0, src_pos: 0 }
     }
 
     #[inline]
@@ -105,8 +107,8 @@ impl<R: ReadToBuf> DecodeCursor<R> {
         // Compute vector indexes of the read
         let beg = self.vec_pos;
         let end = match beg.checked_add(n) {
-            OK(n) => n,
-            None  => panic!("read_bytes: would overflow buffer"),
+            Some(n) => n,
+            None    => panic!("read_bytes: would overflow buffer"),
         };
 
         // Compute bytes needed from source vs. already buffered in vector
@@ -133,6 +135,27 @@ impl<R: ReadToBuf> DecodeCursor<R> {
 
         // Return view into the vector
         Ok(&self.vec[beg..end])
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::io::Cursor;
+    use super::*;
+
+    #[test]
+    pub fn read_bytes() {
+        let mut c = cursor();
+
+        let bytes = c.read_bytes(2).unwrap();
+
+        assert_eq!(bytes.len(), 2, "sdfsdf");
+    }
+
+    fn cursor() -> DecodeCursor<Cursor<Vec<u8>>> {
+        let nums = (0..).take(BUF_CAP * 2 + 2).map(|n| n as u8).collect();
+        let src  = Cursor::new(nums);
+        DecodeCursor::new(src)
     }
 }
 
