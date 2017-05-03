@@ -103,6 +103,12 @@ impl<R: ReadToBuf> DecodeCursor<R> {
         self.vec.drain(..self.vec_pos);
     }
 
+    #[inline]
+    pub fn rewind(&mut self) {
+        // Consider pending bytes unread
+        self.vec_pos = 0;
+    }
+
     pub fn read_bytes(&mut self, n: usize) -> Result<&[u8]> {
         // Compute vector indexes of the read
         let beg = self.vec_pos;
@@ -150,6 +156,112 @@ mod tests {
         let bytes = c.read_bytes(2).unwrap();
 
         assert_eq!(bytes.len(), 2, "sdfsdf");
+    }
+
+    #[test]
+    fn read_once() {
+        let mut c = cursor();
+
+        {
+            let bytes = c.read_bytes(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0],    0);
+            assert_eq!(bytes[1],    1);
+        }
+
+        assert_eq!(c.consumed_pos(), 0);
+        assert_eq!(c.pending_len(),  2);
+        assert_eq!(c.pending_pos(),  2);
+    }
+
+    #[test]
+    fn read_and_consume() {
+        let mut c = cursor();
+
+        {
+            let bytes = c.read_bytes(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0],    0);
+            assert_eq!(bytes[1],    1);
+        }
+
+        c.consume();
+
+        assert_eq!(c.consumed_pos(), 2);
+        assert_eq!(c.pending_len(),  0);
+        assert_eq!(c.pending_pos(),  2);
+
+        {
+            let bytes = c.read_bytes(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 2);
+            assert_eq!(bytes[1], 3);
+        }
+
+        assert_eq!(c.consumed_pos(), 2);
+        assert_eq!(c.pending_len(),  2);
+        assert_eq!(c.pending_pos(),  4);
+    }
+
+    #[test]
+    fn read_and_rewind() {
+        let mut c = cursor();
+
+        {
+            let bytes = c.read_bytes(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0],    0);
+            assert_eq!(bytes[1],    1);
+        }
+
+        c.rewind();
+
+        assert_eq!(c.consumed_pos(), 0);
+        assert_eq!(c.pending_pos(),  0);
+        assert_eq!(c.pending_len(),  0);
+
+        {
+            let bytes = c.read_bytes(2).unwrap();
+
+            assert_eq!(bytes.len(), 2);
+            assert_eq!(bytes[0], 0);
+            assert_eq!(bytes[1], 1);
+        }
+
+        assert_eq!(c.consumed_pos(), 0);
+        assert_eq!(c.pending_len(),  2);
+        assert_eq!(c.pending_pos(),  2);
+    }
+
+    #[test]
+    fn read_until_eof() {
+        let mut c = cursor();
+        let mut n = 0;
+
+        loop {
+            match c.read_bytes(3) {
+                Ok(bytes) => {
+                    assert_eq!(bytes.len(), 3);
+                    assert_eq!(bytes[0], (n * 3 + 0) as u8);
+                    assert_eq!(bytes[1], (n * 3 + 1) as u8);
+                    assert_eq!(bytes[2], (n * 3 + 2) as u8);
+                },
+                Err(ref e) => {
+                    assert!(n > 0);
+                    assert_eq!(e.kind(), UnexpectedEof);
+                    break;
+                }
+            }
+
+            c.consume();
+
+            assert!(n < 17000);
+            n += 1;
+        }
     }
 
     fn cursor() -> DecodeCursor<Cursor<Vec<u8>>> {
