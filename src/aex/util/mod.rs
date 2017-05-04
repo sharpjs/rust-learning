@@ -20,6 +20,11 @@
 use std::io::{self, Error, ErrorKind};
 */
 
+mod byte_order;
+
+pub use self::byte_order::*;
+
+
 /// A bit position.
 pub type BitPos = u8;
 
