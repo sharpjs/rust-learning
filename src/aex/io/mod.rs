@@ -16,12 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//mod decode;
-//mod endian;
-
-//pub use self::decode::*;
-//pub use self::endian::*;
-
 use std::io::{Error as E, Read, Result};
 use std::io::ErrorKind::*;
 
@@ -57,12 +51,20 @@ pub trait ReadToBuf: Read {
 
 impl<R: Read> ReadToBuf for R { }
 
-use std::fmt::Debug;
+pub trait PendingRead {
+    fn consumed_pos(&self) -> usize;
+    fn pending_len(&self) -> usize;
+    fn pending_pos(&self) -> usize;
+    fn pending_bytes(&self) -> &[u8];
+    fn consume(&mut self);
+    fn rewind(&mut self);
+    fn read_bytes(&mut self, n: usize) -> Result<&[u8]>;
+}
 
 /// TODO
 ///
-#[derive(Debug)]
-pub struct DecodeCursor<R: ReadToBuf + Debug> {
+#[derive(Clone, Debug)]
+pub struct DecodeCursor<R: ReadToBuf> {
     vec:     Vec<u8>,   // pending bytes + unread rewound bytes
     src:     R,         // source stream
     vec_pos: usize,     // position in vec of next read; pending byte count
@@ -71,32 +73,34 @@ pub struct DecodeCursor<R: ReadToBuf + Debug> {
 
 const BUF_CAP: usize = 64;
 
-impl<R: ReadToBuf + Debug> DecodeCursor<R> {
+impl<R: ReadToBuf> DecodeCursor<R> {
     pub fn new(src: R) -> Self {
         Self { vec: Vec::with_capacity(BUF_CAP), src, vec_pos: 0, src_pos: 0 }
     }
+}
 
+impl<R: ReadToBuf> PendingRead for DecodeCursor<R> {
     #[inline]
-    pub fn consumed_pos(&self) -> usize {
+    fn consumed_pos(&self) -> usize {
         self.src_pos
     }
 
     #[inline]
-    pub fn pending_len(&self) -> usize {
+    fn pending_len(&self) -> usize {
         self.vec_pos
     }
 
     #[inline]
-    pub fn pending_pos(&self) -> usize {
+    fn pending_pos(&self) -> usize {
         self.src_pos + self.vec_pos
     }
 
     #[inline]
-    pub fn pending_bytes(&self) -> &[u8] {
+    fn pending_bytes(&self) -> &[u8] {
         &self.vec[..self.vec_pos]
     }
 
-    pub fn consume(&mut self) {
+    fn consume(&mut self) {
         // Forget pending bytes
         self.vec.drain(..self.vec_pos);
 
@@ -106,12 +110,12 @@ impl<R: ReadToBuf + Debug> DecodeCursor<R> {
     }
 
     #[inline]
-    pub fn rewind(&mut self) {
+    fn rewind(&mut self) {
         // Consider pending bytes unread
         self.vec_pos = 0;
     }
 
-    pub fn read_bytes(&mut self, n: usize) -> Result<&[u8]> {
+    fn read_bytes(&mut self, n: usize) -> Result<&[u8]> {
         // Compute vector indexes of the read
         let beg = self.vec_pos;
         let end = match beg.checked_add(n) {
@@ -152,7 +156,7 @@ mod tests {
     use super::*;
 
     #[test]
-    pub fn read_bytes() {
+    fn read_bytes() {
         let mut c = cursor();
 
         let bytes = c.read_bytes(2).unwrap();
