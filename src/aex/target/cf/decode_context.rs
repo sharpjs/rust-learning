@@ -16,37 +16,34 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::{self, BufRead, Cursor};
-use byteorder::{BigEndian as BE, ReadBytesExt};
+use std::io;
+
+use aex::io::RewindRead;
+use aex::util::{BE, Endian};
 
 use super::Size;
 
-#[derive(Debug)]
-pub struct DecodeContext<'a, R: BufRead + 'a> {
-    op_word: u16,               // operation word
-    op_size: Size,              // operation size
-    more:    Cursor<&'a [u8]>,  // extension words
-    src:     &'a mut R,         // source stream
-    offset:  u64,               // offset within stream
+pub trait DecodeRead {
+    fn next(&mut self) -> io::Result<u16>;
 }
 
-//#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-//pub enum Size { Byte, Word, Long }
+#[derive(Debug)]
+pub struct DecodeContext<R: RewindRead> {
+    src:     R,     // source stream
+    op_size: Size,  // instruction size
+    reloc:   u32,   // LMA->VMA relocation amount
+}
 
-static EMPTY: [u8; 0] = [];
-
-impl<'a, R: BufRead> DecodeContext<'a, R> {
-    pub fn new(src: &'a mut R, offset: u64) -> Self {
-        DecodeContext {
-            op_word: 0,
-            op_size: Size::Long,
-            offset:  offset,
-            more:    Cursor::new(&EMPTY),
-            src:     src,
-        }
+impl<R: RewindRead> DecodeContext<R> {
+    pub fn new(src: R) -> Self {
+        Self { src, op_size: Size::Long, reloc: 0 }
     }
+}
 
-    pub fn next(&mut self) -> io::Result<u16> {
+impl<R: RewindRead> DecodeRead for DecodeContext<R> {
+    fn next(&mut self) -> io::Result<u16> {
+        panic!();
+        /*
         // Advance offset past virtually-read bytes
         let len = self.len();
         self.offset += len;
@@ -65,8 +62,10 @@ impl<'a, R: BufRead> DecodeContext<'a, R> {
         self.op_word = op_word;
         self.op_size = Size::Long;
         Ok(op_word)
+        */
     }
 
+    /*
     fn advance(&mut self, count: u64) -> io::Result<&'a [u8]> {
         use std::mem::transmute;
         // SAFETY: Transmute promotes buf from '_ to 'a.  This is OK because
@@ -136,10 +135,12 @@ impl<'a, R: BufRead> DecodeContext<'a, R> {
         self.more.read_u32::<BE>()
             .map_err(|e| { self.reset(); e })
     }
+    */
 }
 
 #[cfg(test)]
 mod tests {
+    /*
     use std::io::{Cursor};
     use super::*;
 
@@ -178,5 +179,6 @@ mod tests {
         assert_eq!( ctx.offset(),            4          );
         assert_eq!( ctx.len(),               0          );
     }
+    */
 }
 

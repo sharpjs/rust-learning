@@ -16,12 +16,12 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::{self, BufRead};
-use super::{DecodeContext, Opcode};
+use std::io::Result;
+use super::{DecodeRead, Opcode};
 
-pub fn decode<R: BufRead>
-    (opcodes: &[Opcode], c: &mut DecodeContext<R>)
-    -> io::Result<Option<usize>>
+pub fn decode<R: DecodeRead>
+    (opcodes: &[Opcode], c: &mut R)
+    -> Result<Option<usize>>
 {
     let word = c.next()?;
 

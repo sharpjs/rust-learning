@@ -16,10 +16,10 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::io::BufRead;
+//use std::io;
 use aex::util::BitPos;
 
-use super::DecodeContext;
+use super::DecodeRead;
 
 use super::OperandForms::*;
 use super::OperandForm::*;
@@ -45,7 +45,7 @@ pub enum OperandForms {
 }
 
 impl OperandForms {
-    pub fn decode<R: BufRead>(self, c: &mut DecodeContext<R>) -> bool {
+    pub fn decode<R: DecodeRead>(self, c: &mut R) -> bool {
         match self {
             Nullary       => true,
             Unary(opds)   => opds[0].decode(c),
@@ -115,7 +115,7 @@ pub enum OperandForm {
 
 
 impl OperandForm {
-    pub fn decode<R: BufRead>(self, c: &mut DecodeContext<R>) -> bool {
+    pub fn decode<R: DecodeRead>(self, c: &mut R) -> bool {
         match self {
             AnyMode(pos) => {
                 true
