@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-/// Specifies the order of bytes within encoded values.
+/// Specifies the order of bytes within an encoded numeric value.
 pub enum ByteOrder {
     /// Little-endian byte order: least to most significant.
     LittleEndian,
@@ -29,7 +29,7 @@ pub use self::ByteOrder::{
     BigEndian    as BE
 };
 
-pub trait ToOrder {
+pub trait Endian {
     /// Converts `self` from the target's byte order to the given byte order.
     fn to_order(self, ord: ByteOrder) -> Self;
 
@@ -37,11 +37,11 @@ pub trait ToOrder {
     fn from_order(ord: ByteOrder, x: Self) -> Self;
 }
 
-macro_rules! impl_to_order {
+macro_rules! impl_endian {
     { $( $t:ident ),* } => {
         $(
             /// Converts `self` from the target's byte order to the given byte order.
-            impl ToOrder for $t {
+            impl Endian for $t {
                 fn to_order(self, order: ByteOrder) -> Self {
                     match order {
                         LE => self.to_le(),
@@ -61,7 +61,7 @@ macro_rules! impl_to_order {
     }
 }
 
-impl_to_order! { u16, i16, u32, i32, u64, i64, usize, isize }
+impl_endian! { u16, i16, u32, i32, u64, i64, usize, isize }
 
 #[cfg(test)]
 mod tests {
