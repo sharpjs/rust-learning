@@ -19,6 +19,7 @@
 use std::mem::transmute;
 
 /// Specifies the order of bytes within an encoded numeric value.
+#[derive(Clone, Copy, Debug)]
 pub enum ByteOrder {
     /// Little-endian byte order: least to most significant.
     LittleEndian,

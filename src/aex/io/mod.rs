@@ -20,7 +20,9 @@ use std::io::{Read, Result};
 use std::io::ErrorKind::*;
 
 mod rewind_read;
+mod decode_read;
 pub use self::rewind_read::*;
+pub use self::decode_read::*;
 
 /// Extends `std::io::Read` with the `read_to_buf` method.
 pub trait ReadToBuf: Read {

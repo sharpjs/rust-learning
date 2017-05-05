@@ -19,7 +19,7 @@
 use std::io;
 
 use aex::io::RewindRead;
-use aex::util::{BE, Endian};
+//use aex::util::{BE, Endian};
 
 use super::Size;
 

@@ -35,7 +35,7 @@ pub trait RewindRead {
     /// Returns the pending bytes of the reader as a slice.
     fn pending_bytes(&self) -> &[u8];
 
-    /// Consumes pending bytes and marks the rewind point.
+    /// Consumes pending bytes and advances the rewind point to the next unread byte.
     fn consume(&mut self);
 
     /// Rewinds pending bytes, making them readable again.
