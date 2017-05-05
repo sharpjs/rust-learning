@@ -22,6 +22,18 @@ use std::io::ErrorKind::*;
 use super::ReadToBuf;
 
 /// A reader that can rewind to an earlier position in the stream.
+///
+/// `RewindRead` views a stream as consumed, pending, and unread bytes:
+///
+/// ```text
+/// consumed   pending       unread
+/// ...........**************????????>
+///            |<----------->|
+///            |      |      |__ pending_pos
+///            |      |_________ pending_len
+///            |________________ consumed_pos
+/// ```
+///
 pub trait RewindRead {
     /// Returns the position of the reader, considering only consumed bytes.
     fn consumed_pos(&self) -> usize;

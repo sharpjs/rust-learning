@@ -31,6 +31,19 @@ macro_rules! read_as {
     }};
 }
 
+/// A reader suitable for decoding machine code.
+///
+/// `DecodeRead` views a stream as consumed, pending, and unread bytes:
+///
+/// ```text
+/// consumed   pending       unread
+/// ...........**************????????>
+///            |<----------->|
+///            |      |
+///            |      |_________ pending_len
+///            |________________ lma + reloc = vma
+/// ```
+///
 pub trait DecodeRead {
     /// Returns the load address (LMA) of the reader, considering only consumed bytes.
     fn lma(&self) -> u64;
