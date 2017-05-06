@@ -17,13 +17,11 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::Result;
-use super::{DecodeRead, Opcode};
+use aex::io::DecodeRead;
+use super::Opcode;
 
-pub fn decode<R: DecodeRead>
-    (opcodes: &[Opcode], c: &mut R)
-    -> Result<Option<usize>>
-{
-    let word = c.next()?;
+pub fn decode<R: DecodeRead>(opcodes: &[Opcode], r: &mut R) -> Result<Option<usize>> {
+    let word = r.read_u16()?;
 
     for (i, o) in opcodes.iter().enumerate() {
 
@@ -31,7 +29,7 @@ pub fn decode<R: DecodeRead>
         if word & o.mask.0 != o.bits.0 { continue; }
 
         // Word must match valid operand set
-        if !o.args.decode(c) { continue; }
+        if !o.args.decode(r) { continue; }
 
         // Use this opcode
         return Ok(Some(i))

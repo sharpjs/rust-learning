@@ -20,9 +20,10 @@ use std::io;
 
 //use aex::fmt::ToCode;
 use aex::ast::Expr;
+use aex::io::DecodeRead;
 use aex::util::BitPos;
 
-use super::{AddrReg, DataReg, DecodeRead, Scale};
+use super::{AddrReg, DataReg, Scale};
 
 /// ColdFire addressing modes bitfield.
 pub type Modes = u16;

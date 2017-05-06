@@ -21,7 +21,7 @@ use std::io::{self, BufRead};
 use aex::fmt::ToCode;
 use aex::ast::{Expr, Int};
 
-use super::{AddrReg, DecodeContext};
+use super::AddrReg;
 
 /// ColdFire addressing mode: address register indirect with displacement.
 #[derive(Clone, /*PartialEq, Eq, Hash,*/ Debug)]
@@ -34,15 +34,15 @@ pub struct AddrDisp<'a> {
 }
 
 impl<'a> AddrDisp<'a> {
-    /// Decodes an `AddrDisp` from the given instruction bits.
-    pub fn decode<R: BufRead>(reg: u8, c: &mut DecodeContext<R>) -> io::Result<Self> {
-        let ext = c.read_i16()?;
+    // /// Decodes an `AddrDisp` from the given instruction bits.
+    // pub fn decode<R: BufRead>(reg: u8, c: &mut DecodeContext<R>) -> io::Result<Self> {
+    //     let ext = c.read_i16()?;
 
-        Ok(AddrDisp {
-            base: AddrReg::with_num(reg),
-            disp: Expr::Int(Int::new(ext)),
-        })
-    }
+    //     Ok(AddrDisp {
+    //         base: AddrReg::with_num(reg),
+    //         disp: Expr::Int(Int::new(ext)),
+    //     })
+    // }
 }
 
 impl<'a, A> ToCode<A> for AddrDisp<'a> {

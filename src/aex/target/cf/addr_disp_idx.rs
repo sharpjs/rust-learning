@@ -43,17 +43,17 @@ pub struct AddrDispIdx<'a> {
 }
 
 impl<'a> AddrDispIdx<'a> {
-    /// Decodes an `AddrDispIdx` from the given instruction bits.
-    pub fn decode<R: BufRead>(reg: u8, c: &mut DecodeContext<R>) -> io::Result<Self> {
-        let ext = c.read_u16()?;
+    // /// Decodes an `AddrDispIdx` from the given instruction bits.
+    // pub fn decode<R: BufRead>(reg: u8, c: &mut DecodeContext<R>) -> io::Result<Self> {
+    //     let ext = c.read_u16()?;
 
-        Ok(AddrDispIdx {
-            base:  AddrReg::with_num(reg),
-            disp:  Expr::Int(Int::from(ext as u8 as u32)),
-            index: Index::decode(ext, 12),
-            scale: Scale::decode(ext,  9),
-        })
-    }
+    //     Ok(AddrDispIdx {
+    //         base:  AddrReg::with_num(reg),
+    //         disp:  Expr::Int(Int::from(ext as u8 as u32)),
+    //         index: Index::decode(ext, 12),
+    //         scale: Scale::decode(ext,  9),
+    //     })
+    // }
 }
 
 impl<'a, A> ToCode<A> for AddrDispIdx<'a> {

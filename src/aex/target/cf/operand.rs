@@ -18,8 +18,7 @@
 
 //use std::io;
 use aex::util::BitPos;
-
-use super::DecodeRead;
+use aex::io::DecodeRead;
 
 use super::OperandForms::*;
 use super::OperandForm::*;
@@ -45,15 +44,12 @@ pub enum OperandForms {
 }
 
 impl OperandForms {
-    pub fn decode<R: DecodeRead>(self, c: &mut R) -> bool {
+    pub fn decode<R: DecodeRead>(self, r: &mut R) -> bool {
         match self {
-            Nullary       => true,
-            Unary(opds)   => opds[0].decode(c),
-            Binary(opds)  => opds[0].decode(c) &&
-                             opds[1].decode(c),
-            Ternary(opds) => opds[0].decode(c) &&
-                             opds[1].decode(c) &&
-                             opds[2].decode(c),
+            Nullary     => true,
+            Unary   (o) => o[0].decode(r),
+            Binary  (o) => o[0].decode(r) && o[1].decode(r),
+            Ternary (o) => o[0].decode(r) && o[1].decode(r) && o[2].decode(r),
         }
     }
 }

@@ -44,13 +44,11 @@ pub use self::modes::*;
 // Encoding / Decoding
 
 mod decode;
-mod decode_context;
 mod mnemonics;
 mod opcodes;
 mod operand;
 
 pub use self::decode::*;
-pub use self::decode_context::*;
 pub use self::mnemonics::*;
 pub use self::opcodes::*;
 pub use self::operand::*;
