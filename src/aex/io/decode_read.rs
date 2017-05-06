@@ -33,7 +33,7 @@ macro_rules! read_as {
 
 /// A reader suitable for decoding machine code.
 ///
-/// `DecodeRead` views a stream as consumed, pending, and unread bytes:
+/// A `DecodeRead` views a stream as consumed, pending, and unread bytes:
 ///
 /// ```text
 /// consumed   pending       unread
@@ -43,6 +43,9 @@ macro_rules! read_as {
 ///            |      |_________ pending_len
 ///            |________________ lma + reloc = vma
 /// ```
+///
+/// A `DecodeRead` maintains a current byte order, which is used when reading
+/// multi-byte primitive values (`u32`, etc.).
 ///
 pub trait DecodeRead {
     /// Returns the load address (LMA) of the reader, considering only consumed bytes.
