@@ -24,10 +24,10 @@ use super::RewindRead;
 
 macro_rules! read_as {
     ($r:expr, $t:ty) => {{
-        let n = size_of::<$t>();
-        let p = $r.read_bytes(n)?.as_ptr() as *const $t;
-        let v = unsafe { *p };
-        Ok(v.to_order($r.byte_order()))
+        let order = $r.byte_order();
+        let bytes = $r.read_bytes(size_of::<$t>())?;
+        let value = unsafe { *( bytes.as_ptr() as *const $t ) };
+        Ok(value.to_order(order))
     }};
 }
 
