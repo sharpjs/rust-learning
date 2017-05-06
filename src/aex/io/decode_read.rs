@@ -140,6 +140,12 @@ pub struct DecodeReader<R: RewindRead> {
     reloc: u64,
 }
 
+impl<R: RewindRead> DecodeReader<R> {
+    pub fn new(inner: R, order: ByteOrder, reloc: u64) -> Self {
+        Self { inner, order, reloc }
+    }
+}
+
 impl<R: RewindRead> DecodeRead for DecodeReader<R> {
     /// Returns the load address (LMA) of the reader, considering only consumed bytes.
     #[inline]
