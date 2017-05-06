@@ -17,7 +17,7 @@
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
 use std::io::Result;
-use std::mem::size_of;
+use std::mem::{size_of, transmute};
 
 use aex::util::{ByteOrder, Endian};
 use super::RewindRead;
@@ -130,6 +130,18 @@ pub trait DecodeRead {
     #[inline]
     fn read_i64(&mut self) -> Result<i64> {
         read_as!(self, i64)
+    }
+
+    /// Reads a `f32`.  The bytes become pending.
+    #[inline]
+    fn read_f32(&mut self) -> Result<f32> {
+        Ok(unsafe { transmute(self.read_u32()?) })
+    }
+
+    /// Reads an `f64`.  The bytes become pending.
+    #[inline]
+    fn read_f64(&mut self) -> Result<f64> {
+        Ok(unsafe { transmute(self.read_u64()?) })
     }
 }
 
@@ -362,6 +374,32 @@ mod tests {
         let mut r = reader();
         r.set_byte_order(LE);
         assert_eq!(r.read_i64().unwrap(), -0x0F21436587A9CBEE);
+    }
+
+    #[test]
+    fn read_f32_be() {
+        let mut r = reader();
+        assert_eq!(format!("{:e}", r.read_f32().unwrap()), "5.6904566e-28");
+    }
+
+    #[test]
+    fn read_f32_le() {
+        let mut r = reader();
+        r.set_byte_order(LE);
+        assert_eq!(format!("{:e}", r.read_f32().unwrap()), "1.7378244e34");
+    }
+
+    #[test]
+    fn read_f64_be() {
+        let mut r = reader();
+        assert_eq!(format!("{:e}", r.read_f64().unwrap()), "5.626349274901198e-221");
+    }
+
+    #[test]
+    fn read_f64_le() {
+        let mut r = reader();
+        r.set_byte_order(LE);
+        assert_eq!(format!("{:e}", r.read_f64().unwrap()), "-4.886459655043775e235");
     }
 
     fn reader() -> Box<DecodeRead> {
