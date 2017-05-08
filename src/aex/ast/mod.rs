@@ -27,6 +27,7 @@
 // -----------------------------------------------------------------------------
 
 mod binary;
+mod deref;
 mod expr;
 mod id;
 mod int;
@@ -36,6 +37,7 @@ mod reg;
 mod unary;
 
 pub use self::binary::*;
+pub use self::deref::*;
 pub use self::expr::*;
 pub use self::id::*;
 pub use self::int::*;

@@ -37,7 +37,21 @@ pub enum Expr<'a, A = ()> {
 
     /// Binary expression
     Binary(Binary<'a, A>),
+
+    /// Dereference expression
+    Deref(Deref<'a, A>),
+
+    // /// Alias expression
+    // Alias(Alias<'a, A>),
 }
+
+// dereference:         [a0, d0*4, 0x100]
+// element disposition: a0[42]      index * sizof(type) must be in range
+// element indexing:    a0[d3]      requires sizeof(type) in {1,2,4}
+// member disposition:  a0.name
+// number disposition:  a0.(42)
+//
+//
 
 impl<'a, A> Node for Expr<'a, A> {
     /// Annotation type.
@@ -51,6 +65,7 @@ impl<'a, A> Node for Expr<'a, A> {
             Expr::Reg    (ref r) => r.ann(),
             Expr::Unary  (ref u) => u.ann(),
             Expr::Binary (ref b) => b.ann(),
+            Expr::Deref  (ref d) => d.ann(),
         }
     }
 }
@@ -64,6 +79,7 @@ impl<'a, A> HasPrec for Expr<'a, A> {
             Expr::Reg    (ref r) => r.prec(),
             Expr::Unary  (ref u) => u.prec(),
             Expr::Binary (ref b) => b.prec(),
+            Expr::Deref  (ref d) => d.prec(),
         }
     }
 }
@@ -77,6 +93,7 @@ impl<'a, A> Display for Expr<'a, A> {
             Expr::Reg    (ref r) => Display::fmt(r, f),
             Expr::Unary  (ref u) => Display::fmt(u, f),
             Expr::Binary (ref b) => Display::fmt(b, f),
+            Expr::Deref  (ref d) => Display::fmt(d, f),
         }
     }
 }
@@ -91,6 +108,7 @@ impl<'a, A> Code for Expr<'a, A> {
             Expr::Reg    (ref r) => Code::fmt(r, f, s),
             Expr::Unary  (ref u) => Code::fmt(u, f, s),
             Expr::Binary (ref b) => Code::fmt(b, f, s),
+            Expr::Deref  (ref d) => Code::fmt(d, f, s),
         }
     }
 }
