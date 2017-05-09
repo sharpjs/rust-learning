@@ -41,17 +41,19 @@ pub enum Expr<'a, A = ()> {
     /// Dereference expression
     Deref(Deref<'a, A>),
 
+    // Index(Index<'a, A>)
+
+    // Member(Member<'a, A>)
+
     // /// Alias expression
     // Alias(Alias<'a, A>),
 }
 
-// dereference:         [a0, d0*4, 0x100]
-// element disposition: a0[42]      index * sizof(type) must be in range
-// element indexing:    a0[d3]      requires sizeof(type) in {1,2,4}
-// member disposition:  a0.name
-// number disposition:  a0.(42)
-//
-//
+// dereference:             [a0, d0*4, 0x100]
+// element disposition:     a0[42]              index * sizof(type) must be in range
+// element indexing:        a0[d3]              requires sizeof(type) in {1,2,4}
+// member disposition:      a0.name
+// number disposition:      a0.(42)
 
 impl<'a, A> Node for Expr<'a, A> {
     /// Annotation type.
