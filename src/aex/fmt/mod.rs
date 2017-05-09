@@ -16,7 +16,7 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-use std::fmt::{self, Debug, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter, Write};
 use aex::ast::*;
 
 pub mod att;
@@ -151,6 +151,27 @@ pub trait Style<A> : Debug {
         expr.rhs.styled(self).fmt_grouped(f, prec, assoc != Right)
     }
 }
+
+pub trait StyleExt<A>: Style<A> {
+    fn write_list<T>(
+        &self,
+        f: &mut Formatter,
+        sep: &str,
+        list: &[T],
+    ) -> fmt::Result
+        where T: Code<Ann=A>
+    {
+        if let Some((first, rest)) = list.split_first() {
+            write!(f, "{}", first.styled(self))?;
+            for e in rest {
+                write!(f, "{}{}", sep, e.styled(self))?;
+            }
+        }
+        Ok(())
+    }
+}
+
+impl<A, T> StyleExt<A> for T where T: Style<A> + ?Sized { }
 
 // -----------------------------------------------------------------------------
 
