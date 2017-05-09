@@ -72,7 +72,6 @@ impl<'a, A> Code for Deref<'a, A> {
     /// Formats the value as code, using the given formatter and style.
     fn fmt<S: Style<A> + ?Sized>
           (&self, f: &mut Formatter, s: &S) -> fmt::Result {
-        //s.write_unary(f, self)
-        panic!()
+        s.write_deref(f, self)
     }
 }

@@ -16,8 +16,9 @@
 // You should have received a copy of the GNU General Public License
 // along with AEx.  If not, see <http://www.gnu.org/licenses/>.
 
-//use std::fmt::{self, Formatter};
-use super::{/*Asm, AsmDisplay,*/ Style};
+use std::fmt::{self, Formatter, Write};
+use aex::ast::*;
+use super::{Style, StyleExt};
 
 /// Intel assembly style.
 #[derive(Clone, Copy, Debug)]
@@ -95,5 +96,10 @@ impl<C> Style<C> for IntelStyle {
         write!(f, "{}", scale)
     }
 */
+    fn write_deref(&self, f: &mut Formatter, expr: &Deref<C>) -> fmt::Result {
+        f.write_char('[')?;
+        self.write_list(f, " + ", &*expr.terms)?;
+        f.write_char(']')
+    }
 }
 

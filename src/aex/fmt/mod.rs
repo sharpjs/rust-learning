@@ -150,6 +150,13 @@ pub trait Style<A> : Debug {
 
         expr.rhs.styled(self).fmt_grouped(f, prec, assoc != Right)
     }
+
+    /// Writes a dereference expression to the given formatter in this code style.
+    fn write_deref(&self, f: &mut Formatter, expr: &Deref<A>) -> fmt::Result {
+        f.write_char('[')?;
+        self.write_list(f, ", ", &*expr.terms)?;
+        f.write_char(']')
+    }
 }
 
 pub trait StyleExt<A>: Style<A> {
