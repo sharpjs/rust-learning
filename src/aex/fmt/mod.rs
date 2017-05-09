@@ -231,5 +231,19 @@ mod tests {
         let s   = format!("{}", e.styled(&DefaultStyle));
         assert_eq!(s, "a + b + (c + d)");
     }
+
+    #[test]
+    fn write_deref() {
+        let e = Deref::new(
+            vec![
+                Expr::Id(Id::new("a")),
+                Expr::Id(Id::new("b")),
+                Expr::Id(Id::new("c")),
+            ]
+        );
+
+        let s = format!("{}", e.styled(&DefaultStyle));
+        assert_eq!(s, "[a, b, c]");
+    }
 }
 
